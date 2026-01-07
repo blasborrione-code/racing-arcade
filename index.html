@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Borrione Racing Arcade</title>
+    <title>Borrione Racing - Versión Final</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #222; font-family: sans-serif; }
-        canvas { display: block; background: #333; margin: 0 auto; image-rendering: pixelated; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-weight: bold; text-shadow: 2px 2px 0#000; pointer-events: none; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #222; font-family: 'Courier New', Courier, monospace; }
+        canvas { display: block; margin: 0 auto; image-rendering: pixelated; }
+        #ui { position: absolute; top: 15px; left: 15px; color: #fff; font-size: 18px; text-shadow: 2px 2px #000; pointer-events: none; z-index: 10; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    PUNTOS: <span id="score">0</span><br>
+    SCORE: <span id="score">0</span><br>
     NEAR MISS: <span id="nearMiss">0</span>
 </div>
 <canvas id="gameCanvas"></canvas>
@@ -24,12 +24,29 @@
     const scoreElement = document.getElementById('score');
     const nearMissElement = document.getElementById('nearMiss');
 
-    // CONFIGURACIÓN
+    // --- CONFIGURACIÓN Y ASSETS ---
     let score = 0;
     let nearMissCount = 0;
-    let gameSpeed = 5;
+    let gameSpeed = 6;
+    let imagesLoaded = 0;
 
-    // FIX 2: Ajuste de resolución dinámica para el Xiaomi
+    const assets = {
+        player: new Image(),
+        npc: new Image(),
+        fondo: new Image()
+    };
+
+    // NOMBRES EXACTOS DE TUS ARCHIVOS EN GITHUB
+    assets.player.src = 'auto_inicial.png'; 
+    assets.npc.src = 'npc_rojo.png'; 
+    assets.fondo.src = 'pasto.jpg'; 
+
+    const checkLoad = () => { imagesLoaded++; };
+    assets.player.onload = checkLoad;
+    assets.npc.onload = checkLoad;
+    assets.fondo.onload = checkLoad;
+
+    // --- AJUSTE DE PANTALLA ---
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -37,132 +54,122 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // CARGA DE IMÁGENES (Con sistema de verificación)
-    const assets = {
-        player: new Image(),
-        enemy: new Image()
-    };
-
-    // Reemplaza estos nombres con los tuyos exactos si son diferentes
-    assets.player.src = 'auto.png'; 
-    assets.enemy.src = 'enemigo.png'; // Si no tenés, se dibujará un cuadro rojo
-
-    let imagesLoaded = 0;
-    assets.player.onload = () => imagesLoaded++;
-    assets.enemy.onload = () => imagesLoaded++;
-
-    // OBJETOS DEL JUEGO
+    // --- OBJETOS ---
     const player = {
         x: canvas.width / 2 - 25,
-        y: canvas.height - 120,
+        y: canvas.height - 130,
         w: 50,
-        h: 90,
-        speed: 7
+        h: 90
     };
 
-    const obstacles = [];
-
-    // LÓGICA DE MOVIMIENTO TÁCTIL (Para jugar en el cel)
+    let obstacles = [];
     let touchX = player.x;
+
+    // Control Táctil suave
     window.addEventListener('touchmove', (e) => {
         touchX = e.touches[0].clientX - player.w / 2;
-        // Evita que el auto se salga de la calle
-        if(touchX < 20) touchX = 20;
-        if(touchX > canvas.width - player.w - 20) touchX = canvas.width - player.w - 20;
+        e.preventDefault();
     }, {passive: false});
 
-    function spawnObstacle() {
-        const x = Math.random() * (canvas.width - 70) + 20;
+    function spawnNPC() {
+        const laneWidth = (canvas.width - 80) / 3;
+        const x = 40 + Math.floor(Math.random() * 3) * laneWidth;
         obstacles.push({ x: x, y: -100, w: 50, h: 90, passed: false });
     }
 
-    // LOOP PRINCIPAL (FIX 3: Optimización de FPS para evitar lag)
+    // --- LÓGICA ---
     function update() {
-        // Mover jugador suavemente hacia el toque
-        player.x += (touchX - player.x) * 0.2;
+        // Movimiento suave del auto
+        player.x += (touchX - player.x) * 0.15;
 
-        // Mover obstáculos
+        // Limites de la carretera
+        if(player.x < 40) player.x = 40;
+        if(player.x > canvas.width - player.w - 40) player.x = canvas.width - player.w - 40;
+
         for (let i = obstacles.length - 1; i >= 0; i--) {
-            let obs = obstacles[i];
-            obs.y += gameSpeed;
+            let o = obstacles[i];
+            o.y += gameSpeed;
 
-            // --- LÓGICA DE NEAR MISS ---
-            // Si el auto pasa cerca (distancia < 40) pero no choca
-            let distX = Math.abs((player.x + player.w/2) - (obs.x + obs.w/2));
-            let distY = Math.abs((player.y + player.h/2) - (obs.y + obs.h/2));
+            // DETECCIÓN DE NEAR MISS (Pasar muy cerca sin chocar)
+            let diffX = Math.abs((player.x + player.w/2) - (o.x + o.w/2));
+            let diffY = Math.abs((player.y + player.h/2) - (o.y + o.h/2));
 
-            if (!obs.passed && distY < 50 && distX < 80 && distX > 45) {
+            if (!o.passed && diffY < 60 && diffX < 75 && diffX > 48) {
                 nearMissCount++;
                 nearMissElement.innerText = nearMissCount;
-                obs.passed = true; // Solo contar una vez por auto
+                o.passed = true;
             }
 
-            // Colisión básica
-            if (player.x < obs.x + obs.w && player.x + player.w > obs.x &&
-                player.y < obs.y + obs.h && player.y + player.h > obs.y) {
-                // Reiniciar juego si choca
+            // COLISIÓN
+            if (player.x < o.x + o.w && player.x + player.w > o.x &&
+                player.y < o.y + o.h && player.y + player.h > o.y) {
+                // Reset al chocar
                 score = 0;
                 nearMissCount = 0;
-                obstacles.length = 0;
+                obstacles = [];
+                gameSpeed = 6;
                 scoreElement.innerText = "0";
                 nearMissElement.innerText = "0";
-                gameSpeed = 5;
             }
 
-            // Eliminar si sale de pantalla
-            if (obs.y > canvas.height) {
+            if (o.y > canvas.height) {
                 obstacles.splice(i, 1);
                 score += 10;
                 scoreElement.innerText = score;
-                if(score % 100 === 0) gameSpeed += 0.5; // Sube dificultad
+                if(score % 200 === 0) gameSpeed += 0.5;
             }
         }
 
-        if (Math.random() < 0.02) spawnObstacle();
+        if (Math.random() < 0.02) spawnNPC();
     }
 
+    // --- DIBUJO ---
+    let backgroundY = 0;
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Dibujar Calle (Fondo simple)
-        ctx.fillStyle = "#555";
-        ctx.fillRect(20, 0, canvas.width - 40, canvas.height);
-        
-        // Líneas de la calle
-        ctx.strokeStyle = "white";
-        ctx.setLineDash([20, 20]);
-        ctx.beginPath();
-        ctx.moveTo(canvas.width / 2, 0);
-        ctx.lineTo(canvas.width / 2, canvas.height);
-        ctx.stroke();
-
-        // Dibujar Jugador
-        if (imagesLoaded >= 1) {
-            ctx.drawImage(assets.player, player.x, player.y, player.h, player.h);
-        } else {
-            ctx.fillStyle = "blue";
-            ctx.fillRect(player.x, player.y, player.w, player.h);
+        // 1. Dibujar Pasto (Fondo infinito)
+        if (imagesLoaded >= 3) {
+            backgroundY += gameSpeed;
+            if (backgroundY >= canvas.height) backgroundY = 0;
+            ctx.drawImage(assets.fondo, 0, backgroundY - canvas.height, canvas.width, canvas.height);
+            ctx.drawImage(assets.fondo, 0, backgroundY, canvas.width, canvas.height);
         }
 
-        // Dibujar Enemigos
-        obstacles.forEach(obs => {
-            if (imagesLoaded >= 2) {
-                ctx.drawImage(assets.enemy, obs.x, obs.y, obs.w, obs.h);
-            } else {
-                ctx.fillStyle = "red";
-                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-            }
-        });
+        // 2. Dibujar Carretera
+        ctx.fillStyle = "#333";
+        ctx.fillRect(30, 0, canvas.width - 60, canvas.height);
+        
+        // Líneas blancas
+        ctx.strokeStyle = "#fff";
+        ctx.setLineDash([30, 30]);
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(canvas.width/2, 0);
+        ctx.lineTo(canvas.width/2, canvas.height);
+        ctx.stroke();
+
+        // 3. Dibujar Autos con los nombres de tus archivos
+        if (imagesLoaded >= 3) {
+            // Jugador (auto_inicial.png)
+            ctx.drawImage(assets.player, player.x, player.y, player.w, player.h);
+            
+            // Enemigos (npc_rojo.png)
+            obstacles.forEach(o => {
+                ctx.drawImage(assets.npc, o.x, o.y, o.w, o.h);
+            });
+        }
     }
 
     function gameLoop() {
         update();
         draw();
-        requestAnimationFrame(gameLoop); // ELIMINA EL LAG
+        requestAnimationFrame(gameLoop);
     }
 
     gameLoop();
 </script>
 </body>
 </html>
+
 
