@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Borrione Racing - v3.1.2 Engine Polished</title>
+    <title>Borrione Racing - v3.1.3 Logic Fix</title>
     <style>
         body { margin: 0; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         #game-container { position: fixed; inset: 0; background: #34495e; overflow: hidden; display: flex; justify-content: center; align-items: center; }
@@ -42,11 +42,17 @@
         <button class="btn-green" onclick="startGame()">INICIAR CARRERA</button>
         <button class="btn-blue" onclick="openShop()">TIENDA</button>
     </div>
+    <div id="game-over" class="overlay hidden">
+        <h1 id="over-title" style="color:#e74c3c;">FIN</h1>
+        <p id="over-reason" style="font-size: 20px; margin-bottom: 20px;"></p>
+        <p id="final-stats"></p>
+        <button class="btn-green" onclick="startGame()">REINTENTAR</button>
+        <button class="btn-blue" onclick="showMenu()">MENÚ</button>
+    </div>
     <div id="shop-main" class="overlay hidden"><h1>TIENDA</h1><button class="btn-blue" onclick="openConcesionario()">CONCESIONARIO</button><button class="btn-orange" onclick="openMejoras()">MEJORAS</button><button class="btn-green" onclick="showMenu()">VOLVER</button></div>
     <div id="shop-cars" class="overlay hidden"><h1>COCHES</h1><div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;"><div onclick="prevCar()" style="cursor:pointer; font-size:50px; pointer-events:auto;">◀</div><div style="background:#222; padding:20px; border-radius:25px; border:3px solid #444; width:260px;"><img id="shop-car-img" style="width:100%; height:120px; object-fit:contain;"><h3 id="shop-car-name" style="color:#f1c40f; margin:10px 0;"></h3><button id="shop-car-btn" class="btn-green" style="min-width:100%"></button></div><div onclick="nextCar()" style="cursor:pointer; font-size:50px; pointer-events:auto;">▶</div></div><button class="btn-blue" onclick="openShop()">ATRÁS</button></div>
     <div id="shop-upgrades" class="overlay hidden"><h1>MEJORAS</h1><div style="display:flex; gap:10px; margin-bottom:20px;"><div style="background:#222; padding:15px; border-radius:15px;"><h4>MOTOR</h4><p id="lvl-motor">0</p><button class="btn-orange" onclick="buyUpgrade('motor')">SUBIR</button></div><div style="background:#222; padding:15px; border-radius:15px;"><h4>TANQUE</h4><p id="lvl-tanque">0</p><button class="btn-orange" onclick="buyUpgrade('tanque')">SUBIR</button></div></div><button class="btn-blue" onclick="openShop()">ATRÁS</button></div>
     <div id="pause-menu" class="overlay hidden"><h1>PAUSA</h1><button class="btn-green" onclick="togglePause()">CONTINUAR</button><button class="btn-blue" onclick="showMenu()">MENÚ</button></div>
-    <div id="game-over" class="overlay hidden"><h1>FIN</h1><p id="final-stats"></p><button class="btn-green" onclick="startGame()">REINTENTAR</button></div>
     <canvas id="gameCanvas"></canvas>
 </div>
 <script>
@@ -58,11 +64,11 @@ ctx.imageSmoothingEnabled = false;
 if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-controls").style.display = "flex";
 
 const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), npcs: [] };
-const sceneryAssets = { pasto: new Image(), cityFloor: new Image(), arboles: [new Image()] };
+const sceneryAssets = { pasto: new Image(), arboles: [new Image()] };
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
 assets.oil.src = 'Items/charco_aceite.png'; assets.heart.src = 'Items/heart_pixel.png'; assets.bomb.src = 'Items/bomba.png'; assets.exp.src = 'Items/explosion.png';
 ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
-sceneryAssets.pasto.src = 'Entorno/pasto.jpg'; sceneryAssets.cityFloor.src = 'Entorno/empedrado.jpg'; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
+sceneryAssets.pasto.src = 'Entorno/pasto.jpg'; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
 
 const MODELS = {
     'fitito': { name: 'EL COMPACTO', maxSpeed: 7.2, accel: 0.08, handling: 1.2, lives: 3, w: 45, h: 82, img: 'auto_inicial.png', price: 0 },
@@ -72,7 +78,7 @@ const MODELS = {
     'f1_clasico': { name: 'PRIME ONE', maxSpeed: 13.5, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 85000 }
 };
 
-const DAILY_MISSIONS = [ { id: 0, desc: "Junta 100 monedas hoy", goal: 100 }, { id: 1, desc: "Logra 10 Near Miss", goal: 10 } ];
+const DAILY_MISSIONS = [ { id: 0, desc: "Junta 100 monedas hoy" }, { id: 1, desc: "Logra 10 Near Miss" }, { id: 2, desc: "Llega al Nivel 5" } ];
 
 let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, missionId: 0, carStats: {} };
 const saved = localStorage.getItem('borrione_racing_v2.9.8_final'); if(saved) garage = JSON.parse(saved);
@@ -80,12 +86,13 @@ Object.keys(MODELS).forEach(k => { if(!garage.carStats[k]) garage.carStats[k] = 
 
 let state = "MENU", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, isPaused = false, level = 1, shopIndex = 0;
 let player = { x: 0, y: 0, vx: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null;
+let heartSpawnedInLevel = false;
 
 function startGame() {
     const car = MODELS[garage.selected];
     assets.player.src = `Autos/${car.img}`;
     player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 };
-    score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null;
+    score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = false;
     state = "PLAYING"; hideAll(); lastTime = performance.now(); loop();
 }
 
@@ -99,15 +106,26 @@ function loop(t) {
 
 function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected];
+    let oldLevel = level;
     level = Math.floor(score/500)+1;
-    const mSpd = car.maxSpeed + (stats.motor * 0.4);
-    if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd);
-    else if(keys["ArrowDown"] || keys["FRENO"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0);
-    else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0);
+    if(level !== oldLevel) heartSpawnedInLevel = false; // Reset spawn corazón por nivel
 
-    if(keys["ArrowLeft"]) player.vx -= car.handling * dt;
-    if(keys["ArrowRight"]) player.vx += car.handling * dt;
-    player.vx *= Math.pow(isS ? 0.95 : 0.8, dt); player.x += player.vx * dt;
+    const mSpd = car.maxSpeed + (stats.motor * 0.4);
+    
+    // ACEITE: Frena al 10% y bloquea giro lateral
+    if(isS) {
+        currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1);
+        player.vx = 0;
+    } else {
+        if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd);
+        else if(keys["ArrowDown"] || keys["FRENO"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0);
+        else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0);
+
+        if(keys["ArrowLeft"]) player.vx -= car.handling * dt;
+        if(keys["ArrowRight"]) player.vx += car.handling * dt;
+    }
+
+    player.vx *= Math.pow(0.8, dt); player.x += player.vx * dt;
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
 
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
@@ -117,7 +135,7 @@ function update(dt) {
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
     if(Math.random() < 0.003 * dt) spawnItem('fuel');
-    if(level >= 3 && Math.random() < 0.002 * dt) spawnItem('heart');
+    if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
     if(level >= 4 && Math.random() < 0.001 * dt) spawnItem('oil');
     if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
 
@@ -132,27 +150,29 @@ function update(dt) {
         }
         if(en.chg) { en.x += (en.x < en.tx ? 1.5 : -1.5) * dt; if(Math.abs(en.x - en.tx) < 2) en.chg = false; }
         
-        // --- NEAR MISS FIX: Área de detección mayor al hitbox ---
+        // NEAR MISS FIX (Asegurando bonus)
         if(!en.nm && Math.abs(player.x - en.x) < en.w + 15 && Math.abs(player.y - en.y) < 55) { 
             en.nm = true; garage.coins += 10; nmT = {y: player.y, t: 35}; 
         }
         
-        if(checkCollision(player, en)) { lives--; if(lives<=0) endGame(); enemies.splice(i,1); }
+        if(checkCollision(player, en)) { lives--; if(lives<=0) endGame("CHOCASTE CONTRA UN AUTO"); enemies.splice(i,1); }
         else if(en.y > 800) enemies.splice(i,1);
     });
 
     items.forEach((it, i) => {
         it.y += currentSpeed * dt;
         if(checkCollision(player, it)) {
-            if(it.t === 'coin') garage.coins++; if(it.t === 'fuel') fuel = Math.min(100, fuel+40);
-            if(it.t === 'heart') lives++; if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1000); }
-            if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; setTimeout(()=>endGame(), 500); }
+            if(it.t === 'coin') garage.coins++; 
+            if(it.t === 'fuel') fuel = Math.min(100, fuel+40);
+            if(it.t === 'heart') lives++; 
+            if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); }
+            if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; setTimeout(()=>endGame("EXPLOTASTE POR UNA BOMBA"), 500); }
             items.splice(i,1); updateHUD();
         } else if(it.y > 800) items.splice(i,1);
     });
     scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); });
     if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; }
-    if(fuel <= 0) endGame(); updateHUD();
+    if(fuel <= 0) endGame("TE QUEDASTE SIN NAFTA"); updateHUD();
 }
 
 function draw() {
@@ -163,7 +183,11 @@ function draw() {
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
     enemies.forEach(en => { if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); });
-    if(!expObj && assets.player.complete) ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h);
+    
+    // DIBUJO JUGADOR CON EFECTO TEMBLOR ACEITE
+    let sx = 0, sy = 0;
+    if(isS) { sx = (Math.random()-0.5)*8; sy = (Math.random()-0.5)*8; }
+    if(!expObj && assets.player.complete) ctx.drawImage(assets.player, (player.x + sx)|0, (player.y + sy)|0, player.w, player.h);
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
     if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px Segoe UI"; ctx.fillText("¡CERCA! +10", player.x-15, nmT.y-20); }
 }
@@ -175,37 +199,36 @@ function checkCollision(p, o) {
 
 function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins; document.getElementById("fuel-bar").style.width = fuel + "%"; }
 function showMenu() { state = "MENU"; hideAll(); document.getElementById("menu").classList.remove("hidden"); updateUI(); }
+function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
+function save() { localStorage.setItem('borrione_racing_v2.9.8_final', JSON.stringify(garage)); }
+
+// --- MISSIONS FIX ---
+function updateUI() { 
+    if(!garage.missionId && garage.missionId !== 0) garage.missionId = Math.floor(Math.random() * DAILY_MISSIONS.length);
+    document.getElementById("lvl-motor").innerText = garage.carStats[garage.selected].motor; 
+    document.getElementById("lvl-tanque").innerText = garage.carStats[garage.selected].tanque; 
+    document.getElementById("menu-coins").innerText = garage.coins; 
+    document.getElementById("menu-mission-desc").innerText = DAILY_MISSIONS[garage.missionId].desc; 
+}
+
+function endGame(reason) { 
+    state="OVER"; if(score > garage.high) garage.high = score|0; save(); 
+    document.getElementById("game-over").classList.remove("hidden"); 
+    document.getElementById("over-reason").innerText = reason; 
+    document.getElementById("final-stats").innerText = `Distancia: ${score|0}m`; 
+}
+
+// RESTO DE FUNCIONES (Tienda, Spawns, Controles)
 function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function updateShopUI() { const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; }
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
 function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
 function buyUpgrade(t) { const s = garage.carStats[garage.selected]; if(garage.coins >= 500 && s[t] < 5) { garage.coins -= 500; s[t]++; save(); updateUI(); } }
-
-// --- MISSIONS FIX: Muestra misión al cargar ---
-function updateUI() { 
-    document.getElementById("lvl-motor").innerText = garage.carStats[garage.selected].motor; 
-    document.getElementById("lvl-tanque").innerText = garage.carStats[garage.selected].tanque; 
-    document.getElementById("menu-coins").innerText = garage.coins; 
-    const mission = DAILY_MISSIONS[garage.missionId || 0];
-    document.getElementById("menu-mission-desc").innerText = mission ? mission.desc : "¡A correr!"; 
-}
-
-function save() { localStorage.setItem('borrione_racing_v2.9.8_final', JSON.stringify(garage)); }
-
-// --- NPC OVERLAP FIX: No spawnea si el carril está ocupado arriba ---
-function spawnTraffic() { 
-    let l = (Math.random()*4)|0, tx = 65 + (l * 85); 
-    if(enemies.some(e => Math.abs(e.x - tx) < 40 && e.y < 0)) return; 
-    let isC = (level >= 2 && Math.random() < 0.3); 
-    enemies.push({ x: tx-22, y: -150, l, w: isC ? 55 : 45, h: isC ? 110 : 80, img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], chg: false, nm: false }); 
-}
-
+function spawnTraffic() { let l = (Math.random()*4)|0, tx = 65 + (l * 85); if(enemies.some(e => Math.abs(e.x - tx) < 40 && e.y < 0)) return; let isC = (level >= 2 && Math.random() < 0.3); enemies.push({ x: tx-22, y: -150, l, w: isC ? 55 : 45, h: isC ? 110 : 80, img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], chg: false, nm: false }); }
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
-function endGame() { state="OVER"; if(score > garage.high) garage.high = score|0; save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("final-stats").innerText = `Distancia: ${score|0}m`; }
 function togglePause() { isPaused = !isPaused; document.getElementById("pause-menu").classList.toggle("hidden", !isPaused); if(!isPaused) { lastTime = performance.now(); loop(); } }
 
 window.addEventListener("keydown", e => keys[e.code] = true); window.addEventListener("keyup", e => keys[e.code] = false);
@@ -216,6 +239,7 @@ showMenu();
 </script>
 </body>
 </html>
+
 
 
 
