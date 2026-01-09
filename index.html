@@ -3,19 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Borrione Racing - v3.1.4 Full Garage</title>
+    <title>Borrione Racing - v3.1.5 Master</title>
     <style>
         body { margin: 0; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         #game-container { position: fixed; inset: 0; background: #34495e; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
-        .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 15px; color: white; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
+        .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 15px; color: white; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent); }
         .stat { font-size: 16px; font-weight: bold; text-shadow: 2px 2px #000; }
         .bar-container { width: 140px; height: 10px; background: #333; border: 1.5px solid #fff; margin-top: 4px; }
         #fuel-bar { width: 100%; height: 100%; background: #2ecc71; transition: width 0.2s; }
-        #btn-pause-ui { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); pointer-events: auto; background: rgba(255,255,255,0.2); border: 1.5px solid white; color: white; padding: 6px 15px; border-radius: 10px; z-index: 20; font-weight: bold; }
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; z-index: 100; padding: 20px; }
         .hidden { display: none !important; }
-        h1 { font-size: 36px; color: #f1c40f; margin-bottom: 10px; text-transform: uppercase; }
         button { padding: 14px 25px; font-size: 18px; cursor: pointer; border: none; color: white; border-radius: 12px; font-weight: bold; min-width: 250px; margin: 6px; pointer-events: auto; }
         .btn-green { background: #27ae60; } .btn-blue { background: #3498db; } .btn-orange { background: #e67e22; }
         #mobile-controls { position: absolute; bottom: 35px; left: 0; width: 100%; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; pointer-events: none; }
@@ -26,7 +24,6 @@
 <div id="game-container">
     <div class="hud">
         <div class="stat"><span style="color:#f1c40f; font-size:22px;"><span id="ui-speed">0</span> KM/H</span><br>DIST: <span id="ui-score">0</span>m | NIVEL: <span id="ui-level">1</span></div>
-        <button id="btn-pause-ui" onclick="togglePause()">PAUSA</button>
         <div class="stat" style="text-align:right">💰 <span id="ui-coins-total">0</span><br>NAFTA <div class="bar-container"><div id="fuel-bar"></div></div>❤️ <span id="ui-lives-text">3</span></div>
     </div>
     <div id="mobile-controls">
@@ -35,21 +32,13 @@
     </div>
     <div id="menu" class="overlay">
         <h1>RACING ARCADE</h1>
-        <div style="background:rgba(241,196,15,0.1); border:1px dashed #f1c40f; padding:15px; border-radius:15px; margin:15px 0; width:100%; max-width:500px;">
+        <div style="background:rgba(241,196,15,0.1); border:1px dashed #f1c40f; padding:15px; border-radius:15px; margin:10px 0; width:100%; max-width:350px;">
             <h4 style="margin:0; color:#f1c40f;">MISIÓN DEL DÍA</h4>
-            <p id="menu-mission-desc" style="margin:5px 0; font-weight: bold;">¡A correr!</p>
+            <p id="menu-mission-desc" style="margin:5px 0; font-weight: bold;">Cargando...</p>
         </div>
         <button class="btn-green" onclick="startGame()">INICIAR CARRERA</button>
         <button class="btn-blue" onclick="openShop()">TIENDA</button>
     </div>
-    <div id="game-over" class="overlay hidden">
-        <h1 id="over-title" style="color:#e74c3c;">FIN</h1>
-        <p id="over-reason" style="font-size: 18px; margin-bottom: 15px;"></p>
-        <p id="final-stats"></p>
-        <button class="btn-green" onclick="startGame()">REINTENTAR</button>
-        <button class="btn-blue" onclick="showMenu()">MENÚ</button>
-    </div>
-    <div id="shop-main" class="overlay hidden"><h1>TIENDA</h1><button class="btn-blue" onclick="openConcesionario()">CONCESIONARIO</button><button class="btn-orange" onclick="openMejoras()">MEJORAS</button><button class="btn-green" onclick="showMenu()">VOLVER</button></div>
     <div id="shop-cars" class="overlay hidden">
         <h1>COCHES</h1>
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
@@ -61,10 +50,28 @@
             </div>
             <div onclick="nextCar()" style="cursor:pointer; font-size:50px; pointer-events:auto;">▶</div>
         </div>
+        <button class="btn-blue" onclick="showMenu()">VOLVER</button>
+    </div>
+    <div id="shop-upgrades" class="overlay hidden">
+        <h1>MEJORAS - <span id="up-car-name"></span></h1>
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <div style="background:#222; padding:15px; border-radius:15px; border:2px solid #444;">
+                <h4>MOTOR</h4>
+                <p>Lvl: <span id="lvl-motor">0</span></p>
+                <p style="color:#2ecc71" id="cost-motor">$0</p>
+                <button class="btn-orange" onclick="buyUpgrade('motor')" style="min-width:120px;">SUBIR</button>
+            </div>
+            <div style="background:#222; padding:15px; border-radius:15px; border:2px solid #444;">
+                <h4>TANQUE</h4>
+                <p>Lvl: <span id="lvl-tanque">0</span></p>
+                <p style="color:#2ecc71" id="cost-tanque">$0</p>
+                <button class="btn-orange" onclick="buyUpgrade('tanque')" style="min-width:120px;">SUBIR</button>
+            </div>
+        </div>
         <button class="btn-blue" onclick="openShop()">ATRÁS</button>
     </div>
-    <div id="shop-upgrades" class="overlay hidden"><h1>MEJORAS</h1><div style="display:flex; gap:10px; margin-bottom:20px;"><div style="background:#222; padding:15px; border-radius:15px;"><h4>MOTOR</h4><p id="lvl-motor">0</p><button class="btn-orange" onclick="buyUpgrade('motor')">SUBIR</button></div><div style="background:#222; padding:15px; border-radius:15px;"><h4>TANQUE</h4><p id="lvl-tanque">0</p><button class="btn-orange" onclick="buyUpgrade('tanque')">SUBIR</button></div></div><button class="btn-blue" onclick="openShop()">ATRÁS</button></div>
-    <div id="pause-menu" class="overlay hidden"><h1>PAUSA</h1><button class="btn-green" onclick="togglePause()">CONTINUAR</button><button class="btn-blue" onclick="showMenu()">MENÚ</button></div>
+    <div id="shop-main" class="overlay hidden"><h1>TIENDA</h1><button class="btn-blue" onclick="openConcesionario()">CONCESIONARIO</button><button class="btn-orange" onclick="openMejoras()">MEJORAS</button><button class="btn-green" onclick="showMenu()">VOLVER</button></div>
+    <div id="game-over" class="overlay hidden"><h1 id="over-title" style="color:#e74c3c;">FIN</h1><p id="over-reason"></p><p id="final-stats"></p><button class="btn-green" onclick="startGame()">REINTENTAR</button><button class="btn-blue" onclick="showMenu()">MENÚ</button></div>
     <canvas id="gameCanvas"></canvas>
 </div>
 <script>
@@ -76,11 +83,11 @@ ctx.imageSmoothingEnabled = false;
 if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-controls").style.display = "flex";
 
 const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), npcs: [] };
-const sceneryAssets = { pasto: new Image(), cityFloor: new Image(), arboles: [new Image()] };
+const sceneryAssets = { pasto: new Image(), arboles: [new Image()] };
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
 assets.oil.src = 'Items/charco_aceite.png'; assets.heart.src = 'Items/heart_pixel.png'; assets.bomb.src = 'Items/bomba.png'; assets.exp.src = 'Items/explosion.png';
 ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
-sceneryAssets.pasto.src = 'Entorno/pasto.jpg'; sceneryAssets.cityFloor.src = 'Entorno/empedrado.jpg'; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
+sceneryAssets.pasto.src = 'Entorno/pasto.jpg'; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
 
 const MODELS = {
     'fitito': { name: 'EL COMPACTO', maxSpeed: 7.2, accel: 0.08, handling: 1.2, lives: 3, w: 45, h: 82, img: 'auto_inicial.png', price: 0 },
@@ -92,6 +99,15 @@ const MODELS = {
     'skyline': { name: 'NIGHT WALKER', maxSpeed: 12.5, accel: 0.22, handling: 2.0, lives: 4, w: 58, h: 102, img: 'skyline.png', price: 60000 },
     'supra': { name: 'TURBO LEGEND', maxSpeed: 12.5, accel: 0.22, handling: 2.0, lives: 4, w: 52, h: 92, img: 'supra.png', price: 60000 },
     'f1_clasico': { name: 'PRIME ONE', maxSpeed: 13.5, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 85000 }
+};
+
+// --- PRECIOS ESCALONADOS RESTAURADOS ---
+const UPGRADE_PRICES = {
+    'fitito': [250, 500, 750, 1000, 1250], 'furgoneta': [400, 800, 1200, 1600, 2000],
+    'auto_rosa': [600, 1200, 1800, 2400, 3000], 'camioneta4x4': [800, 1600, 2400, 3200, 4000],
+    'subaru': [1200, 2400, 3600, 4800, 6000], 'porsche': [1500, 3000, 4500, 6000, 7500],
+    'skyline': [2000, 4000, 6000, 8000, 10000], 'supra': [2000, 4000, 6000, 8000, 10000],
+    'f1_clasico': [3000, 5000, 8000, 12000, 15000]
 };
 
 const DAILY_MISSIONS = [ { id: 0, desc: "Junta 100 monedas hoy" }, { id: 1, desc: "Logra 10 Near Miss" }, { id: 2, desc: "Llega al Nivel 5" } ];
@@ -127,24 +143,19 @@ function update(dt) {
     if(level !== oldLevel) heartSpawnedInLevel = false;
 
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
-    
-    if(isS) {
-        currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1);
-        player.vx = 0; // BLOQUEO GIRO LATERAL EN ACEITE
-    } else {
+    if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
+    else {
         if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd);
         else if(keys["ArrowDown"] || keys["FRENO"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0);
         else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0);
-
         if(keys["ArrowLeft"]) player.vx -= car.handling * dt;
         if(keys["ArrowRight"]) player.vx += car.handling * dt;
     }
-
     player.vx *= Math.pow(0.8, dt); player.x += player.vx * dt;
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
 
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
-    fuel -= (0.012 - (stats.tanque * 0.002)) * currentSpeed * dt;
+    fuel -= (0.012 - (stats.tanque * 0.0015)) * currentSpeed * dt;
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
@@ -156,37 +167,40 @@ function update(dt) {
 
     enemies.forEach((en, i) => {
         en.y += (currentSpeed - 2.5) * dt;
-        if(level >= 3 && !en.chg && Math.random() < 0.001 * dt) {
+        
+        // IA CON GUIÑO (GUIÑO 3 VECES, AL 4to CAMBIA)
+        if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
                 let tx = 65 + (nextLane * 85);
-                if(!enemies.some(o => o !== en && Math.abs(o.x - tx) < 40 && Math.abs(o.y - en.y) < 200)) { en.chg = true; en.tx = tx; en.l = nextLane; }
+                if(!enemies.some(o => o !== en && Math.abs(o.x - tx) < 50 && Math.abs(o.y - en.y) < 250)) {
+                    en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane;
+                }
             }
+        }
+        if(en.blink) {
+            en.bTimer += dt;
+            if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; en.l = en.tl; } }
         }
         if(en.chg) { en.x += (en.x < en.tx ? 1.5 : -1.5) * dt; if(Math.abs(en.x - en.tx) < 2) en.chg = false; }
         
-        if(!en.nm && Math.abs(player.x - en.x) < en.w + 15 && Math.abs(player.y - en.y) < 55) { 
-            en.nm = true; garage.coins += 10; nmT = {y: player.y, t: 35}; 
-        }
-        
-        if(checkCollision(player, en)) { lives--; if(lives<=0) endGame("CHOCASTE CONTRA UN AUTO"); enemies.splice(i,1); }
+        if(!en.nm && Math.abs(player.x - en.x) < 55 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nmT = {y: player.y, t: 35}; }
+        if(checkCollision(player, en)) { lives--; if(lives<=0) endGame("CHOQUE"); enemies.splice(i,1); }
         else if(en.y > 800) enemies.splice(i,1);
     });
 
     items.forEach((it, i) => {
         it.y += currentSpeed * dt;
         if(checkCollision(player, it)) {
-            if(it.t === 'coin') garage.coins++; 
-            if(it.t === 'fuel') fuel = Math.min(100, fuel+40);
-            if(it.t === 'heart') lives++; 
-            if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); }
-            if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; setTimeout(()=>endGame("EXPLOTASTE POR UNA BOMBA"), 500); }
-            items.splice(i,1); updateHUD();
+            if(it.t === 'coin') garage.coins++; if(it.t === 'fuel') fuel = Math.min(100, fuel+40);
+            if(it.t === 'heart') lives++; if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); }
+            if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; setTimeout(()=>endGame("EXPLOSIÓN"), 500); }
+            items.splice(i,1);
         } else if(it.y > 800) items.splice(i,1);
     });
     scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); });
     if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; }
-    if(fuel <= 0) endGame("TE QUEDASTE SIN NAFTA"); updateHUD();
+    if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
 }
 
 function draw() {
@@ -196,70 +210,81 @@ function draw() {
     for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 3, 60); ctx.fillRect(200, i + (roadY % 150), 3, 60); ctx.fillRect(285, i + (roadY % 150), 3, 60); }
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
-    enemies.forEach(en => { if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); });
-    
-    let sx = 0, sy = 0;
-    if(isS) { sx = (Math.random()-0.5)*10; sy = (Math.random()-0.5)*10; }
-    if(!expObj && assets.player.complete) ctx.drawImage(assets.player, (player.x + sx)|0, (player.y + sy)|0, player.w, player.h);
+    enemies.forEach(en => { 
+        if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
+        if(en.blink && Math.floor(en.bCount % 2) === 0) { // LUZ DE GUIÑO
+            ctx.fillStyle = "#ffa500"; ctx.beginPath();
+            ctx.arc(en.x + (en.tx < en.x ? 5 : en.w-5), en.y + en.h - 10, 6, 0, Math.PI*2); ctx.fill();
+        }
+    });
+    let sx = isS ? (Math.random()-0.5)*10 : 0;
+    if(!expObj && assets.player.complete) ctx.drawImage(assets.player, (player.x + sx)|0, player.y|0, player.w, player.h);
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
     if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px Segoe UI"; ctx.fillText("¡CERCA! +10", player.x-15, nmT.y-20); }
 }
 
-function checkCollision(p, o) {
-    let margin = 12; 
-    return p.x + margin < o.x + o.w - margin && p.x + p.w - margin > o.x + margin && p.y + margin < o.y + o.h - margin && p.y + p.h - margin > o.y + margin;
-}
-
+function checkCollision(p, o) { let m = 12; return p.x + m < o.x + o.w - m && p.x + p.w - m > o.x + m && p.y + m < o.y + o.h - m && p.y + p.h - m > o.y + m; }
 function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins; document.getElementById("fuel-bar").style.width = fuel + "%"; }
+
 function showMenu() { state = "MENU"; hideAll(); document.getElementById("menu").classList.remove("hidden"); updateUI(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function save() { localStorage.setItem('borrione_racing_v2.9.8_final', JSON.stringify(garage)); }
 
 function updateUI() { 
-    if(!garage.missionId && garage.missionId !== 0) garage.missionId = Math.floor(Math.random() * DAILY_MISSIONS.length);
-    const carKey = garage.selected;
-    document.getElementById("lvl-motor").innerText = garage.carStats[carKey].motor; 
-    document.getElementById("lvl-tanque").innerText = garage.carStats[carKey].tanque; 
+    if(garage.missionId === undefined) garage.missionId = 0;
+    const carKey = garage.selected; const stats = garage.carStats[carKey];
+    document.getElementById("lvl-motor").innerText = stats.motor; 
+    document.getElementById("lvl-tanque").innerText = stats.tanque; 
+    document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX";
+    document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX";
     document.getElementById("menu-coins").innerText = garage.coins; 
     document.getElementById("menu-mission-desc").innerText = DAILY_MISSIONS[garage.missionId].desc; 
+    document.getElementById("up-car-name").innerText = MODELS[carKey].name;
 }
 
-function endGame(reason) { 
-    state="OVER"; if(score > garage.high) garage.high = score|0; save(); 
-    document.getElementById("game-over").classList.remove("hidden"); 
-    document.getElementById("over-reason").innerText = reason; 
-    document.getElementById("final-stats").innerText = `Distancia: ${score|0}m`; 
+function buyUpgrade(t) { 
+    const carKey = garage.selected; const stats = garage.carStats[carKey]; const price = UPGRADE_PRICES[carKey][stats[t]];
+    if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } 
 }
+
+function spawnTraffic() { 
+    let l = (Math.random()*4)|0, tx = 65 + (l * 85); 
+    if(enemies.some(e => Math.abs(e.x - tx) < 40 && e.y < 50)) return; 
+    let isC = (level >= 2 && Math.random() < 0.3); 
+    enemies.push({ x: tx-22, y: -150, l, w: isC ? 55 : 45, h: isC ? 110 : 80, img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], chg: false, blink: false, bCount: 0, bTimer: 0, nm: false }); 
+}
+
+function spawnScenery() { 
+    let s = Math.random() < 0.5 ? 2 : 365; 
+    if(scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) return; // SEPARACIÓN DE ÁRBOLES
+    scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); 
+}
+
+function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
+function endGame(r) { state="OVER"; if(score > garage.high) garage.high = score|0; save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = r; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m`; }
+function togglePause() { isPaused = !isPaused; if(!isPaused) { lastTime = performance.now(); loop(); } }
 
 function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
 function updateShopUI() { 
-    const carKeys = Object.keys(MODELS);
-    const key = carKeys[shopIndex], car = MODELS[key]; 
-    document.getElementById("shop-car-img").src = `Autos/${car.img}`; 
-    document.getElementById("shop-car-name").innerText = car.name; 
+    const carKeys = Object.keys(MODELS); const key = carKeys[shopIndex], car = MODELS[key]; 
+    document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; 
     const btn = document.getElementById("shop-car-btn"); 
     btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; 
     btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; 
 }
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
 function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
-function buyUpgrade(t) { const s = garage.carStats[garage.selected]; if(garage.coins >= 500 && s[t] < 5) { garage.coins -= 500; s[t]++; save(); updateUI(); } }
-function spawnTraffic() { let l = (Math.random()*4)|0, tx = 65 + (l * 85); if(enemies.some(e => Math.abs(e.x - tx) < 40 && e.y < 0)) return; let isC = (level >= 2 && Math.random() < 0.3); enemies.push({ x: tx-22, y: -150, l, w: isC ? 55 : 45, h: isC ? 110 : 80, img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], chg: false, nm: false }); }
-function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
-function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
-function togglePause() { isPaused = !isPaused; document.getElementById("pause-menu").classList.toggle("hidden", !isPaused); if(!isPaused) { lastTime = performance.now(); loop(); } }
 
-window.addEventListener("keydown", e => keys[e.code] = true); window.addEventListener("keyup", e => keys[e.code] = false);
+window.addEventListener("keydown", e => { keys[e.code] = true; }); window.addEventListener("keyup", e => keys[e.code] = false);
 const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
-setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "FRENO");
+setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
 
 showMenu();
 </script>
 </body>
 </html>
-
 
 
 
