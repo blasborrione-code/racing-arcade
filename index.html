@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Borrione Racing - v3.1.3 Logic Fix</title>
+    <title>Borrione Racing - v3.1.4 Full Garage</title>
     <style>
         body { margin: 0; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         #game-container { position: fixed; inset: 0; background: #34495e; overflow: hidden; display: flex; justify-content: center; align-items: center; }
@@ -37,20 +37,32 @@
         <h1>RACING ARCADE</h1>
         <div style="background:rgba(241,196,15,0.1); border:1px dashed #f1c40f; padding:15px; border-radius:15px; margin:15px 0; width:100%; max-width:500px;">
             <h4 style="margin:0; color:#f1c40f;">MISIÓN DEL DÍA</h4>
-            <p id="menu-mission-desc" style="margin:5px 0; font-weight: bold;">¡Cargando misión!</p>
+            <p id="menu-mission-desc" style="margin:5px 0; font-weight: bold;">¡A correr!</p>
         </div>
         <button class="btn-green" onclick="startGame()">INICIAR CARRERA</button>
         <button class="btn-blue" onclick="openShop()">TIENDA</button>
     </div>
     <div id="game-over" class="overlay hidden">
         <h1 id="over-title" style="color:#e74c3c;">FIN</h1>
-        <p id="over-reason" style="font-size: 20px; margin-bottom: 20px;"></p>
+        <p id="over-reason" style="font-size: 18px; margin-bottom: 15px;"></p>
         <p id="final-stats"></p>
         <button class="btn-green" onclick="startGame()">REINTENTAR</button>
         <button class="btn-blue" onclick="showMenu()">MENÚ</button>
     </div>
     <div id="shop-main" class="overlay hidden"><h1>TIENDA</h1><button class="btn-blue" onclick="openConcesionario()">CONCESIONARIO</button><button class="btn-orange" onclick="openMejoras()">MEJORAS</button><button class="btn-green" onclick="showMenu()">VOLVER</button></div>
-    <div id="shop-cars" class="overlay hidden"><h1>COCHES</h1><div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;"><div onclick="prevCar()" style="cursor:pointer; font-size:50px; pointer-events:auto;">◀</div><div style="background:#222; padding:20px; border-radius:25px; border:3px solid #444; width:260px;"><img id="shop-car-img" style="width:100%; height:120px; object-fit:contain;"><h3 id="shop-car-name" style="color:#f1c40f; margin:10px 0;"></h3><button id="shop-car-btn" class="btn-green" style="min-width:100%"></button></div><div onclick="nextCar()" style="cursor:pointer; font-size:50px; pointer-events:auto;">▶</div></div><button class="btn-blue" onclick="openShop()">ATRÁS</button></div>
+    <div id="shop-cars" class="overlay hidden">
+        <h1>COCHES</h1>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+            <div onclick="prevCar()" style="cursor:pointer; font-size:50px; pointer-events:auto;">◀</div>
+            <div style="background:#222; padding:20px; border-radius:25px; border:3px solid #444; width:260px;">
+                <img id="shop-car-img" style="width:100%; height:120px; object-fit:contain;">
+                <h3 id="shop-car-name" style="color:#f1c40f; margin:10px 0;"></h3>
+                <button id="shop-car-btn" class="btn-green" style="min-width:100%"></button>
+            </div>
+            <div onclick="nextCar()" style="cursor:pointer; font-size:50px; pointer-events:auto;">▶</div>
+        </div>
+        <button class="btn-blue" onclick="openShop()">ATRÁS</button>
+    </div>
     <div id="shop-upgrades" class="overlay hidden"><h1>MEJORAS</h1><div style="display:flex; gap:10px; margin-bottom:20px;"><div style="background:#222; padding:15px; border-radius:15px;"><h4>MOTOR</h4><p id="lvl-motor">0</p><button class="btn-orange" onclick="buyUpgrade('motor')">SUBIR</button></div><div style="background:#222; padding:15px; border-radius:15px;"><h4>TANQUE</h4><p id="lvl-tanque">0</p><button class="btn-orange" onclick="buyUpgrade('tanque')">SUBIR</button></div></div><button class="btn-blue" onclick="openShop()">ATRÁS</button></div>
     <div id="pause-menu" class="overlay hidden"><h1>PAUSA</h1><button class="btn-green" onclick="togglePause()">CONTINUAR</button><button class="btn-blue" onclick="showMenu()">MENÚ</button></div>
     <canvas id="gameCanvas"></canvas>
@@ -64,17 +76,21 @@ ctx.imageSmoothingEnabled = false;
 if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-controls").style.display = "flex";
 
 const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), npcs: [] };
-const sceneryAssets = { pasto: new Image(), arboles: [new Image()] };
+const sceneryAssets = { pasto: new Image(), cityFloor: new Image(), arboles: [new Image()] };
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
 assets.oil.src = 'Items/charco_aceite.png'; assets.heart.src = 'Items/heart_pixel.png'; assets.bomb.src = 'Items/bomba.png'; assets.exp.src = 'Items/explosion.png';
 ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
-sceneryAssets.pasto.src = 'Entorno/pasto.jpg'; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
+sceneryAssets.pasto.src = 'Entorno/pasto.jpg'; sceneryAssets.cityFloor.src = 'Entorno/empedrado.jpg'; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
 
 const MODELS = {
     'fitito': { name: 'EL COMPACTO', maxSpeed: 7.2, accel: 0.08, handling: 1.2, lives: 3, w: 45, h: 82, img: 'auto_inicial.png', price: 0 },
     'furgoneta': { name: 'CARGO VIAJES', maxSpeed: 7.8, accel: 0.07, handling: 1.0, lives: 4, w: 55, h: 95, img: 'furgoneta.png', price: 3000 },
     'auto_rosa': { name: 'PINKY', maxSpeed: 8.8, accel: 0.1, handling: 1.2, lives: 4, w: 58, h: 98, img: 'auto_rosa.png', price: 5500 },
+    'camioneta4x4': { name: 'TODO TERRENO', maxSpeed: 9.2, accel: 0.12, handling: 1.0, lives: 5, w: 65, h: 115, img: 'camioneta4x4.png', price: 11000 },
+    'subaru': { name: 'BLUE RALLY', maxSpeed: 10.5, accel: 0.15, handling: 1.5, lives: 4, w: 52, h: 92, img: 'subaru.png', price: 25000 },
+    'porsche': { name: 'DEPORTIVO GT', maxSpeed: 11.5, accel: 0.2, handling: 1.8, lives: 4, w: 62, h: 98, img: 'porsche_negro.png', price: 47000 },
     'skyline': { name: 'NIGHT WALKER', maxSpeed: 12.5, accel: 0.22, handling: 2.0, lives: 4, w: 58, h: 102, img: 'skyline.png', price: 60000 },
+    'supra': { name: 'TURBO LEGEND', maxSpeed: 12.5, accel: 0.22, handling: 2.0, lives: 4, w: 52, h: 92, img: 'supra.png', price: 60000 },
     'f1_clasico': { name: 'PRIME ONE', maxSpeed: 13.5, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 85000 }
 };
 
@@ -108,14 +124,13 @@ function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected];
     let oldLevel = level;
     level = Math.floor(score/500)+1;
-    if(level !== oldLevel) heartSpawnedInLevel = false; // Reset spawn corazón por nivel
+    if(level !== oldLevel) heartSpawnedInLevel = false;
 
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
     
-    // ACEITE: Frena al 10% y bloquea giro lateral
     if(isS) {
         currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1);
-        player.vx = 0;
+        player.vx = 0; // BLOQUEO GIRO LATERAL EN ACEITE
     } else {
         if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd);
         else if(keys["ArrowDown"] || keys["FRENO"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0);
@@ -150,7 +165,6 @@ function update(dt) {
         }
         if(en.chg) { en.x += (en.x < en.tx ? 1.5 : -1.5) * dt; if(Math.abs(en.x - en.tx) < 2) en.chg = false; }
         
-        // NEAR MISS FIX (Asegurando bonus)
         if(!en.nm && Math.abs(player.x - en.x) < en.w + 15 && Math.abs(player.y - en.y) < 55) { 
             en.nm = true; garage.coins += 10; nmT = {y: player.y, t: 35}; 
         }
@@ -184,9 +198,8 @@ function draw() {
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
     enemies.forEach(en => { if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); });
     
-    // DIBUJO JUGADOR CON EFECTO TEMBLOR ACEITE
     let sx = 0, sy = 0;
-    if(isS) { sx = (Math.random()-0.5)*8; sy = (Math.random()-0.5)*8; }
+    if(isS) { sx = (Math.random()-0.5)*10; sy = (Math.random()-0.5)*10; }
     if(!expObj && assets.player.complete) ctx.drawImage(assets.player, (player.x + sx)|0, (player.y + sy)|0, player.w, player.h);
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
     if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px Segoe UI"; ctx.fillText("¡CERCA! +10", player.x-15, nmT.y-20); }
@@ -202,11 +215,11 @@ function showMenu() { state = "MENU"; hideAll(); document.getElementById("menu")
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function save() { localStorage.setItem('borrione_racing_v2.9.8_final', JSON.stringify(garage)); }
 
-// --- MISSIONS FIX ---
 function updateUI() { 
     if(!garage.missionId && garage.missionId !== 0) garage.missionId = Math.floor(Math.random() * DAILY_MISSIONS.length);
-    document.getElementById("lvl-motor").innerText = garage.carStats[garage.selected].motor; 
-    document.getElementById("lvl-tanque").innerText = garage.carStats[garage.selected].tanque; 
+    const carKey = garage.selected;
+    document.getElementById("lvl-motor").innerText = garage.carStats[carKey].motor; 
+    document.getElementById("lvl-tanque").innerText = garage.carStats[carKey].tanque; 
     document.getElementById("menu-coins").innerText = garage.coins; 
     document.getElementById("menu-mission-desc").innerText = DAILY_MISSIONS[garage.missionId].desc; 
 }
@@ -218,11 +231,18 @@ function endGame(reason) {
     document.getElementById("final-stats").innerText = `Distancia: ${score|0}m`; 
 }
 
-// RESTO DE FUNCIONES (Tienda, Spawns, Controles)
 function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-function updateShopUI() { const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; }
+function updateShopUI() { 
+    const carKeys = Object.keys(MODELS);
+    const key = carKeys[shopIndex], car = MODELS[key]; 
+    document.getElementById("shop-car-img").src = `Autos/${car.img}`; 
+    document.getElementById("shop-car-name").innerText = car.name; 
+    const btn = document.getElementById("shop-car-btn"); 
+    btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; 
+    btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; 
+}
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
 function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
 function buyUpgrade(t) { const s = garage.carStats[garage.selected]; if(garage.coins >= 500 && s[t] < 5) { garage.coins -= 500; s[t]++; save(); updateUI(); } }
