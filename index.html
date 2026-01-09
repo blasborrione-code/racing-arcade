@@ -168,6 +168,11 @@ function togglePause() {
 }
 
 function startGame() {
+    // CORRECCIÓN: Pantalla completa automática al iniciar
+    let el = document.documentElement;
+    let rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if(rfs) rfs.call(el);
+
     const car = MODELS[garage.selected];
     assets.player.src = `Autos/${car.img}`;
     player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 };
@@ -189,13 +194,10 @@ function loop(t) {
 
 function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected];
-    
-    // CORRECCIÓN: El nivel aumenta cada 500m
     level = Math.floor(score/500)+1;
-    
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
     let hndl = car.handling;
-    if(level >= 8) hndl *= 0.7; // Lluvia reduce agarre
+    if(level >= 8) hndl *= 0.7;
 
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else {
@@ -211,7 +213,6 @@ function update(dt) {
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     fuel -= (0.012 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     
-    // Spawns
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
@@ -221,12 +222,10 @@ function update(dt) {
     if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        // Frenado IA
         let ahead = enemies.find(o => o !== en && o.l === en.l && o.y < en.y && (en.y - o.y) < 180);
         let sToUse = (ahead && ahead.speed < en.speed) ? ahead.speed : en.speed;
         en.y += (currentSpeed - sToUse) * dt;
 
-        // CORRECCIÓN: Cambio carril con sensor de NPC
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
@@ -264,24 +263,19 @@ function update(dt) {
 }
 
 function draw() {
-    // Fondo base
     ctx.fillStyle = "#27ae60"; ctx.fillRect(0,0,400,750);
     ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750);
-    
-    // Líneas ruta
     ctx.fillStyle = "rgba(255,255,255,0.2)";
     for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 3, 60); ctx.fillRect(200, i + (roadY % 150), 3, 60); ctx.fillRect(285, i + (roadY % 150), 3, 60); }
-    
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
 
-    // Luces de autos (Clima)
     let night = (level >= 10);
     let sunset = (level >= 6 && level < 10);
     let rain = (level >= 8 && level < 10);
 
     enemies.forEach(en => { 
-        if(level >= 6) { // Luces encendidas
+        if(level >= 6) { 
             ctx.fillStyle = "rgba(255, 255, 0, 0.4)";
             ctx.beginPath(); ctx.moveTo(en.x+10, en.y+en.h); ctx.lineTo(en.x-20, en.y+en.h+100); ctx.lineTo(en.x+en.w+20, en.y+en.h+100); ctx.lineTo(en.x+en.w-10, en.y+en.h); ctx.fill();
         }
@@ -292,7 +286,7 @@ function draw() {
     });
 
     if(!expObj && assets.player.complete) {
-        if(level >= 6) { // Luces jugador
+        if(level >= 6) { 
             ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
             ctx.beginPath(); ctx.moveTo(player.x+10, player.y); ctx.lineTo(player.x-40, player.y-200); ctx.lineTo(player.x+player.w+40, player.y-200); ctx.lineTo(player.x+player.w-10, player.y); ctx.fill();
         }
@@ -300,7 +294,6 @@ function draw() {
     }
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
     
-    // Filtros de Clima
     if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
     if(rain) { 
         ctx.fillStyle = "rgba(0, 100, 255, 0.15)"; ctx.fillRect(0,0,400,750);
@@ -384,6 +377,7 @@ showMenu();
 </script>
 </body>
 </html>
+
 
 
 
