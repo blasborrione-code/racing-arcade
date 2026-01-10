@@ -3,22 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Borrione Racing - v4.0 Master Final</title>
+    <title>Borrione Racing - v4.5 Final Master</title>
     <style>
         body { margin: 0; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         #game-container { position: fixed; inset: 0; background: #34495e; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
         
-        /* HUD */
         .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 15px; color: white; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent); }
         .stat { font-size: 16px; font-weight: bold; text-shadow: 2px 2px #000; }
         .bar-container { width: 140px; height: 10px; background: #333; border: 1.5px solid #fff; margin-top: 4px; }
         #fuel-bar { width: 100%; height: 100%; background: #2ecc71; transition: width 0.2s; }
         
-        /* Botón Pausa Arriba al Medio */
         #btn-pause-trigger { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 50px; height: 40px; background: rgba(255,255,255,0.2); color: white; border: 2px solid white; border-radius: 8px; display: none; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; pointer-events: auto; z-index: 20; font-weight: bold; }
 
-        /* Overlays */
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; z-index: 100; padding: 20px; }
         .hidden { display: none !important; }
         
@@ -159,6 +156,12 @@ let state = "MENU", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 
 let player = { x: 0, y: 0, vx: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null;
 let coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false;
 
+function toggleFullscreen() {
+    let el = document.documentElement;
+    let rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if(rfs) rfs.call(el);
+}
+
 function togglePause() {
     if(state !== "PLAYING" && state !== "PAUSED") return;
     isPaused = !isPaused;
@@ -168,11 +171,7 @@ function togglePause() {
 }
 
 function startGame() {
-    // CORRECCIÓN: Pantalla completa automática al iniciar
-    let el = document.documentElement;
-    let rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-    if(rfs) rfs.call(el);
-
+    toggleFullscreen();
     const car = MODELS[garage.selected];
     assets.player.src = `Autos/${car.img}`;
     player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 };
@@ -197,7 +196,7 @@ function update(dt) {
     level = Math.floor(score/500)+1;
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
     let hndl = car.handling;
-    if(level >= 8) hndl *= 0.7;
+    if(level >= 8) hndl *= 0.7; 
 
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else {
@@ -222,16 +221,18 @@ function update(dt) {
     if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        let ahead = enemies.find(o => o !== en && o.l === en.l && o.y < en.y && (en.y - o.y) < 180);
+        // --- MEJORA: EVITAR SOLAPAMIENTO NPC ---
+        let ahead = enemies.find(o => o !== en && o.l === en.l && o.y < en.y && (en.y - o.y) < 220);
         let sToUse = (ahead && ahead.speed < en.speed) ? ahead.speed : en.speed;
         en.y += (currentSpeed - sToUse) * dt;
 
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
-                let tx = 65 + (nextLane * 85);
-                let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 45 && Math.abs(o.y - en.y) < 200);
-                if(!occupied) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
+                let laneCenter = 65 + (nextLane * 85);
+                let targetX = laneCenter - (en.w / 2); // --- CORRECCIÓN: CENTRADO ---
+                let occupied = enemies.some(o => o !== en && Math.abs(o.x - targetX) < 45 && Math.abs(o.y - en.y) < 200);
+                if(!occupied) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = targetX; en.tl = nextLane; }
             }
         }
         if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; en.l = en.tl; } } }
@@ -302,84 +303,4 @@ function draw() {
     }
     if(night) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-        ctx.globalCompositeOperation = "multiply"; ctx.fillRect(0,0,400,750); ctx.globalCompositeOperation = "source-over";
-    }
-
-    if(nmT) { 
-        ctx.fillStyle = "#f1c40f"; ctx.font = "bold 22px Segoe UI"; ctx.textAlign = "center";
-        ctx.fillText("¡CERCA! +10", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left";
-    }
-}
-
-function checkCollision(p, o) { let m = 4; return p.x + m < o.x + o.w - m && p.x + p.w - m > o.x + m && p.y + m < o.y + o.h - m && p.y + p.h - m > o.y + m; }
-function updateHUD() { 
-    document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
-    document.getElementById("ui-score").innerText = score|0; 
-    document.getElementById("ui-level").innerText = level; 
-    document.getElementById("ui-lives-text").innerText = lives; 
-    document.getElementById("ui-coins-total").innerText = garage.coins; 
-    document.getElementById("fuel-bar").style.width = fuel + "%"; 
-}
-
-function showMenu() { 
-    state = "MENU"; isPaused = false; hideAll(); 
-    document.getElementById("btn-pause-trigger").style.display = "none";
-    document.getElementById("menu").classList.remove("hidden"); 
-    updateUI(); actualizarMisionDiaria(); 
-}
-
-function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
-function save() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); }
-
-function updateUI() { 
-    const carKey = garage.selected; const stats = garage.carStats[carKey];
-    document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; 
-    document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX";
-    document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX";
-    document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; document.getElementById("up-car-name").innerText = MODELS[carKey].name;
-}
-
-function buyUpgrade(t) { const carKey = garage.selected; const stats = garage.carStats[carKey]; const price = UPGRADE_PRICES[carKey][stats[t]]; if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } }
-function spawnTraffic() { let l = (Math.random()*4)|0, tx = 65 + (l * 85); if(enemies.some(e => Math.abs(e.x - tx) < 40 && e.y < 50)) return; let isC = (level >= 2 && Math.random() < 0.3); enemies.push({ x: tx-22, y: -200, l, w: isC ? 55 : 45, h: isC ? 110 : 80, img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], chg: false, blink: false, bCount: 0, bTimer: 0, nm: false, speed: 1.5 + Math.random() * 3.5 }); }
-function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) return; scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
-function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
-
-function endGame(r) { 
-    state="OVER"; document.getElementById("btn-pause-trigger").style.display = "none";
-    if(score > garage.high) garage.high = score|0; 
-    const misionActual = DAILY_MISSIONS[garage.missionId]; const hoy = new Date().toDateString();
-    if (garage.missionDoneDate !== hoy) {
-        let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal);
-        if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; document.getElementById("mission-complete-msg").classList.remove("hidden"); }
-    }
-    save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = r; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`; 
-}
-
-function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
-function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
-function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-function updateShopUI() { 
-    const carKeys = Object.keys(MODELS); const key = carKeys[shopIndex], car = MODELS[key]; 
-    document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; 
-    document.getElementById("shop-car-speed").innerText = (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives;
-    const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; 
-    btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; 
-}
-function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
-function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
-
-window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause(); keys[e.code] = true; }); window.addEventListener("keyup", e => keys[e.code] = false);
-const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
-setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
-
-actualizarMisionDiaria();
-showMenu();
-</script>
-</body>
-</html>
-
-
-
-
-
-
+        ctx.globalCompositeOperation = "multiply"; ctx.fillRect(0,0,400,750); ctx.g
