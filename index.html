@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Borrione Racing - v4.0 Master Final</title>
+    <title>Borrione Racing - v4.1 Master Fixed</title>
     <style>
         body { margin: 0; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         #game-container { position: fixed; inset: 0; background: #34495e; overflow: hidden; display: flex; justify-content: center; align-items: center; }
@@ -129,29 +129,17 @@ const MODELS = {
     'f1_clasico': { name: 'PRIME ONE', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 85000 }
 };
 
-const UPGRADE_PRICES = {
-    'fitito': [250, 500, 750, 1000, 1250], 'furgoneta': [400, 800, 1200, 1600, 2000],
-    'auto_rosa': [600, 1200, 1800, 2400, 3000], 'camioneta4x4': [800, 1600, 2400, 3200, 4000],
-    'subaru': [1200, 2400, 3600, 4800, 6000], 'porsche': [1500, 3000, 4500, 6000, 7500],
-    'skyline': [2000, 4000, 6000, 8000, 10000], 'supra': [2000, 4000, 6000, 8000, 10000],
-    'f1_clasico': [3000, 5000, 8000, 12000, 15000]
-};
-
-const DAILY_MISSIONS = [
-    { id: 0, desc: "Junta 50 monedas en una carrera", goal: 50, type: 'coins' },
-    { id: 1, desc: "Logra 10 Near Miss (Casi choques)", goal: 10, type: 'nearmiss' },
-    { id: 2, desc: "Llega al Nivel 5 en una carrera", goal: 5, type: 'level' }
-];
+const UPGRADE_PRICES = { 'fitito': [250, 500, 750, 1000, 1250], 'furgoneta': [400, 800, 1200, 1600, 2000], 'auto_rosa': [600, 1200, 1800, 2400, 3000], 'camioneta4x4': [800, 1600, 2400, 3200, 4000], 'subaru': [1200, 2400, 3600, 4800, 6000], 'porsche': [1500, 3000, 4500, 6000, 7500], 'skyline': [2000, 4000, 6000, 8000, 10000], 'supra': [2000, 4000, 6000, 8000, 10000], 'f1_clasico': [3000, 5000, 8000, 12000, 15000] };
+const DAILY_MISSIONS = [{ id: 0, desc: "Junta 50 monedas en una carrera", goal: 50, type: 'coins' }, { id: 1, desc: "Logra 10 Near Miss (Casi choques)", goal: 10, type: 'nearmiss' }, { id: 2, desc: "Llega al Nivel 5 en una carrera", goal: 5, type: 'level' }];
 
 let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, missionId: 0, missionDoneDate: "", carStats: {} };
-const saved = localStorage.getItem('borrione_racing_v3'); 
-if(saved) garage = JSON.parse(saved);
+const saved = localStorage.getItem('borrione_racing_v3'); if(saved) garage = JSON.parse(saved);
 Object.keys(MODELS).forEach(k => { if(!garage.carStats[k]) garage.carStats[k] = {motor:0, tanque:0}; });
 
 function actualizarMisionDiaria() {
     const hoy = new Date().toDateString();
-    const diaDelAño = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-    garage.missionId = diaDelAño % DAILY_MISSIONS.length;
+    const dia = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+    garage.missionId = dia % DAILY_MISSIONS.length;
     document.getElementById("menu-mission-desc").innerText = (garage.missionDoneDate !== hoy) ? DAILY_MISSIONS[garage.missionId].desc : "¡Misión de hoy completada!";
 }
 
@@ -168,19 +156,14 @@ function togglePause() {
 }
 
 function startGame() {
-    // CORRECCIÓN: Pantalla completa automática al iniciar
-    let el = document.documentElement;
-    let rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-    if(rfs) rfs.call(el);
-
+    let el = document.documentElement; if(el.requestFullscreen) el.requestFullscreen(); else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
     const car = MODELS[garage.selected];
     assets.player.src = `Autos/${car.img}`;
     player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 };
     score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; 
     enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = false;
     coinsThisRun = 0; nearMissesThisRun = 0; nmT = null; isPaused = false;
-    state = "PLAYING"; hideAll(); 
-    document.getElementById("btn-pause-trigger").style.display = "flex";
+    state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex";
     lastTime = performance.now(); loop();
 }
 
@@ -196,8 +179,7 @@ function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected];
     level = Math.floor(score/500)+1;
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
-    let hndl = car.handling;
-    if(level >= 8) hndl *= 0.7;
+    let hndl = car.handling; if(level >= 8) hndl *= 0.7;
 
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else {
@@ -222,25 +204,26 @@ function update(dt) {
     if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        let ahead = enemies.find(o => o !== en && o.l === en.l && o.y < en.y && (en.y - o.y) < 180);
+        // --- MEJORA: EVITAR SOLAPAMIENTO NPC ---
+        // El sensor detecta si hay alguien adelante a 220px y baja la velocidad para no traspasarlo
+        let ahead = enemies.find(o => o !== en && o.l === en.l && o.y < en.y && (en.y - o.y) < 220);
         let sToUse = (ahead && ahead.speed < en.speed) ? ahead.speed : en.speed;
         en.y += (currentSpeed - sToUse) * dt;
 
+        // --- CORRECCIÓN: CENTRADO EN CAMBIO DE CARRIL ---
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
-                let tx = 65 + (nextLane * 85);
-                let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 45 && Math.abs(o.y - en.y) < 200);
-                if(!occupied) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
+                let laneCenter = 65 + (nextLane * 85);
+                let targetX = laneCenter - (en.w / 2); // Calcula el centro exacto según el ancho
+                let occupied = enemies.some(o => o !== en && Math.abs(o.x - targetX) < 45 && Math.abs(o.y - en.y) < 200);
+                if(!occupied) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = targetX; en.tl = nextLane; }
             }
         }
         if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; en.l = en.tl; } } }
         if(en.chg) { en.x += (en.x < en.tx ? 1.5 : -1.5) * dt; if(Math.abs(en.x - en.tx) < 2) en.chg = false; }
         
-        if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
-            en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; 
-        }
-
+        if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; }
         if(checkCollision(player, en)) { lives--; if(lives<=0) endGame("CHOQUE"); enemies.splice(i,1); }
         else if(en.y > 850 || en.y < -400) enemies.splice(i,1);
     });
@@ -256,124 +239,71 @@ function update(dt) {
             items.splice(i,1);
         } else if(it.y > 800) items.splice(i,1);
     });
-
     scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); });
     if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; }
     if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
 }
 
 function draw() {
-    ctx.fillStyle = "#27ae60"; ctx.fillRect(0,0,400,750);
-    ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750);
+    let roadC = "#2c3e50", grassC = "#27ae60";
+    if(level >= 3 && level < 7) roadC = "#795548";
+    if(level >= 7) { roadC = "#95a5a6"; grassC = "#7f8c8d"; }
+    ctx.fillStyle = grassC; ctx.fillRect(0,0,400,750);
+    ctx.fillStyle = roadC; ctx.fillRect(35, 0, 330, 750);
     ctx.fillStyle = "rgba(255,255,255,0.2)";
     for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 3, 60); ctx.fillRect(200, i + (roadY % 150), 3, 60); ctx.fillRect(285, i + (roadY % 150), 3, 60); }
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
-
-    let night = (level >= 10);
-    let sunset = (level >= 6 && level < 10);
-    let rain = (level >= 8 && level < 10);
-
     enemies.forEach(en => { 
-        if(level >= 6) { 
-            ctx.fillStyle = "rgba(255, 255, 0, 0.4)";
-            ctx.beginPath(); ctx.moveTo(en.x+10, en.y+en.h); ctx.lineTo(en.x-20, en.y+en.h+100); ctx.lineTo(en.x+en.w+20, en.y+en.h+100); ctx.lineTo(en.x+en.w-10, en.y+en.h); ctx.fill();
-        }
+        if(level >= 6) { ctx.fillStyle = "rgba(255, 255, 0, 0.4)"; ctx.beginPath(); ctx.moveTo(en.x+10, en.y+en.h); ctx.lineTo(en.x-20, en.y+en.h+100); ctx.lineTo(en.x+en.w+20, en.y+en.h+100); ctx.lineTo(en.x+en.w-10, en.y+en.h); ctx.fill(); }
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
-        if(en.blink && Math.floor(en.bCount % 2) === 0) { 
-            ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tx < en.x ? 5 : en.w-5), en.y + en.h - 10, 6, 0, Math.PI*2); ctx.fill();
-        }
+        if(en.blink && Math.floor(en.bCount % 2) === 0) { ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tx < en.x ? 5 : en.w-5), en.y + en.h - 10, 6, 0, Math.PI*2); ctx.fill(); }
     });
-
     if(!expObj && assets.player.complete) {
-        if(level >= 6) { 
-            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-            ctx.beginPath(); ctx.moveTo(player.x+10, player.y); ctx.lineTo(player.x-40, player.y-200); ctx.lineTo(player.x+player.w+40, player.y-200); ctx.lineTo(player.x+player.w-10, player.y); ctx.fill();
-        }
+        if(level >= 6) { ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; ctx.beginPath(); ctx.moveTo(player.x+10, player.y); ctx.lineTo(player.x-40, player.y-200); ctx.lineTo(player.x+player.w+40, player.y-200); ctx.lineTo(player.x+player.w-10, player.y); ctx.fill(); }
         ctx.drawImage(assets.player, (player.x + (isS ? (Math.random()-0.5)*10 : 0))|0, player.y|0, player.w, player.h);
     }
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
-    
-    if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
-    if(rain) { 
-        ctx.fillStyle = "rgba(0, 100, 255, 0.15)"; ctx.fillRect(0,0,400,750);
-        ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1;
-        for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); }
-    }
-    if(night) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-        ctx.globalCompositeOperation = "multiply"; ctx.fillRect(0,0,400,750); ctx.globalCompositeOperation = "source-over";
-    }
-
-    if(nmT) { 
-        ctx.fillStyle = "#f1c40f"; ctx.font = "bold 22px Segoe UI"; ctx.textAlign = "center";
-        ctx.fillText("¡CERCA! +10", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left";
-    }
+    if(level >= 6 && level < 10) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
+    if(level >= 8 && level < 10) { ctx.fillStyle = "rgba(0, 100, 255, 0.15)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } }
+    if(level >= 10) { ctx.fillStyle = "rgba(0, 0, 0, 0.85)"; ctx.globalCompositeOperation = "multiply"; ctx.fillRect(0,0,400,750); ctx.globalCompositeOperation = "source-over"; }
+    if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 22px Segoe UI"; ctx.textAlign = "center"; ctx.fillText("¡CERCA! +10", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; }
 }
 
 function checkCollision(p, o) { let m = 4; return p.x + m < o.x + o.w - m && p.x + p.w - m > o.x + m && p.y + m < o.y + o.h - m && p.y + p.h - m > o.y + m; }
-function updateHUD() { 
-    document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
-    document.getElementById("ui-score").innerText = score|0; 
-    document.getElementById("ui-level").innerText = level; 
-    document.getElementById("ui-lives-text").innerText = lives; 
-    document.getElementById("ui-coins-total").innerText = garage.coins; 
-    document.getElementById("fuel-bar").style.width = fuel + "%"; 
-}
-
-function showMenu() { 
-    state = "MENU"; isPaused = false; hideAll(); 
-    document.getElementById("btn-pause-trigger").style.display = "none";
-    document.getElementById("menu").classList.remove("hidden"); 
-    updateUI(); actualizarMisionDiaria(); 
-}
-
+function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins; document.getElementById("fuel-bar").style.width = fuel + "%"; }
+function showMenu() { state = "MENU"; isPaused = false; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarMisionDiaria(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function save() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); }
+function updateUI() { const k = garage.selected; const s = garage.carStats[k]; document.getElementById("lvl-motor").innerText = s.motor; document.getElementById("lvl-tanque").innerText = s.tanque; document.getElementById("cost-motor").innerText = s.motor < 5 ? `$${UPGRADE_PRICES[k][s.motor]}` : "MAX"; document.getElementById("cost-tanque").innerText = s.tanque < 5 ? `$${UPGRADE_PRICES[k][s.tanque]}` : "MAX"; document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; document.getElementById("up-car-name").innerText = MODELS[k].name; }
+function buyUpgrade(t) { const k = garage.selected; const s = garage.carStats[k]; const p = UPGRADE_PRICES[k][s[t]]; if(garage.coins >= p && s[t] < 5) { garage.coins -= p; s[t]++; save(); updateUI(); } }
 
-function updateUI() { 
-    const carKey = garage.selected; const stats = garage.carStats[carKey];
-    document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; 
-    document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX";
-    document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX";
-    document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; document.getElementById("up-car-name").innerText = MODELS[carKey].name;
+// --- FUNCIÓN SPAWN TRAFFIC CORREGIDA ---
+function spawnTraffic() { 
+    let l = (Math.random()*4)|0; 
+    let laneCenter = 65 + (l * 85); 
+    let isC = (level >= 2 && Math.random() < 0.3); 
+    let w = isC ? 55 : 45; 
+    let h = isC ? 110 : 80;
+    // --- CORRECCIÓN: CENTRADO MATEMÁTICO AL APARECER ---
+    let tx = laneCenter - (w / 2); 
+    if(enemies.some(e => Math.abs(e.x - tx) < 40 && e.y < 50)) return; 
+    enemies.push({ x: tx, y: -200, l, w, h, img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], chg: false, blink: false, bCount: 0, bTimer: 0, nm: false, speed: 1.5 + Math.random() * 3.5 }); 
 }
 
-function buyUpgrade(t) { const carKey = garage.selected; const stats = garage.carStats[carKey]; const price = UPGRADE_PRICES[carKey][stats[t]]; if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } }
-function spawnTraffic() { let l = (Math.random()*4)|0, tx = 65 + (l * 85); if(enemies.some(e => Math.abs(e.x - tx) < 40 && e.y < 50)) return; let isC = (level >= 2 && Math.random() < 0.3); enemies.push({ x: tx-22, y: -200, l, w: isC ? 55 : 45, h: isC ? 110 : 80, img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], chg: false, blink: false, bCount: 0, bTimer: 0, nm: false, speed: 1.5 + Math.random() * 3.5 }); }
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) return; scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
-
-function endGame(r) { 
-    state="OVER"; document.getElementById("btn-pause-trigger").style.display = "none";
-    if(score > garage.high) garage.high = score|0; 
-    const misionActual = DAILY_MISSIONS[garage.missionId]; const hoy = new Date().toDateString();
-    if (garage.missionDoneDate !== hoy) {
-        let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal);
-        if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; document.getElementById("mission-complete-msg").classList.remove("hidden"); }
-    }
-    save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = r; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`; 
-}
-
+function endGame(r) { state="OVER"; document.getElementById("btn-pause-trigger").style.display = "none"; if(score > garage.high) garage.high = score|0; const mission = DAILY_MISSIONS[garage.missionId]; const hoy = new Date().toDateString(); if (garage.missionDoneDate !== hoy) { let ok = (mission.type === 'coins' && coinsThisRun >= mission.goal) || (mission.type === 'nearmiss' && nearMissesThisRun >= mission.goal) || (mission.type === 'level' && level >= mission.goal); if (ok) { garage.coins += 500; garage.missionDoneDate = hoy; } } save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = r; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`; }
 function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-function updateShopUI() { 
-    const carKeys = Object.keys(MODELS); const key = carKeys[shopIndex], car = MODELS[key]; 
-    document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; 
-    document.getElementById("shop-car-speed").innerText = (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives;
-    const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; 
-    btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; 
-}
+function updateShopUI() { const keys = Object.keys(MODELS); const k = keys[shopIndex], car = MODELS[k]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = car.lives; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(k) ? (garage.selected === k ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; btn.onclick = () => { if(garage.owned.includes(k)) { garage.selected = k; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(k); garage.selected = k; save(); updateShopUI(); } }; }
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
 function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
-
 window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause(); keys[e.code] = true; }); window.addEventListener("keyup", e => keys[e.code] = false);
-const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
+const setupT = (id, k) => { const b = document.getElementById(id); if(b) { b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); } };
 setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
-
-actualizarMisionDiaria();
-showMenu();
+actualizarMisionDiaria(); showMenu();
 </script>
 </body>
 </html>
