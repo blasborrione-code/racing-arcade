@@ -343,8 +343,8 @@ function draw() {
 
 function checkCollision(p, o) { 
     let mx = 8; let my = 12; 
-    // CORRECCIÓN: Hitbox más generosa para los camiones (o.w > 50)
-    if(o.w > 50) { mx = 12; my = 18; } 
+    // CORRECCIÓN: Hitbox del camión ajustada para que el choque por atrás sea más preciso
+    if(o.w > 50) { mx = 12; my = 8; } 
     return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; 
 }
 
@@ -421,4 +421,3 @@ showMenu();
 </script>
 </body>
 </html>
-
