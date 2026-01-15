@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Borrione Racing - v4.0 Master Final</title>
+    <title>Borrione Racing - v4.1 Master Final</title>
     <style>
         body { margin: 0; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         #game-container { position: fixed; inset: 0; background: #34495e; overflow: hidden; display: flex; justify-content: center; align-items: center; }
@@ -15,10 +15,8 @@
         .bar-container { width: 140px; height: 10px; background: #333; border: 1.5px solid #fff; margin-top: 4px; }
         #fuel-bar { width: 100%; height: 100%; background: #2ecc71; transition: width 0.2s; }
         
-        /* Botón Pausa Arriba al Medio */
         #btn-pause-trigger { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 50px; height: 40px; background: rgba(255,255,255,0.2); color: white; border: 2px solid white; border-radius: 8px; display: none; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; pointer-events: auto; z-index: 20; font-weight: bold; }
 
-        /* Overlays */
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; z-index: 100; padding: 20px; }
         .hidden { display: none !important; }
         
@@ -194,15 +192,30 @@ function loop(t) {
 function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected];
     
-    let nextLvl = Math.floor(score/500)+1;
+    // CORRECCIÓN NIVELES: Cálculo de nivel según distancia
+    let nextLvl;
+    if (score < 4000) {
+        nextLvl = Math.floor(score / 500) + 1;
+    } else {
+        nextLvl = 9 + Math.floor((score - 4000) / 1000);
+    }
+    
     if(nextLvl > level) heartSpawnedInLevel = false; 
     level = nextLvl;
 
-    let cycleLevel = ((level - 1) % 12) + 1;
-
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
     let hndl = car.handling;
-    if(cycleLevel >= 8 && cycleLevel <= 9) hndl *= 0.7;
+
+    // Determinar clima basado en ciclo
+    let sunset = false, rain = false, night = false;
+    if (level >= 6) {
+        let w = (level - 6) % 4; // Ciclo: 6 (Sunset), 7 (Rain), 8 (Night), 9 (Day/Reset)
+        if (w === 0) sunset = true;
+        if (w === 1) rain = true;
+        if (w === 2) night = true;
+    }
+
+    if(rain) hndl *= 0.7; // Reducción por lluvia
 
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else {
@@ -218,24 +231,22 @@ function update(dt) {
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     fuel -= (0.012 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     
+    // SPAWN SEGÚN NIVEL
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
     if(Math.random() < 0.003 * dt) spawnItem('fuel');
     
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { 
-        spawnItem('heart'); 
-        heartSpawnedInLevel = true; 
+        spawnItem('heart'); heartSpawnedInLevel = true; 
     }
     
     if(level >= 4 && Math.random() < 0.001 * dt) spawnItem('oil');
     if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        // CORRECCIÓN: IA mejorada. Detecta por coordenada X exacta, no solo por ID de carril.
-        // Esto evita choques durante los cambios de carril.
-        let ahead = enemies.find(o => o !== en && Math.abs(o.x - en.x) < 35 && o.y < en.y && (en.y - o.y) < 200);
-        let playerAhead = (Math.abs(player.x - en.x) < 35 && player.y < en.y && (en.y - player.y) < 200);
+        let ahead = enemies.find(o => o !== en && Math.abs(o.x - en.x) < 35 && o.y < en.y && (en.y - o.y) < 180);
+        let playerAhead = (Math.abs(player.x - en.x) < 35 && player.y < en.y && (en.y - player.y) < 180);
 
         let sToUse = en.speed;
         if (ahead && ahead.speed < en.speed) sToUse = ahead.speed;
@@ -243,19 +254,15 @@ function update(dt) {
 
         en.y += (currentSpeed - sToUse) * dt;
 
+        // IA CAMBIO DE CARRIL NIVEL 3
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
                 const centers = [75, 157.5, 242.5, 325];
                 let tx = centers[nextLane] - (en.w / 2);
-                
-                // Sensor de carril lateral más estricto para no cerrarse encima de nadie
                 let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 45 && Math.abs(o.y - en.y) < 220);
                 let playerInWay = (Math.abs(player.x - tx) < 45 && Math.abs(player.y - en.y) < 220);
-                
-                if(!occupied && !playerInWay) { 
-                    en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; 
-                }
+                if(!occupied && !playerInWay) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
             }
         }
         if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; en.l = en.tl; } } }
@@ -287,10 +294,11 @@ function update(dt) {
 }
 
 function draw() {
-    let cycleLevel = ((level - 1) % 12) + 1;
-    let night = (cycleLevel >= 10);
-    let sunset = (cycleLevel >= 6 && cycleLevel < 10);
-    let rain = (cycleLevel >= 8 && cycleLevel < 10);
+    let sunset = false, rain = false, night = false;
+    if (level >= 6) {
+        let w = (level - 6) % 4;
+        if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true;
+    }
 
     ctx.fillStyle = "#27ae60"; ctx.fillRect(0,0,400,750);
     ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750);
@@ -305,7 +313,6 @@ function draw() {
             ctx.beginPath(); ctx.moveTo(en.x+10, en.y); ctx.lineTo(en.x-15, en.y-120); ctx.lineTo(en.x+35, en.y-120); ctx.fill();
             ctx.beginPath(); ctx.moveTo(en.x+en.w-10, en.y); ctx.lineTo(en.x+en.w-35, en.y-120); ctx.lineTo(en.x+en.w+15, en.y-120); ctx.fill();
         }
-
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
         if(en.blink && Math.floor(en.bCount % 2) === 0) { 
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tx < en.x ? 5 : en.w-5), en.y + en.h - 10, 6, 0, Math.PI*2); ctx.fill();
@@ -339,12 +346,8 @@ function draw() {
 }
 
 function checkCollision(p, o) { 
-    let mx = 8; 
-    let my = 12; 
-    return p.x + mx < o.x + o.w - mx && 
-           p.x + p.w - mx > o.x + mx && 
-           p.y + my < o.y + o.h - my && 
-           p.y + p.h - my > o.y + my; 
+    let mx = 8; let my = 12; 
+    return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; 
 }
 
 function updateHUD() { 
@@ -377,29 +380,11 @@ function updateUI() {
 function buyUpgrade(t) { const carKey = garage.selected; const stats = garage.carStats[carKey]; const price = UPGRADE_PRICES[carKey][stats[t]]; if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } }
 
 function spawnTraffic() { 
-    let l = (Math.random()*4)|0;
-    const centers = [75, 157.5, 242.5, 325];
-    let tx = centers[l];
-    
+    let l = (Math.random()*4)|0; const centers = [75, 157.5, 242.5, 325]; let tx = centers[l];
     let isC = (level >= 2 && Math.random() < 0.3); 
     let w = isC ? 55 : 45;
-    
     if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 40 && e.y < 50)) return; 
-    
-    enemies.push({ 
-        x: tx - (w / 2), 
-        y: -200, 
-        l, 
-        w: w, 
-        h: isC ? 110 : 80, 
-        img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], 
-        chg: false, 
-        blink: false, 
-        bCount: 0, 
-        bTimer: 0, 
-        nm: false, 
-        speed: 1.5 + Math.random() * 3.5 
-    }); 
+    enemies.push({ x: tx - (w / 2), y: -200, l, w: w, h: isC ? 110 : 80, img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], chg: false, blink: false, bCount: 0, bTimer: 0, nm: false, speed: 1.5 + Math.random() * 3.5 }); 
 }
 
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) return; scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
