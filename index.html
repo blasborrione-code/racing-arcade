@@ -192,6 +192,7 @@ function loop(t) {
 function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected];
     
+    // CORRECCIÓN NIVELES: Cálculo de nivel según distancia
     let nextLvl;
     if (score < 4000) {
         nextLvl = Math.floor(score / 500) + 1;
@@ -251,13 +252,15 @@ function update(dt) {
 
         en.y += (currentSpeed - sToUse) * dt;
 
+        // IA CAMBIO DE CARRIL NIVEL 3 - CORREGIDA: Márgenes más amplios para evitar superposición
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
                 const centers = [75, 157.5, 242.5, 325];
                 let tx = centers[nextLane] - (en.w / 2);
-                let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 45 && Math.abs(o.y - en.y) < 220);
-                let playerInWay = (Math.abs(player.x - tx) < 45 && Math.abs(player.y - en.y) < 220);
+                // Se aumentó el margen horizontal a 60 y vertical a 250
+                let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 60 && Math.abs(o.y - en.y) < 250);
+                let playerInWay = (Math.abs(player.x - tx) < 60 && Math.abs(player.y - en.y) < 250);
                 if(!occupied && !playerInWay) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
             }
         }
