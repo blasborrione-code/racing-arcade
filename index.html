@@ -193,7 +193,12 @@ function loop(t) {
 
 function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected];
-    level = Math.floor(score/500)+1;
+    
+    // CORRECCIÓN: Manejo de corazones por nivel
+    let nextLvl = Math.floor(score/500)+1;
+    if(nextLvl > level) heartSpawnedInLevel = false; // Resetear bandera al subir de nivel
+    level = nextLvl;
+
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
     let hndl = car.handling;
     if(level >= 8) hndl *= 0.7;
@@ -216,7 +221,13 @@ function update(dt) {
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
     if(Math.random() < 0.003 * dt) spawnItem('fuel');
-    if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
+    
+    // CORRECCIÓN: Solo un corazón por nivel a partir del nivel 2
+    if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { 
+        spawnItem('heart'); 
+        heartSpawnedInLevel = true; 
+    }
+    
     if(level >= 4 && Math.random() < 0.001 * dt) spawnItem('oil');
     if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
 
@@ -250,7 +261,7 @@ function update(dt) {
         if(checkCollision(player, it)) {
             if(it.t === 'coin') { garage.coins++; coinsThisRun++; }
             if(it.t === 'fuel') fuel = Math.min(100, fuel+40);
-            if(it.t === 'heart') { lives++; heartSpawnedInLevel = false; }
+            if(it.t === 'heart') { lives++; }
             if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); }
             if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; setTimeout(()=>endGame("EXPLOSIÓN"), 500); }
             items.splice(i,1);
@@ -275,10 +286,7 @@ function draw() {
     let rain = (level >= 8 && level < 10);
 
     enemies.forEach(en => { 
-        if(level >= 6) { 
-            ctx.fillStyle = "rgba(255, 255, 0, 0.4)";
-            ctx.beginPath(); ctx.moveTo(en.x+10, en.y+en.h); ctx.lineTo(en.x-20, en.y+en.h+100); ctx.lineTo(en.x+en.w+20, en.y+en.h+100); ctx.lineTo(en.x+en.w-10, en.y+en.h); ctx.fill();
-        }
+        // CORRECCIÓN: Se eliminaron las luces amarillas traseras de los NPCs
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
         if(en.blink && Math.floor(en.bCount % 2) === 0) { 
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tx < en.x ? 5 : en.w-5), en.y + en.h - 10, 6, 0, Math.PI*2); ctx.fill();
@@ -312,9 +320,6 @@ function draw() {
 }
 
 function checkCollision(p, o) { 
-    // Ajustamos las hitboxes para que sean más "generosas" con el jugador.
-    //mx (margen horizontal) y my (margen vertical) crean una caja interna
-    //más pequeña que el dibujo, evitando choques injustos por bordes transparentes.
     let mx = 8; 
     let my = 12; 
     return p.x + mx < o.x + o.w - mx && 
