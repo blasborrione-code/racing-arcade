@@ -198,12 +198,10 @@ function update(dt) {
     if(nextLvl > level) heartSpawnedInLevel = false; 
     level = nextLvl;
 
-    // CORRECCIÓN 3: Ciclo de clima infinito (cada 12 niveles)
     let cycleLevel = ((level - 1) % 12) + 1;
 
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
     let hndl = car.handling;
-    // La reducción de manejo ocurre en niveles 8 y 9 del ciclo (Lluvia)
     if(cycleLevel >= 8 && cycleLevel <= 9) hndl *= 0.7;
 
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
@@ -234,15 +232,14 @@ function update(dt) {
     if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        // CORRECCIÓN 2: Inteligencia Artificial mejorada (Crucero y evitar colisión frontal)
-        // Detecta NPCs adelante
-        let ahead = enemies.find(o => o !== en && o.l === en.l && o.y < en.y && (en.y - o.y) < 180);
-        // Detecta si el jugador está adelante en el mismo carril
-        let playerAhead = (Math.abs(player.x - en.x) < 40 && player.y < en.y && (en.y - player.y) < 180);
+        // CORRECCIÓN: IA mejorada. Detecta por coordenada X exacta, no solo por ID de carril.
+        // Esto evita choques durante los cambios de carril.
+        let ahead = enemies.find(o => o !== en && Math.abs(o.x - en.x) < 35 && o.y < en.y && (en.y - o.y) < 200);
+        let playerAhead = (Math.abs(player.x - en.x) < 35 && player.y < en.y && (en.y - player.y) < 200);
 
         let sToUse = en.speed;
         if (ahead && ahead.speed < en.speed) sToUse = ahead.speed;
-        if (playerAhead && currentSpeed < en.speed) sToUse = currentSpeed; // Frena si el jugador va lento
+        if (playerAhead && currentSpeed < en.speed) sToUse = currentSpeed; 
 
         en.y += (currentSpeed - sToUse) * dt;
 
@@ -252,9 +249,9 @@ function update(dt) {
                 const centers = [75, 157.5, 242.5, 325];
                 let tx = centers[nextLane] - (en.w / 2);
                 
-                // CORRECCIÓN 2: Sensor de cambio de carril más estricto
-                let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 50 && Math.abs(o.y - en.y) < 220);
-                let playerInWay = (Math.abs(player.x - tx) < 50 && Math.abs(player.y - en.y) < 220);
+                // Sensor de carril lateral más estricto para no cerrarse encima de nadie
+                let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 45 && Math.abs(o.y - en.y) < 220);
+                let playerInWay = (Math.abs(player.x - tx) < 45 && Math.abs(player.y - en.y) < 220);
                 
                 if(!occupied && !playerInWay) { 
                     en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; 
@@ -303,12 +300,9 @@ function draw() {
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
 
     enemies.forEach(en => { 
-        // CORRECCIÓN 1: Luces delanteras para todos los NPCs al atardecer/lluvia/noche
         if(sunset || rain || night) {
             ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
-            // Foco izquierdo NPC
             ctx.beginPath(); ctx.moveTo(en.x+10, en.y); ctx.lineTo(en.x-15, en.y-120); ctx.lineTo(en.x+35, en.y-120); ctx.fill();
-            // Foco derecho NPC
             ctx.beginPath(); ctx.moveTo(en.x+en.w-10, en.y); ctx.lineTo(en.x+en.w-35, en.y-120); ctx.lineTo(en.x+en.w+15, en.y-120); ctx.fill();
         }
 
@@ -319,7 +313,6 @@ function draw() {
     });
 
     if(!expObj && assets.player.complete) {
-        // CORRECCIÓN 1: Luces delanteras para el jugador
         if(sunset || rain || night) { 
             ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
             ctx.beginPath(); ctx.moveTo(player.x+10, player.y); ctx.lineTo(player.x-40, player.y-200); ctx.lineTo(player.x+player.w+40, player.y-200); ctx.lineTo(player.x+player.w-10, player.y); ctx.fill();
