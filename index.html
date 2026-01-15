@@ -311,7 +311,18 @@ function draw() {
     }
 }
 
-function checkCollision(p, o) { let m = 4; return p.x + m < o.x + o.w - m && p.x + p.w - m > o.x + m && p.y + m < o.y + o.h - m && p.y + p.h - m > o.y + m; }
+function checkCollision(p, o) { 
+    // Ajustamos las hitboxes para que sean más "generosas" con el jugador.
+    //mx (margen horizontal) y my (margen vertical) crean una caja interna
+    //más pequeña que el dibujo, evitando choques injustos por bordes transparentes.
+    let mx = 8; 
+    let my = 12; 
+    return p.x + mx < o.x + o.w - mx && 
+           p.x + p.w - mx > o.x + mx && 
+           p.y + my < o.y + o.h - my && 
+           p.y + p.h - my > o.y + my; 
+}
+
 function updateHUD() { 
     document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
     document.getElementById("ui-score").innerText = score|0; 
@@ -403,4 +414,3 @@ showMenu();
 </script>
 </body>
 </html>
-
