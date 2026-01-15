@@ -156,7 +156,7 @@ function actualizarMisionDiaria() {
 }
 
 let state = "MENU", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, isPaused = false, level = 1, shopIndex = 0;
-let player = { x: 0, y: 0, vx: 0 }, enemies = []; let items = []; let scenery = []; let keys = {}; let nmT = null; let isS = false; let expObj = null;
+let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = []; let items = []; let scenery = []; let keys = {}; let nmT = null; let isS = false; let expObj = null;
 let coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false;
 
 function togglePause() {
@@ -194,14 +194,17 @@ function loop(t) {
 function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected];
     
-    // CORRECCIÓN: Manejo de corazones por nivel
     let nextLvl = Math.floor(score/500)+1;
-    if(nextLvl > level) heartSpawnedInLevel = false; // Resetear bandera al subir de nivel
+    if(nextLvl > level) heartSpawnedInLevel = false; 
     level = nextLvl;
+
+    // CORRECCIÓN 3: Ciclo de clima infinito (cada 12 niveles)
+    let cycleLevel = ((level - 1) % 12) + 1;
 
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
     let hndl = car.handling;
-    if(level >= 8) hndl *= 0.7;
+    // La reducción de manejo ocurre en niveles 8 y 9 del ciclo (Lluvia)
+    if(cycleLevel >= 8 && cycleLevel <= 9) hndl *= 0.7;
 
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else {
@@ -222,7 +225,6 @@ function update(dt) {
     if(Math.random() < 0.006 * dt) spawnItem('coin');
     if(Math.random() < 0.003 * dt) spawnItem('fuel');
     
-    // CORRECCIÓN: Solo un corazón por nivel a partir del nivel 2
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { 
         spawnItem('heart'); 
         heartSpawnedInLevel = true; 
@@ -232,8 +234,16 @@ function update(dt) {
     if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
+        // CORRECCIÓN 2: Inteligencia Artificial mejorada (Crucero y evitar colisión frontal)
+        // Detecta NPCs adelante
         let ahead = enemies.find(o => o !== en && o.l === en.l && o.y < en.y && (en.y - o.y) < 180);
-        let sToUse = (ahead && ahead.speed < en.speed) ? ahead.speed : en.speed;
+        // Detecta si el jugador está adelante en el mismo carril
+        let playerAhead = (Math.abs(player.x - en.x) < 40 && player.y < en.y && (en.y - player.y) < 180);
+
+        let sToUse = en.speed;
+        if (ahead && ahead.speed < en.speed) sToUse = ahead.speed;
+        if (playerAhead && currentSpeed < en.speed) sToUse = currentSpeed; // Frena si el jugador va lento
+
         en.y += (currentSpeed - sToUse) * dt;
 
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
@@ -241,8 +251,14 @@ function update(dt) {
             if(nextLane >= 0 && nextLane <= 3) {
                 const centers = [75, 157.5, 242.5, 325];
                 let tx = centers[nextLane] - (en.w / 2);
-                let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 45 && Math.abs(o.y - en.y) < 200);
-                if(!occupied) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
+                
+                // CORRECCIÓN 2: Sensor de cambio de carril más estricto
+                let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 50 && Math.abs(o.y - en.y) < 220);
+                let playerInWay = (Math.abs(player.x - tx) < 50 && Math.abs(player.y - en.y) < 220);
+                
+                if(!occupied && !playerInWay) { 
+                    en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; 
+                }
             }
         }
         if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; en.l = en.tl; } } }
@@ -274,6 +290,11 @@ function update(dt) {
 }
 
 function draw() {
+    let cycleLevel = ((level - 1) % 12) + 1;
+    let night = (cycleLevel >= 10);
+    let sunset = (cycleLevel >= 6 && cycleLevel < 10);
+    let rain = (cycleLevel >= 8 && cycleLevel < 10);
+
     ctx.fillStyle = "#27ae60"; ctx.fillRect(0,0,400,750);
     ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750);
     ctx.fillStyle = "rgba(255,255,255,0.2)";
@@ -281,12 +302,16 @@ function draw() {
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
 
-    let night = (level >= 10);
-    let sunset = (level >= 6 && level < 10);
-    let rain = (level >= 8 && level < 10);
-
     enemies.forEach(en => { 
-        // CORRECCIÓN: Se eliminaron las luces amarillas traseras de los NPCs
+        // CORRECCIÓN 1: Luces delanteras para todos los NPCs al atardecer/lluvia/noche
+        if(sunset || rain || night) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+            // Foco izquierdo NPC
+            ctx.beginPath(); ctx.moveTo(en.x+10, en.y); ctx.lineTo(en.x-15, en.y-120); ctx.lineTo(en.x+35, en.y-120); ctx.fill();
+            // Foco derecho NPC
+            ctx.beginPath(); ctx.moveTo(en.x+en.w-10, en.y); ctx.lineTo(en.x+en.w-35, en.y-120); ctx.lineTo(en.x+en.w+15, en.y-120); ctx.fill();
+        }
+
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
         if(en.blink && Math.floor(en.bCount % 2) === 0) { 
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tx < en.x ? 5 : en.w-5), en.y + en.h - 10, 6, 0, Math.PI*2); ctx.fill();
@@ -294,8 +319,9 @@ function draw() {
     });
 
     if(!expObj && assets.player.complete) {
-        if(level >= 6) { 
-            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        // CORRECCIÓN 1: Luces delanteras para el jugador
+        if(sunset || rain || night) { 
+            ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
             ctx.beginPath(); ctx.moveTo(player.x+10, player.y); ctx.lineTo(player.x-40, player.y-200); ctx.lineTo(player.x+player.w+40, player.y-200); ctx.lineTo(player.x+player.w-10, player.y); ctx.fill();
         }
         ctx.drawImage(assets.player, (player.x + (isS ? (Math.random()-0.5)*10 : 0))|0, player.y|0, player.w, player.h);
