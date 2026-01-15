@@ -192,7 +192,6 @@ function loop(t) {
 function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected];
     
-    // CORRECCIÓN NIVELES: Cálculo de nivel según distancia
     let nextLvl;
     if (score < 4000) {
         nextLvl = Math.floor(score / 500) + 1;
@@ -206,16 +205,15 @@ function update(dt) {
     const mSpd = car.maxSpeed + (stats.motor * 0.4);
     let hndl = car.handling;
 
-    // Determinar clima basado en ciclo
     let sunset = false, rain = false, night = false;
     if (level >= 6) {
-        let w = (level - 6) % 4; // Ciclo: 6 (Sunset), 7 (Rain), 8 (Night), 9 (Day/Reset)
+        let w = (level - 6) % 4; 
         if (w === 0) sunset = true;
         if (w === 1) rain = true;
         if (w === 2) night = true;
     }
 
-    if(rain) hndl *= 0.7; // Reducción por lluvia
+    if(rain) hndl *= 0.7; 
 
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else {
@@ -231,7 +229,6 @@ function update(dt) {
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     fuel -= (0.012 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     
-    // SPAWN SEGÚN NIVEL
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
@@ -245,8 +242,8 @@ function update(dt) {
     if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        let ahead = enemies.find(o => o !== en && Math.abs(o.x - en.x) < 35 && o.y < en.y && (en.y - o.y) < 180);
-        let playerAhead = (Math.abs(player.x - en.x) < 35 && player.y < en.y && (en.y - player.y) < 180);
+        let ahead = enemies.find(o => o !== en && Math.abs(o.x - en.x) < 35 && o.y < en.y && (en.y - o.y) < 200);
+        let playerAhead = (Math.abs(player.x - en.x) < 35 && player.y < en.y && (en.y - player.y) < 200);
 
         let sToUse = en.speed;
         if (ahead && ahead.speed < en.speed) sToUse = ahead.speed;
@@ -254,7 +251,6 @@ function update(dt) {
 
         en.y += (currentSpeed - sToUse) * dt;
 
-        // IA CAMBIO DE CARRIL NIVEL 3
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
@@ -347,6 +343,8 @@ function draw() {
 
 function checkCollision(p, o) { 
     let mx = 8; let my = 12; 
+    // CORRECCIÓN: Hitbox más generosa para los camiones (o.w > 50)
+    if(o.w > 50) { mx = 12; my = 18; } 
     return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; 
 }
 
