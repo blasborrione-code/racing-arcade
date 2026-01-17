@@ -77,7 +77,7 @@
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
             <h1 style="margin-bottom: 5px;">RACING ARCADE</h1>
-            <p style="margin: 0 0 25px; font-size: 12px; color: #bdc3c7;">creado por Blas Borrione</p>
+            <p style="margin: 0 0 25px; font-size: 14px; color: #bdc3c7;">creado por Blas Borrione</p>
             <div class="stats-row"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box">
                 <small style="color:var(--accent)">MISIÓN</small>
@@ -208,14 +208,14 @@ const UPGRADE_PRICES = {
     'f1_clasico': [3000, 5000, 8000, 12000, 15000]
 };
 
-// 2. CONFIGURACIÓN DE NEONES (PRECIOS A 0 PARA TEST)
+// 2. CONFIGURACIÓN DE NEONES (VALORES ORIGINALES RESTAURADOS)
 const NEONES = {
     'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 },
-    'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 0 },
-    'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 0 },
-    'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 0 },
-    'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 0 },
-    'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 0 }
+    'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 },
+    'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 },
+    'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 },
+    'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 },
+    'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
 };
 
 const DAILY_MISSIONS = [
@@ -448,3 +448,4 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
+
