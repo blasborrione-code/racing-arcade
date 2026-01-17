@@ -294,57 +294,74 @@ function update(dt) {
     if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
 }
 
-// CORRECCIÓN: Función para dibujar luces estilo Pixel Art Realista con degradados
-function drawProHeadlights(x, y, w, h, isPlayer) {
-    const lightLength = isPlayer ? 220 : 130;
-    const lightWidth = isPlayer ? 55 : 35;
+// CORRECCIÓN: Luces ajustadas a la óptica y con capacidad de iluminar la noche
+function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
+    const lightLength = isPlayer ? 230 : 140;
+    const lightWidth = isPlayer ? 60 : 40;
     
-    // Crear degradado lineal para el haz de luz
-    let grad = ctx.createLinearGradient(x + w/2, y, x + w/2, y - lightLength);
-    grad.addColorStop(0, 'rgba(255, 250, 200, 0.4)'); // Origen (blanco cálido)
-    grad.addColorStop(0.4, 'rgba(255, 255, 255, 0.15)'); // Dispersión
-    grad.addColorStop(1, 'rgba(255, 255, 255, 0)'); // Desvanecimiento total
+    // Ajustamos el origen de la luz para que nazca desde adentro del auto (ópticas)
+    const lightY = y + 10; 
+
+    // Si es de noche, usamos un modo de mezcla que "aclare" la capa oscura del fondo
+    if(isNight) ctx.globalCompositeOperation = 'lighter';
+
+    // Haz de luz con degradado
+    let grad = ctx.createLinearGradient(x + w/2, lightY, x + w/2, lightY - lightLength);
+    grad.addColorStop(0, 'rgba(255, 250, 200, 0.5)'); 
+    grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)'); 
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)'); 
     
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.moveTo(x + 5, y); // Lado izquierdo faro
-    ctx.lineTo(x - lightWidth, y - lightLength); // Expansión izquierda
-    ctx.lineTo(x + w + lightWidth, y - lightLength); // Expansión derecha
-    ctx.lineTo(x + w - 5, y); // Lado derecho faro
+    ctx.moveTo(x + 8, lightY); 
+    ctx.lineTo(x - lightWidth, lightY - lightLength); 
+    ctx.lineTo(x + w + lightWidth, lightY - lightLength); 
+    ctx.lineTo(x + w - 8, lightY); 
     ctx.fill();
     
-    // Brillo en el foco (faro físico)
-    ctx.fillStyle = "rgba(255, 255, 200, 0.8)";
+    // Brillo en la óptica (faro físico corregido de posición)
+    ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
     ctx.beginPath();
-    ctx.arc(x + 8, y, 4, 0, Math.PI * 2);
-    ctx.arc(x + w - 8, y, 4, 0, Math.PI * 2);
+    ctx.arc(x + 10, lightY, 3, 0, Math.PI * 2);
+    ctx.arc(x + w - 10, lightY, 3, 0, Math.PI * 2);
     ctx.fill();
+
+    // Volvemos al modo normal después de iluminar
+    if(isNight) ctx.globalCompositeOperation = 'source-over';
 }
 
 function draw() {
     let sunset = false, rain = false, night = false; if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
+    
+    // 1. DIBUJAR FONDO Y RUTA
     ctx.fillStyle = "#27ae60"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); ctx.fillStyle = "rgba(255,255,255,0.1)";
     for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); }
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
-    
+
+    // 2. SI ES DE NOCHE, APLICAR CAPA DE OSCURIDAD ANTES QUE LOS AUTOS Y LUCES
+    if(night) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.92)"; // Noche bien oscura
+        ctx.fillRect(0,0,400,750);
+    }
+
+    // 3. DIBUJAR LUCES (Ahora iluminarán la capa de oscuridad de arriba)
     enemies.forEach(en => { 
-        // CORRECCIÓN: Uso de la nueva función de luces para NPCs
-        if(sunset || rain || night) { drawProHeadlights(en.x, en.y, en.w, en.h, false); }
+        if(sunset || rain || night) { drawProHeadlights(en.x, en.y, en.w, en.h, false, night); }
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
         if(en.blink && Math.floor(en.bCount % 2) === 0) { ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tx < en.x ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI*2); ctx.fill(); }
     });
 
     if(!expObj && assets.player.complete) {
-        // CORRECCIÓN: Uso de la nueva función de luces para el Jugador
-        if(sunset || rain || night) { drawProHeadlights(player.x, player.y, player.w, player.h, true); }
+        if(sunset || rain || night) { drawProHeadlights(player.x, player.y, player.w, player.h, true, night); }
         ctx.drawImage(assets.player, (player.x + (isS ? (Math.random()-0.5)*10 : 0))|0, player.y|0, player.w, player.h);
     }
     
+    // 4. OTROS FILTROS (Atardecer y Lluvia)
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
     if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
     if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } }
-    if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.85)"; ctx.globalCompositeOperation = "multiply"; ctx.fillRect(0,0,400,750); ctx.globalCompositeOperation = "source-over"; }
+    
     if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; }
 }
 
