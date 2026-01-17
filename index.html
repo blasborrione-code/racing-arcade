@@ -266,8 +266,11 @@ function update(dt) {
     if(Math.random() < 0.006 * dt) spawnItem('coin');
     if(Math.random() < 0.003 * dt) spawnItem('fuel');
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
-    if(level >= 4 && Math.random() < 0.001 * dt) spawnItem('oil');
-    if(level >= 5 && Math.random() < 0.001 * dt) spawnItem('bomb');
+    
+    // CORRECCIÓN: Frecuencia de charcos y bombas aumentada un poco
+    if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil');
+    if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
+
     enemies.forEach((en, i) => {
         let ahead = enemies.find(o => o !== en && Math.abs(o.x - en.x) < 35 && o.y < en.y && (en.y - o.y) < 200);
         let playerAhead = (Math.abs(player.x - en.x) < 35 && player.y < en.y && (en.y - player.y) < 200);
@@ -321,7 +324,7 @@ function checkCollision(p, o) { let mx = 8, my = 12; if(o.w > 50) { mx = 12; my 
 function updateHUD() { 
     document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
     document.getElementById("ui-score").innerText = score|0; 
-    document.getElementById("ui-level").innerText = level; // INDICADOR DE NIVEL REINSTALADO
+    document.getElementById("ui-level").innerText = level; 
     document.getElementById("ui-lives-text").innerText = lives; 
     document.getElementById("ui-coins-total").innerText = garage.coins; 
     document.getElementById("fuel-bar").style.width = fuel + "%"; 
@@ -347,7 +350,6 @@ window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause();
 const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
 setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
 
-// Temporizador para quitar la pantalla de carga
 setTimeout(() => {
     document.getElementById("loading-screen").classList.add("hidden");
     showMenu();
