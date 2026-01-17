@@ -20,10 +20,10 @@
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
         
-        /* Botón Pausa */
+        /* Botón Pausa Circular */
         #btn-pause-trigger { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 45px; height: 45px; background: var(--bg-glass); border: 2px solid white; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; pointer-events: auto; z-index: 20; }
 
-        /* Pantalla de Carga con Imagen Ajustada */
+        /* Pantalla de Carga Ajustada (contain) */
         #loading-screen { 
             position: absolute; 
             inset: 0; 
@@ -54,7 +54,7 @@
         .btn-green { background: #2ecc71; }
         .btn-blue { background: #3498db; }
         .btn-orange { background: #e67e22; }
-        .btn-red { background: #2c3e50; }
+        .btn-red { background: #e74c3c; }
 
         .mission-box { background: rgba(255,255,255,0.05); border: 1px dashed rgba(241,196,15,0.5); padding: 15px; border-radius: 20px; margin: 15px 0; }
         .stats-row { display: flex; justify-content: space-around; font-size: 12px; color: #bdc3c7; margin-bottom: 15px; }
@@ -65,7 +65,7 @@
 </head>
 <body>
 
-<div id="loading-screen">
+<div id="loading-screen" class="overlay">
     <h1 style="margin-bottom: 5px;">RACING ARCADE</h1>
     <p style="margin-top: 0; font-size: 12px; color: #bdc3c7; letter-spacing: 1px;">creado por Blas Borrione</p>
     <div class="loader"><div class="loader-bar"></div></div>
@@ -188,6 +188,8 @@ ctx.imageSmoothingEnabled = false;
 
 if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-controls").style.display = "flex";
 
+const audio = { play: (name) => { } }; // Placeholder vacío
+
 const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), npcs: [] };
 const sceneryAssets = { arboles: [new Image()] };
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
@@ -296,14 +298,14 @@ function update(dt) {
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     
-    // CONSUMO DE NAFTA (Un pelín más rápido)
+    // CONSUMO RESTAURADO Y AJUSTADO (Un pelín más rápido)
     fuel -= (0.014 - (stats.tanque * 0.0015)) * currentSpeed * dt;
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
     
-    // BIDONES (Un poquitito más frecuentes)
+    // BIDONES (Un poquitito más frecuentes para compensar el consumo)
     if(Math.random() < 0.004 * dt) spawnItem('fuel');
 
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
@@ -346,14 +348,11 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
     grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`); 
     grad.addColorStop(0.6, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.2)`); 
     grad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`); 
-    ctx.fillStyle = grad;
-    ctx.beginPath();
+    ctx.fillStyle = grad; ctx.beginPath();
     ctx.moveTo(x + 10, lightY); ctx.lineTo(x - lightWidth, lightY - lightLength); ctx.lineTo(x + w + lightWidth, lightY - lightLength); ctx.lineTo(x + w - 10, lightY); 
     ctx.fill();
-    ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.95)`;
-    ctx.beginPath();
-    ctx.arc(x + 12, lightY, 3, 0, Math.PI * 2); ctx.arc(x + w - 12, lightY, 3, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.95)`; ctx.beginPath();
+    ctx.arc(x + 12, lightY, 3, 0, Math.PI * 2); ctx.arc(x + w - 12, lightY, 3, 0, Math.PI * 2); ctx.fill();
     if(isNight) ctx.globalCompositeOperation = 'source-over';
 }
 
@@ -369,16 +368,14 @@ function draw() {
     }
     ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750);
     ctx.fillStyle = "#34495e";
-    for(let ay = (roadY%100)-100; ay < 750; ay+=50) {
-        ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10);
-    }
+    for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); }
 
     ctx.fillStyle = "rgba(255,255,255,0.1)";
     for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); }
-    
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
 
+    // AJUSTE: Noche a 0.70 de opacidad
     if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); }
 
     enemies.forEach(en => { 
@@ -391,7 +388,6 @@ function draw() {
         if(sunset || rain || night) { drawProHeadlights(player.x, player.y, player.w, player.h, true, night); }
         ctx.drawImage(assets.player, (player.x + (isS ? (Math.random()-0.5)*10 : 0))|0, player.y|0, player.w, player.h);
     }
-    
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
     if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
     if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } }
@@ -399,7 +395,16 @@ function draw() {
 }
 
 function checkCollision(p, o) { let mx = 8, my = 12; if(o.w > 50) { mx = 12; my = 8; } return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
-function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins; document.getElementById("fuel-bar").style.width = fuel + "%"; }
+
+function updateHUD() { 
+    document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
+    document.getElementById("ui-score").innerText = score|0; 
+    document.getElementById("ui-level").innerText = level; 
+    document.getElementById("ui-lives-text").innerText = lives; 
+    document.getElementById("ui-coins-total").innerText = garage.coins; 
+    document.getElementById("fuel-bar").style.width = fuel + "%"; 
+}
+
 function showMenu() { state = "MENU"; isPaused = false; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarMisionDiaria(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function save() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); }
