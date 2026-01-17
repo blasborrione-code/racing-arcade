@@ -14,15 +14,28 @@
         #game-container { position: fixed; inset: 0; background: #2c3e50; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
         
+        /* HUD */
         .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
         .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; }
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
         
+        /* Botón Pausa */
         #btn-pause-trigger { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 45px; height: 45px; background: var(--bg-glass); border: 2px solid white; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; pointer-events: auto; z-index: 20; }
 
-        /* AJUSTE: background-size: contain para ver la imagen entera */
-        #loading-screen { position: absolute; inset: 0; background: #000 url('Items/fondo_carga.png') no-repeat center center; background-size: contain; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
+        /* Pantalla de Carga con Imagen Ajustada */
+        #loading-screen { 
+            position: absolute; 
+            inset: 0; 
+            background: #000 url('Items/fondo_carga.png') no-repeat center center; 
+            background-size: contain; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 1000; 
+            text-align: center;
+        }
         #loading-screen::before { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: -1; }
 
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 25px; text-align: center; }
@@ -32,6 +45,7 @@
         .loader-bar { width: 0%; height: 100%; background: var(--accent); animation: load 2.5s forwards; }
         @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
 
+        /* Tarjetas UI */
         .ui-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 30px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 320px; }
         h1 { margin: 0 0 20px; font-size: 28px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
         
@@ -40,12 +54,12 @@
         .btn-green { background: #2ecc71; }
         .btn-blue { background: #3498db; }
         .btn-orange { background: #e67e22; }
-        .btn-red { background: #e74c3c; }
+        .btn-red { background: #2c3e50; }
 
         .mission-box { background: rgba(255,255,255,0.05); border: 1px dashed rgba(241,196,15,0.5); padding: 15px; border-radius: 20px; margin: 15px 0; }
         .stats-row { display: flex; justify-content: space-around; font-size: 12px; color: #bdc3c7; margin-bottom: 15px; }
 
-        #mobile-controls { position: absolute; bottom: 40px; left: 0; width: 100%; display: none; justify-content: space-between; padding: 0 25px; box-sizing: border-box; z-index: 50; }
+        #mobile-controls { position: absolute; bottom: 40px; left: 0; width: 100%; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; }
         .touch-btn { width: 70px; height: 70px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     </style>
 </head>
@@ -121,7 +135,7 @@
         <div class="ui-card">
             <h1>NEONES</h1>
             <div id="neon-container" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px;">
-                </div>
+            </div>
             <button class="btn-red" onclick="openShop()">VOLVER</button>
         </div>
     </div>
@@ -174,13 +188,6 @@ ctx.imageSmoothingEnabled = false;
 
 if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-controls").style.display = "flex";
 
-// 1. GESTIÓN DE SONIDO (VACÍA POR AHORA PARA NO DAR ERROR)
-const audio = {
-    play: (name) => {
-        // Marcador de posición: aquí irá el código de sonido cuando tengas los archivos.
-    }
-};
-
 const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), npcs: [] };
 const sceneryAssets = { arboles: [new Image()] };
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
@@ -208,14 +215,13 @@ const UPGRADE_PRICES = {
     'f1_clasico': [3000, 5000, 8000, 12000, 15000]
 };
 
-// 2. CONFIGURACIÓN DE NEONES (PRECIOS A 0 PARA TEST)
 const NEONES = {
     'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 },
-    'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 0 },
-    'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 0 },
-    'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 0 },
-    'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 0 },
-    'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 0 }
+    'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 },
+    'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 },
+    'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 },
+    'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 },
+    'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
 };
 
 const DAILY_MISSIONS = [
@@ -228,7 +234,6 @@ let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, mission
 const saved = localStorage.getItem('borrione_racing_v3'); 
 if(saved) garage = JSON.parse(saved);
 if(!garage.neonOwned) { garage.neonOwned = ['white']; garage.selectedNeon = 'white'; }
-Object.keys(MODELS).forEach(k => { if(!garage.carStats[k]) garage.carStats[k] = {motor:0, tanque:0}; });
 
 function actualizarMisionDiaria() {
     const hoy = new Date().toDateString();
@@ -290,12 +295,17 @@ function update(dt) {
     player.vx *= Math.pow(0.8, dt); player.x += player.vx * dt;
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
-    fuel -= (0.012 - (stats.tanque * 0.0015)) * currentSpeed * dt;
+    
+    // CONSUMO DE NAFTA (Un pelín más rápido)
+    fuel -= (0.014 - (stats.tanque * 0.0015)) * currentSpeed * dt;
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
-    if(Math.random() < 0.006 * dt) { spawnItem('coin'); audio.play('spawn_coin'); }
-    if(Math.random() < 0.003 * dt) spawnItem('fuel');
+    if(Math.random() < 0.006 * dt) spawnItem('coin');
+    
+    // BIDONES (Un poquitito más frecuentes)
+    if(Math.random() < 0.004 * dt) spawnItem('fuel');
+
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
     if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil');
     if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
@@ -317,10 +327,10 @@ function update(dt) {
         if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; en.l = en.tl; } } }
         if(en.chg) { en.x += (en.x < en.tx ? 1.5 : -1.5) * dt; if(Math.abs(en.x - en.tx) < 2) en.chg = false; }
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; }
-        if(checkCollision(player, en)) { lives--; audio.play('crash'); if(lives<=0) endGame("CHOQUE"); enemies.splice(i,1); }
+        if(checkCollision(player, en)) { lives--; if(lives<=0) endGame("CHOQUE"); enemies.splice(i,1); }
         else if(en.y > 850 || en.y < -400) enemies.splice(i,1);
     });
-    items.forEach((it, i) => { it.y += currentSpeed * dt; if(checkCollision(player, it)) { if(it.t === 'coin') { garage.coins++; coinsThisRun++; audio.play('coin'); } if(it.t === 'fuel') { fuel = Math.min(100, fuel+40); audio.play('fuel'); } if(it.t === 'heart') { lives++; audio.play('life'); } if(it.t === 'oil') { isS = true; audio.play('oil'); setTimeout(()=>isS=false, 1500); } if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; audio.play('explosion'); setTimeout(()=>endGame("EXPLOSIÓN"), 500); } items.splice(i,1); } else if(it.y > 800) items.splice(i,1); });
+    items.forEach((it, i) => { it.y += currentSpeed * dt; if(checkCollision(player, it)) { if(it.t === 'coin') { garage.coins++; coinsThisRun++; } if(it.t === 'fuel') fuel = Math.min(100, fuel+40); if(it.t === 'heart') lives++; if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); } if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; setTimeout(()=>endGame("EXPLOSIÓN"), 500); } items.splice(i,1); } else if(it.y > 800) items.splice(i,1); });
     scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); });
     if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; }
     if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
@@ -330,21 +340,16 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
     const lightLength = isPlayer ? 230 : 140;
     const lightWidth = isPlayer ? 65 : 45;
     const lightY = y + 15; 
-    
-    // COLOR DE NEONES PARA EL JUGADOR
     let c = isPlayer ? NEONES[garage.selectedNeon].color : [255, 250, 200];
-
     if(isNight) ctx.globalCompositeOperation = 'lighter';
     let grad = ctx.createLinearGradient(x + w/2, lightY, x + w/2, lightY - lightLength);
     grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`); 
     grad.addColorStop(0.6, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.2)`); 
     grad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`); 
-    
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.moveTo(x + 10, lightY); ctx.lineTo(x - lightWidth, lightY - lightLength); ctx.lineTo(x + w + lightWidth, lightY - lightLength); ctx.lineTo(x + w - 10, lightY); 
     ctx.fill();
-    
     ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.95)`;
     ctx.beginPath();
     ctx.arc(x + 12, lightY, 3, 0, Math.PI * 2); ctx.arc(x + w - 12, lightY, 3, 0, Math.PI * 2);
@@ -355,7 +360,7 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
 function draw() {
     let sunset = false, rain = false, night = false; if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
     
-    // MEJORA DE ESCENARIO (CESPED Y ASFALTO DETALLADOS)
+    // ESCENARIO DETALLADO
     ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750);
     ctx.fillStyle = "#27ae60"; 
     for(let gy = (roadY%40)-40; gy < 750; gy+=40) {
@@ -409,7 +414,6 @@ function openShop() { hideAll(); document.getElementById("shop-main").classList.
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
 
-// FUNCIONES DE NEONES
 function openNeones() {
     hideAll();
     const container = document.getElementById("neon-container");
