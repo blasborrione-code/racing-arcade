@@ -20,7 +20,6 @@
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
         
-        /* Botón Pausa */
         #btn-pause-trigger { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 45px; height: 45px; background: var(--bg-glass); border: 2px solid white; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; pointer-events: auto; z-index: 20; }
 
         /* Overlays */
@@ -260,10 +259,8 @@ function update(dt) {
     player.vx *= Math.pow(0.8, dt); player.x += player.vx * dt;
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
-
-    // CORRECCIÓN: NAFTA INFINITA PARA TESTEO (Línea comentada)
-    // fuel -= (0.012 - (stats.tanque * 0.0015)) * currentSpeed * dt;
-    fuel = 100; // Mantenemos el tanque lleno siempre
+    
+    fuel = 100; // Mantenemos el tanque lleno siempre para testeo
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
@@ -298,30 +295,35 @@ function update(dt) {
     if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
 }
 
+// CORRECCIÓN: Luces ajustadas a la óptica y con capacidad de iluminar la noche
 function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
     const lightLength = isPlayer ? 230 : 140;
-    const lightWidth = isPlayer ? 60 : 40;
-    const lightY = y + 10; 
+    const lightWidth = isPlayer ? 65 : 45;
+    
+    // ORIGEN DE ÓPTICA CORREGIDO: y+15 para estar "dentro" del capó
+    const lightY = y + 15; 
 
+    // Efecto Linterna: Ilumina lo que hay debajo
     if(isNight) ctx.globalCompositeOperation = 'lighter';
 
     let grad = ctx.createLinearGradient(x + w/2, lightY, x + w/2, lightY - lightLength);
-    grad.addColorStop(0, 'rgba(255, 250, 200, 0.5)'); 
-    grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)'); 
+    grad.addColorStop(0, 'rgba(255, 250, 200, 0.6)'); // Más brillo en el origen
+    grad.addColorStop(0.6, 'rgba(255, 255, 255, 0.2)'); 
     grad.addColorStop(1, 'rgba(255, 255, 255, 0)'); 
     
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.moveTo(x + 8, lightY); 
+    ctx.moveTo(x + 10, lightY); 
     ctx.lineTo(x - lightWidth, lightY - lightLength); 
     ctx.lineTo(x + w + lightWidth, lightY - lightLength); 
-    ctx.lineTo(x + w - 8, lightY); 
+    ctx.lineTo(x + w - 10, lightY); 
     ctx.fill();
     
-    ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
+    // Brillo en la óptica (faro físico)
+    ctx.fillStyle = "rgba(255, 255, 200, 0.95)";
     ctx.beginPath();
-    ctx.arc(x + 10, lightY, 3, 0, Math.PI * 2);
-    ctx.arc(x + w - 10, lightY, 3, 0, Math.PI * 2);
+    ctx.arc(x + 12, lightY, 3, 0, Math.PI * 2);
+    ctx.arc(x + w - 12, lightY, 3, 0, Math.PI * 2);
     ctx.fill();
 
     if(isNight) ctx.globalCompositeOperation = 'source-over';
@@ -330,16 +332,19 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
 function draw() {
     let sunset = false, rain = false, night = false; if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
     
+    // 1. DIBUJAR FONDO Y RUTA NORMAL
     ctx.fillStyle = "#27ae60"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); ctx.fillStyle = "rgba(255,255,255,0.1)";
     for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); }
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
 
+    // 2. FILTRO NOCTURNO: Calle visible pero oscura (0.75 de opacidad)
     if(night) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.92)"; 
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)"; 
         ctx.fillRect(0,0,400,750);
     }
 
+    // 3. DIBUJAR LUCES E ILUMINACIÓN
     enemies.forEach(en => { 
         if(sunset || rain || night) { drawProHeadlights(en.x, en.y, en.w, en.h, false, night); }
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
@@ -351,6 +356,7 @@ function draw() {
         ctx.drawImage(assets.player, (player.x + (isS ? (Math.random()-0.5)*10 : 0))|0, player.y|0, player.w, player.h);
     }
     
+    // 4. OTROS FILTROS
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
     if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
     if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } }
