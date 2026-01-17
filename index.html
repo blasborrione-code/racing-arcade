@@ -14,28 +14,14 @@
         #game-container { position: fixed; inset: 0; background: #2c3e50; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
         
-        /* HUD */
         .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
-        .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; }
+        .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.3; }
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
         
-        /* Botón Pausa Circular */
         #btn-pause-trigger { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 45px; height: 45px; background: var(--bg-glass); border: 2px solid white; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; pointer-events: auto; z-index: 20; }
 
-        /* Pantalla de Carga Ajustada (contain) */
-        #loading-screen { 
-            position: absolute; 
-            inset: 0; 
-            background: #000 url('Items/fondo_carga.png') no-repeat center center; 
-            background-size: contain; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            z-index: 1000; 
-            text-align: center;
-        }
+        #loading-screen { position: absolute; inset: 0; background: #000 url('Items/fondo_carga.png') no-repeat center center; background-size: contain; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
         #loading-screen::before { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: -1; }
 
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 25px; text-align: center; }
@@ -45,7 +31,6 @@
         .loader-bar { width: 0%; height: 100%; background: var(--accent); animation: load 2.5s forwards; }
         @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
 
-        /* Tarjetas UI */
         .ui-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 30px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 320px; }
         h1 { margin: 0 0 20px; font-size: 28px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
         
@@ -65,7 +50,7 @@
 </head>
 <body>
 
-<div id="loading-screen" class="overlay">
+<div id="loading-screen">
     <h1 style="margin-bottom: 5px;">RACING ARCADE</h1>
     <p style="margin-top: 0; font-size: 12px; color: #bdc3c7; letter-spacing: 1px;">creado por Blas Borrione</p>
     <div class="loader"><div class="loader-bar"></div></div>
@@ -78,7 +63,7 @@
         <div class="stat">
             <span style="color:#f1c40f; font-size:22px;"><span id="ui-speed">0</span> KM/H</span><br>
             DIST: <span id="ui-score">0</span>m<br>
-            <small style="font-size: 12px; opacity: 0.8;">NIVEL: <span id="ui-level">1</span></small>
+            <small style="font-size: 12px; opacity: 0.9; color: white;">NIVEL: <span id="ui-level">1</span></small>
         </div>
         <div class="stat" style="text-align:right">💰 <span id="ui-coins-total">0</span><br><div class="bar-container"><div id="fuel-bar"></div></div>❤️ <span id="ui-lives-text">3</span></div>
     </div>
@@ -94,7 +79,7 @@
             <p style="margin: 0 0 25px; font-size: 12px; color: #bdc3c7;">creado por Blas Borrione</p>
             <div class="stats-row"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box">
-                <small style="color:var(--accent)">MISIÓN</small>
+                <small style="color:#f1c40f">MISIÓN</small>
                 <p id="menu-mission-desc" style="margin:5px 0; font-size:14px; font-weight:bold;"></p>
             </div>
             <button class="btn-green" onclick="startGame()">CORRER</button>
@@ -119,7 +104,7 @@
                 <div onclick="prevCar()" style="cursor:pointer; font-size:30px;">◀</div>
                 <div style="text-align:center;">
                     <img id="shop-car-img" style="height:100px; object-fit:contain;">
-                    <h4 id="shop-car-name" style="color:var(--accent); margin:10px 0;"></h4>
+                    <h4 id="shop-car-name" style="color:#f1c40f; margin:10px 0;"></h4>
                     <div style="font-size:11px; color:#bdc3c7; margin-bottom:10px;">
                         <span id="shop-car-speed"></span> | <span id="shop-car-lives"></span>
                     </div>
@@ -188,7 +173,7 @@ ctx.imageSmoothingEnabled = false;
 
 if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-controls").style.display = "flex";
 
-const audio = { play: (name) => { } }; // Placeholder vacío
+const audio = { play: (name) => { } }; 
 
 const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), npcs: [] };
 const sceneryAssets = { arboles: [new Image()] };
@@ -297,21 +282,14 @@ function update(dt) {
     player.vx *= Math.pow(0.8, dt); player.x += player.vx * dt;
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
-    
-    // CONSUMO RESTAURADO Y AJUSTADO (Un pelín más rápido)
     fuel -= (0.014 - (stats.tanque * 0.0015)) * currentSpeed * dt;
-
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
-    
-    // BIDONES (Un poquitito más frecuentes para compensar el consumo)
     if(Math.random() < 0.004 * dt) spawnItem('fuel');
-
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
     if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil');
     if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
-
     enemies.forEach((en, i) => {
         let ahead = enemies.find(o => o !== en && Math.abs(o.x - en.x) < 35 && o.y < en.y && (en.y - o.y) < 200);
         let playerAhead = (Math.abs(player.x - en.x) < 35 && player.y < en.y && (en.y - player.y) < 200);
@@ -358,8 +336,6 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
 
 function draw() {
     let sunset = false, rain = false, night = false; if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
-    
-    // ESCENARIO DETALLADO
     ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750);
     ctx.fillStyle = "#27ae60"; 
     for(let gy = (roadY%40)-40; gy < 750; gy+=40) {
@@ -369,21 +345,16 @@ function draw() {
     ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750);
     ctx.fillStyle = "#34495e";
     for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); }
-
     ctx.fillStyle = "rgba(255,255,255,0.1)";
     for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); }
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
-
-    // AJUSTE: Noche a 0.70 de opacidad
     if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); }
-
     enemies.forEach(en => { 
         if(sunset || rain || night) { drawProHeadlights(en.x, en.y, en.w, en.h, false, night); }
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
         if(en.blink && Math.floor(en.bCount % 2) === 0) { ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tx < en.x ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill(); }
     });
-
     if(!expObj && assets.player.complete) {
         if(sunset || rain || night) { drawProHeadlights(player.x, player.y, player.w, player.h, true, night); }
         ctx.drawImage(assets.player, (player.x + (isS ? (Math.random()-0.5)*10 : 0))|0, player.y|0, player.w, player.h);
@@ -395,16 +366,7 @@ function draw() {
 }
 
 function checkCollision(p, o) { let mx = 8, my = 12; if(o.w > 50) { mx = 12; my = 8; } return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
-
-function updateHUD() { 
-    document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
-    document.getElementById("ui-score").innerText = score|0; 
-    document.getElementById("ui-level").innerText = level; 
-    document.getElementById("ui-lives-text").innerText = lives; 
-    document.getElementById("ui-coins-total").innerText = garage.coins; 
-    document.getElementById("fuel-bar").style.width = fuel + "%"; 
-}
-
+function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins; document.getElementById("fuel-bar").style.width = fuel + "%"; }
 function showMenu() { state = "MENU"; isPaused = false; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarMisionDiaria(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function save() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); }
@@ -418,7 +380,6 @@ function endGame(r) { state="OVER"; document.getElementById("btn-pause-trigger")
 function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-
 function openNeones() {
     hideAll();
     const container = document.getElementById("neon-container");
@@ -457,3 +418,4 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
+
