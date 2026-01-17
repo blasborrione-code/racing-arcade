@@ -20,10 +20,9 @@
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
         
-        /* Botón Pausa Circular */
         #btn-pause-trigger { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 45px; height: 45px; background: var(--bg-glass); border: 2px solid white; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; pointer-events: auto; z-index: 20; }
 
-        /* Pantalla de Carga Ajustada */
+        /* Pantalla de Carga */
         #loading-screen { 
             position: absolute; 
             inset: 0; 
@@ -45,7 +44,6 @@
         .loader-bar { width: 0%; height: 100%; background: var(--accent); animation: load 2.5s forwards; }
         @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
 
-        /* Tarjetas UI */
         .ui-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 30px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 320px; }
         h1 { margin: 0 0 20px; font-size: 28px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
         
@@ -236,7 +234,6 @@ let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, mission
 const saved = localStorage.getItem('borrione_racing_v3'); 
 if(saved) garage = JSON.parse(saved);
 if(!garage.neonOwned) { garage.neonOwned = ['white']; garage.selectedNeon = 'white'; }
-Object.keys(MODELS).forEach(k => { if(!garage.carStats[k]) garage.carStats[k] = {motor:0, tanque:0}; });
 
 function actualizarMisionDiaria() {
     const hoy = new Date().toDateString();
@@ -299,14 +296,12 @@ function update(dt) {
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     
-    // CONSUMO RESTAURADO Y AJUSTADO (0.014 para que sea un pelín más rápido)
-    fuel -= (0.014 - (stats.tanque * 0.0015)) * currentSpeed * dt;
+    // CONSUMO AJUSTADO: 0.016
+    fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
-    
-    // BIDONES (Frecuencia subida a 0.004)
     if(Math.random() < 0.004 * dt) spawnItem('fuel');
 
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
@@ -376,7 +371,6 @@ function draw() {
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
 
-    // AJUSTE: Noche a 0.70 de opacidad (Sutilmente más clara para ver la calle)
     if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); }
 
     enemies.forEach(en => { 
@@ -392,8 +386,6 @@ function draw() {
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
     if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
     if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } }
-    
-    // CORRECCIÓN PANTALLA NEGRA: Se cambió var(--accent) por el color directo #f1c40f
     if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; }
 }
 
@@ -451,5 +443,6 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
+
 
 
