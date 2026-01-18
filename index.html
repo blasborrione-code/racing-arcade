@@ -201,21 +201,21 @@ assets.magnet.src = 'Items/iman_pixel.png';
 ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
 sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
 
-// --- CONFIGURACIÓN DE TESTEO: PRECIOS A $0 ---
+// --- CONFIGURACIÓN DE TESTEO: PRECIOS A $0 Y TAMAÑOS AJUSTADOS ---
 const MODELS = {
     'fitito': { name: 'EL COMPACTO', maxSpeed: 5.75, accel: 0.08, handling: 1.2, lives: 3, w: 45, h: 82, img: 'auto_inicial.png', price: 0 },
     'furgoneta': { name: 'CARGO VIAJES', maxSpeed: 6.25, accel: 0.07, handling: 1.0, lives: 3, w: 55, h: 95, img: 'furgoneta.png', price: 0 },
     'auto_rosa': { name: 'PINKY', maxSpeed: 7.17, accel: 0.1, handling: 1.2, lives: 4, w: 58, h: 98, img: 'auto_rosa.png', price: 0 },
     'camioneta4x4': { name: 'TODO TERRENO', maxSpeed: 7.5, accel: 0.12, handling: 1.0, lives: 5, w: 65, h: 115, img: 'camioneta4x4.png', price: 0 },
-    'camaro': { name: 'DARK PONY', maxSpeed: 7.92, accel: 0.14, handling: 0.9, lives: 5, w: 58, h: 105, img: 'camaro_negro.png', price: 0 },
-    'subaru': { name: 'BLUE RALLY', maxSpeed: 8.08, accel: 0.15, handling: 1.5, lives: 4, w: 52, h: 92, img: 'subaru.png', price: 0 },
-    'lambo': { name: 'ITALIA GTR', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 60, h: 100, img: 'lambo_amarillo.png', price: 0 },
+    'camaro': { name: 'DARK PONY', maxSpeed: 7.92, accel: 0.14, handling: 0.9, lives: 5, w: 52, h: 94, img: 'camaro_negro.png', price: 0 },
+    'subaru': { name: 'BLUE RALLY', maxSpeed: 8.08, accel: 0.15, handling: 1.5, lives: 4, w: 47, h: 86, img: 'subaru.png', price: 0 },
+    'lambo': { name: 'ITALIA GTR', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 54, h: 92, img: 'lambo_amarillo.png', price: 0 },
     'porsche': { name: 'DEPORTIVO GT', maxSpeed: 8.92, accel: 0.2, handling: 1.8, lives: 4, w: 62, h: 98, img: 'porsche_negro.png', price: 0 },
-    'skyline': { name: 'NIGHT WALKER', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 58, h: 102, img: 'skyline.png', price: 0 },
-    'supra': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 52, h: 92, img: 'supra.png', price: 0 },
-    'mercedes': { name: 'SILVER LUX', maxSpeed: 9.83, accel: 0.24, handling: 2.2, lives: 4, w: 62, h: 108, img: 'mercedes_blanco.png', price: 0 },
+    'skyline': { name: 'NIGHT WALKER', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 50, h: 90, img: 'skyline.png', price: 0 },
+    'supra': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 50, h: 88, img: 'supra.png', price: 0 },
+    'mercedes': { name: 'SILVER LUX', maxSpeed: 9.83, accel: 0.24, handling: 2.2, lives: 4, w: 56, h: 98, img: 'mercedes_blanco.png', price: 0 },
     'f1_clasico': { name: 'PRIME ONE', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 0 },
-    'f1_nuevo': { name: 'APEX FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 60, h: 115, img: 'f1_nuevo.png', price: 0 }
+    'f1_nuevo': { name: 'APEX FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 48, h: 105, img: 'f1_nuevo.png', price: 0 }
 };
 
 const UPGRADE_PRICES = {
@@ -435,7 +435,6 @@ function finishGame() { clearInterval(reviveInterval); state = "OVER"; hideAll()
 function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-
 function openNeones() {
     hideAll(); const container = document.getElementById("neon-container"); container.innerHTML = "";
     Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'USANDO' : 'EQUIPAR') : 'OBTENER'}`; btn.onclick = () => { if(owned) garage.selectedNeon = k; else { garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); });
@@ -469,6 +468,7 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
+
 
 
 
