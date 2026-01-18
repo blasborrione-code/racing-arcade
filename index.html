@@ -42,6 +42,8 @@
         .btn-red { background: #e74c3c; }
 
         #timer-display { font-size: 60px; font-weight: 900; color: var(--accent); margin: 10px 0; text-shadow: 0 0 20px rgba(241, 196, 15, 0.5); }
+        .magnet-active { color: #f1c40f; text-shadow: 0 0 10px #f1c40f; animation: blink 0.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         .mission-box { background: rgba(255,255,255,0.05); border: 1px dashed rgba(241,196,15,0.5); padding: 15px; border-radius: 20px; margin: 15px 0; }
         .stats-row { display: flex; justify-content: space-around; font-size: 12px; color: #bdc3c7; margin-bottom: 15px; }
@@ -67,7 +69,11 @@
             DIST: <span id="ui-score">0</span>m<br>
             <small style="font-size: 12px; opacity: 0.9; color: white;">NIVEL: <span id="ui-level">1</span></small>
         </div>
-        <div class="stat" style="text-align:right">💰 <span id="ui-coins-total">0</span><br><div class="bar-container"><div id="fuel-bar"></div></div>❤️ <span id="ui-lives-text">3</span></div>
+        <div class="stat" style="text-align:right">
+            <span id="ui-coin-label">💰 <span id="ui-coins-total">0</span></span><br>
+            <div class="bar-container"><div id="fuel-bar"></div></div>
+            ❤️ <span id="ui-lives-text">3</span>
+        </div>
     </div>
 
     <div id="mobile-controls">
@@ -187,10 +193,11 @@ if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-
 
 const audio = { play: (name) => { } }; 
 
-const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), npcs: [] };
+const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), magnet: new Image(), npcs: [] };
 const sceneryAssets = { arboles: [new Image()] };
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
 assets.oil.src = 'Items/charco_aceite.png'; assets.heart.src = 'Items/heart_pixel.png'; assets.bomb.src = 'Items/bomba.png'; assets.exp.src = 'Items/explosion.png';
+assets.magnet.src = 'Items/iman_pixel.png';
 ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
 sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
 
@@ -249,9 +256,7 @@ function actualizarMisionDiaria() {
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, isPaused = false, level = 1, shopIndex = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = []; let items = []; let scenery = []; let keys = {}; let nmT = null; let isS = false; let expObj = null;
 let coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null;
-
-// VARIABLE DE SACUDIDA
-let screenShake = 0;
+let screenShake = 0, magnetTimer = 0;
 
 function togglePause() {
     if(state !== "PLAYING" && state !== "PAUSED") return;
@@ -267,7 +272,7 @@ function startGame() {
     player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 };
     score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; 
     enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
-    coinsThisRun = 0; nearMissesThisRun = 0; nmT = null; isPaused = false; hasRevived = false; screenShake = 0;
+    coinsThisRun = 0; nearMissesThisRun = 0; nmT = null; isPaused = false; hasRevived = false; screenShake = 0; magnetTimer = 0;
     state = "PLAYING"; hideAll(); 
     document.getElementById("btn-pause-trigger").style.display = "flex";
     lastTime = performance.now(); loop();
@@ -309,13 +314,19 @@ function update(dt) {
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     fuel -= (0.018 - (stats.tanque * 0.0015)) * currentSpeed * dt;
 
-    // DEGRADACIÓN DE SACUDIDA
-    if(screenShake > 0) screenShake *= 0.85;
+    if(screenShake > 0.1) screenShake *= 0.85;
+    if(magnetTimer > 0) {
+        magnetTimer -= dt;
+        document.getElementById("ui-coin-label").classList.add("magnet-active");
+    } else {
+        document.getElementById("ui-coin-label").classList.remove("magnet-active");
+    }
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
     if(Math.random() < 0.004 * dt) spawnItem('fuel');
+    if(Math.random() < 0.0008 * dt) spawnItem('magnet'); // SPAWN IMAN
 
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
     if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil');
@@ -352,13 +363,10 @@ function update(dt) {
         if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
         if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
 
-        // TRIGGER SACUDIDA: Near Miss (Leve)
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
             en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; 
-            screenShake = 3; 
+            screenShake = 3;
         }
-
-        // TRIGGER SACUDIDA: Choque (Medio)
         if(checkCollision(player, en)) { 
             lives--; 
             screenShake = 10;
@@ -368,7 +376,33 @@ function update(dt) {
         else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
     });
 
-    items.forEach((it, i) => { it.y += currentSpeed * dt; if(checkCollision(player, it)) { if(it.t === 'coin') { garage.coins++; coinsThisRun++; } if(it.t === 'fuel') fuel = Math.min(100, fuel+40); if(it.t === 'heart') lives++; if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); } if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; screenShake = 15; setTimeout(()=>endGame("EXPLOSIÓN"), 500); } items.splice(i,1); } else if(it.y > 800) items.splice(i,1); });
+    items.forEach((it, i) => {
+        // ATRACCIÓN POR IMÁN
+        if(it.t === 'coin' && magnetTimer > 0) {
+            let dx = (player.x + player.w/2) - (it.x + it.w/2);
+            let dy = (player.y + player.h/2) - (it.y + it.h/2);
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if(dist < 300) {
+                it.x += (dx/dist) * 12 * dt;
+                it.y += (dy/dist) * 12 * dt;
+            } else {
+                it.y += currentSpeed * dt;
+            }
+        } else {
+            it.y += currentSpeed * dt;
+        }
+
+        if(checkCollision(player, it)) {
+            if(it.t === 'coin') { garage.coins++; coinsThisRun++; }
+            if(it.t === 'fuel') fuel = Math.min(100, fuel+40);
+            if(it.t === 'heart') lives++;
+            if(it.t === 'magnet') magnetTimer = 600; // 10 segundos aprox
+            if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); }
+            if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; screenShake = 15; setTimeout(()=>endGame("EXPLOSIÓN"), 500); }
+            items.splice(i,1);
+        } else if(it.y > 800) items.splice(i,1);
+    });
+
     scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); });
     if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; }
     if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
@@ -395,11 +429,9 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
 
 function draw() {
     ctx.save();
-    // APLICAR SACUDIDA SUTIL
     if (screenShake > 0.1) {
         ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
     }
-
     let sunset = false, rain = false, night = false; if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
     ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750);
     ctx.fillStyle = "#27ae60"; 
@@ -428,7 +460,6 @@ function draw() {
     if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
     if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } }
     if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; }
-    
     ctx.restore();
 }
 
