@@ -250,6 +250,9 @@ let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = []; let items = []; let scenery = []; let keys = {}; let nmT = null; let isS = false; let expObj = null;
 let coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null;
 
+// VARIABLE DE SACUDIDA
+let screenShake = 0;
+
 function togglePause() {
     if(state !== "PLAYING" && state !== "PAUSED") return;
     isPaused = !isPaused;
@@ -264,7 +267,7 @@ function startGame() {
     player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 };
     score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; 
     enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
-    coinsThisRun = 0; nearMissesThisRun = 0; nmT = null; isPaused = false; hasRevived = false;
+    coinsThisRun = 0; nearMissesThisRun = 0; nmT = null; isPaused = false; hasRevived = false; screenShake = 0;
     state = "PLAYING"; hideAll(); 
     document.getElementById("btn-pause-trigger").style.display = "flex";
     lastTime = performance.now(); loop();
@@ -306,6 +309,9 @@ function update(dt) {
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     fuel -= (0.018 - (stats.tanque * 0.0015)) * currentSpeed * dt;
 
+    // DEGRADACIÓN DE SACUDIDA
+    if(screenShake > 0) screenShake *= 0.85;
+
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
@@ -345,16 +351,24 @@ function update(dt) {
         }
         if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
         if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
-        if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; }
+
+        // TRIGGER SACUDIDA: Near Miss (Leve)
+        if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
+            en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; 
+            screenShake = 3; 
+        }
+
+        // TRIGGER SACUDIDA: Choque (Medio)
         if(checkCollision(player, en)) { 
             lives--; 
+            screenShake = 10;
             if(lives <= 0) endGame("CHOQUE"); 
             enemies.splice(i,1); 
         }
         else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
     });
 
-    items.forEach((it, i) => { it.y += currentSpeed * dt; if(checkCollision(player, it)) { if(it.t === 'coin') { garage.coins++; coinsThisRun++; } if(it.t === 'fuel') fuel = Math.min(100, fuel+40); if(it.t === 'heart') lives++; if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); } if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; setTimeout(()=>endGame("EXPLOSIÓN"), 500); } items.splice(i,1); } else if(it.y > 800) items.splice(i,1); });
+    items.forEach((it, i) => { it.y += currentSpeed * dt; if(checkCollision(player, it)) { if(it.t === 'coin') { garage.coins++; coinsThisRun++; } if(it.t === 'fuel') fuel = Math.min(100, fuel+40); if(it.t === 'heart') lives++; if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); } if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; screenShake = 15; setTimeout(()=>endGame("EXPLOSIÓN"), 500); } items.splice(i,1); } else if(it.y > 800) items.splice(i,1); });
     scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); });
     if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; }
     if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
@@ -380,6 +394,12 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
 }
 
 function draw() {
+    ctx.save();
+    // APLICAR SACUDIDA SUTIL
+    if (screenShake > 0.1) {
+        ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
+    }
+
     let sunset = false, rain = false, night = false; if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
     ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750);
     ctx.fillStyle = "#27ae60"; 
@@ -408,6 +428,8 @@ function draw() {
     if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
     if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } }
     if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; }
+    
+    ctx.restore();
 }
 
 function checkCollision(p, o) { let mx = 8, my = 12; if(o.w > 50) { mx = 12; my = 8; } return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
@@ -440,12 +462,10 @@ function spawnTraffic() {
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) return; scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
 
-// LÓGICA DE REVIVIR MEJORADA
 function endGame(r) { 
     state = "PAUSED";
     lastReason = r;
     document.getElementById("btn-pause-trigger").style.display = "none";
-    
     if (!hasRevived && garage.coins >= 250) {
         startReviveCountdown();
     } else {
@@ -457,7 +477,6 @@ function startReviveCountdown() {
     reviveCounter = 5;
     document.getElementById("timer-display").innerText = reviveCounter;
     document.getElementById("revive-screen").classList.remove("hidden");
-    
     reviveInterval = setInterval(() => {
         reviveCounter--;
         document.getElementById("timer-display").innerText = reviveCounter;
@@ -472,7 +491,7 @@ function confirmRevive() {
     clearInterval(reviveInterval);
     garage.coins -= 250;
     lives = 1;
-    fuel = 100; // TANQUE LLENO AL REVIVIR
+    fuel = 100;
     hasRevived = true;
     state = "PLAYING";
     hideAll();
