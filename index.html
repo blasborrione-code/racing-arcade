@@ -14,28 +14,14 @@
         #game-container { position: fixed; inset: 0; background: #2c3e50; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
         
-        /* HUD */
         .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
-        .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.3; }
+        .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; }
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
         
-        /* Botón Pausa Circular */
         #btn-pause-trigger { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 45px; height: 45px; background: var(--bg-glass); border: 2px solid white; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; pointer-events: auto; z-index: 20; }
 
-        /* Pantalla de Carga Ajustada */
-        #loading-screen { 
-            position: absolute; 
-            inset: 0; 
-            background: #000 url('Items/fondo_carga.png') no-repeat center center; 
-            background-size: contain; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            z-index: 1000; 
-            text-align: center;
-        }
+        #loading-screen { position: absolute; inset: 0; background: #000 url('Items/fondo_carga.png') no-repeat center center; background-size: contain; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
         #loading-screen::before { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: -1; }
 
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 25px; text-align: center; }
@@ -45,7 +31,6 @@
         .loader-bar { width: 0%; height: 100%; background: var(--accent); animation: load 2.5s forwards; }
         @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
 
-        /* Tarjetas UI */
         .ui-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 30px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 320px; }
         h1 { margin: 0 0 20px; font-size: 28px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
         
@@ -78,7 +63,7 @@
         <div class="stat">
             <span style="color:#f1c40f; font-size:22px;"><span id="ui-speed">0</span> KM/H</span><br>
             DIST: <span id="ui-score">0</span>m<br>
-            <small style="font-size: 12px; opacity: 0.9; color: white;">NIVEL: <span id="ui-level">1</span></small>
+            <small style="font-size: 12px; opacity: 0.8;">NIVEL: <span id="ui-level">1</span></small>
         </div>
         <div class="stat" style="text-align:right">💰 <span id="ui-coins-total">0</span><br><div class="bar-container"><div id="fuel-bar"></div></div>❤️ <span id="ui-lives-text">3</span></div>
     </div>
@@ -287,6 +272,7 @@ function update(dt) {
     let sunset = false, rain = false, night = false;
     if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
     if(rain) hndl *= 0.7; 
+    
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else {
         if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd);
@@ -299,14 +285,12 @@ function update(dt) {
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     
-    // CONSUMO RESTAURADO Y AJUSTADO (0.014 para que sea un pelín más rápido)
-    fuel -= (0.014 - (stats.tanque * 0.0015)) * currentSpeed * dt;
+    // CONSUMO AJUSTADO: 0.018 (Más rápido para reto nivel 1)
+    fuel -= (0.018 - (stats.tanque * 0.0015)) * currentSpeed * dt;
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
-    
-    // BIDONES (Frecuencia subida a 0.004)
     if(Math.random() < 0.004 * dt) spawnItem('fuel');
 
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
@@ -314,25 +298,41 @@ function update(dt) {
     if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        let ahead = enemies.find(o => o !== en && Math.abs(o.x - en.x) < 35 && o.y < en.y && (en.y - o.y) < 200);
-        let playerAhead = (Math.abs(player.x - en.x) < 35 && player.y < en.y && (en.y - player.y) < 200);
-        let sToUse = en.speed; if (ahead && ahead.speed < en.speed) sToUse = ahead.speed; if (playerAhead && currentSpeed < en.speed) sToUse = currentSpeed; 
-        en.y += (currentSpeed - sToUse) * dt;
+        // --- PARCHE DE TRÁFICO PRO: SENSORES DE IA ---
+        let targetLane = en.chg ? en.tl : en.l;
+        let ahead = enemies.find(o => 
+            o !== en && 
+            (o.l === targetLane || (o.chg && o.tl === targetLane)) && 
+            o.y < en.y && (en.y - o.y) < 220
+        );
+
+        let desiredSpeed = en.baseSpeed;
+        if (ahead) { desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.95); }
+        
+        en.speed += (desiredSpeed - en.speed) * 0.1 * dt;
+        en.y += (currentSpeed - en.speed) * dt;
+
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
-                const centers = [75, 157.5, 242.5, 325]; let tx = centers[nextLane] - (en.w / 2);
-                let occupied = enemies.some(o => o !== en && Math.abs(o.x - tx) < 60 && Math.abs(o.y - en.y) < 250);
-                let playerInWay = (Math.abs(player.x - tx) < 60 && Math.abs(player.y - en.y) < 250);
-                if(!occupied && !playerInWay) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
+                const centers = [75, 157.5, 242.5, 325]; 
+                let tx = centers[nextLane] - (en.w / 2);
+                let laneBusy = enemies.some(o => 
+                    o !== en && 
+                    (o.l === nextLane || (o.chg && o.tl === nextLane)) && 
+                    Math.abs(o.y - en.y) < 180
+                );
+                if(!laneBusy) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
             }
         }
-        if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; en.l = en.tl; } } }
-        if(en.chg) { en.x += (en.x < en.tx ? 1.5 : -1.5) * dt; if(Math.abs(en.x - en.tx) < 2) en.chg = false; }
+        if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
+        if(en.chg) { en.x += (en.x < en.tx ? 2 : -2) * dt; if(Math.abs(en.x - en.tx) < 3) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
+
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; }
         if(checkCollision(player, en)) { lives--; if(lives<=0) endGame("CHOQUE"); enemies.splice(i,1); }
-        else if(en.y > 850 || en.y < -400) enemies.splice(i,1);
+        else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
     });
+
     items.forEach((it, i) => { it.y += currentSpeed * dt; if(checkCollision(player, it)) { if(it.t === 'coin') { garage.coins++; coinsThisRun++; } if(it.t === 'fuel') fuel = Math.min(100, fuel+40); if(it.t === 'heart') lives++; if(it.t === 'oil') { isS = true; setTimeout(()=>isS=false, 1500); } if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; setTimeout(()=>endGame("EXPLOSIÓN"), 500); } items.splice(i,1); } else if(it.y > 800) items.splice(i,1); });
     scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); });
     if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; }
@@ -376,7 +376,6 @@ function draw() {
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
 
-    // AJUSTE: Noche a 0.70 de opacidad (Sutilmente más clara para ver la calle)
     if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); }
 
     enemies.forEach(en => { 
@@ -393,18 +392,52 @@ function draw() {
     if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
     if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } }
     
-    // CORRECCIÓN PANTALLA NEGRA: Se cambió var(--accent) por el color directo #f1c40f
+    // FIX PANTALLA NEGRA: Color directo
     if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; }
 }
 
 function checkCollision(p, o) { let mx = 8, my = 12; if(o.w > 50) { mx = 12; my = 8; } return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
-function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins; document.getElementById("fuel-bar").style.width = fuel + "%"; }
+
+function updateHUD() { 
+    document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
+    document.getElementById("ui-score").innerText = score|0; 
+    document.getElementById("ui-level").innerText = level; 
+    document.getElementById("ui-lives-text").innerText = lives; 
+    document.getElementById("ui-coins-total").innerText = garage.coins; 
+    document.getElementById("fuel-bar").style.width = fuel + "%"; 
+}
+
 function showMenu() { state = "MENU"; isPaused = false; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarMisionDiaria(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function save() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); }
 function updateUI() { const carKey = garage.selected; const stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX"; document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; document.getElementById("up-car-name").innerText = MODELS[carKey].name; }
 function buyUpgrade(t) { const carKey = garage.selected; const stats = garage.carStats[carKey]; const price = UPGRADE_PRICES[carKey][stats[t]]; if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } }
-function spawnTraffic() { let l = (Math.random()*4)|0; const centers = [75, 157.5, 242.5, 325]; let tx = centers[l]; let isC = (level >= 2 && Math.random() < 0.3); let w = isC ? 55 : 45; if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 40 && e.y < 50)) return; enemies.push({ x: tx - (w / 2), y: -200, l, w: w, h: isC ? 110 : 80, img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0], chg: false, blink: false, bCount: 0, bTimer: 0, nm: false, speed: 1.5 + Math.random() * 3.5 }); }
+
+function spawnTraffic() {
+    let l = (Math.random()*4)|0;
+    const centers = [75, 157.5, 242.5, 325];
+    let tx = centers[l];
+    let isC = (level >= 2 && Math.random() < 0.3);
+    let w = isC ? 55 : 45;
+    
+    // SPAWN SEGURO: No aparecer si hay alguien en la entrada de carril
+    let areaBusy = enemies.some(e => e.l === l && e.y < 150);
+    if(areaBusy) return;
+
+    enemies.push({
+        x: tx - (w / 2),
+        y: -200,
+        l: l,
+        w: w,
+        h: isC ? 110 : 80,
+        img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0],
+        chg: false, blink: false, bCount: 0, bTimer: 0, nm: false,
+        baseSpeed: 1.5 + Math.random() * 3.0,
+        speed: 1.5 + Math.random() * 3.0,
+        tx: 0, tl: 0
+    });
+}
+
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) return; scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
 function endGame(r) { state="OVER"; document.getElementById("btn-pause-trigger").style.display = "none"; if(score > garage.high) garage.high = score|0; const misionActual = DAILY_MISSIONS[garage.missionId]; const hoy = new Date().toDateString(); if (garage.missionDoneDate !== hoy) { let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal); if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; document.getElementById("mission-complete-msg").classList.remove("hidden"); } } save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = r; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`; }
@@ -451,7 +484,6 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
-
 
 
 
