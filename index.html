@@ -15,7 +15,6 @@
         #game-container { position: fixed; inset: 0; background: #2c3e50; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
         
-        /* NOTIFICACIONES FLOTANTES */
         #toast-container { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; width: 280px; }
         .toast { background: var(--bg-glass); border: 1px solid var(--accent); padding: 12px; border-radius: 15px; margin-bottom: 8px; text-align: center; animation: slideIn 0.4s ease-out, fadeOut 0.4s 2.6s forwards; backdrop-filter: blur(10px); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         .toast.logro { border-color: var(--weekly-clr); }
@@ -86,7 +85,7 @@
             <div id="timer-display">5</div>
             <p style="font-size: 14px; color:#bdc3c7; margin-bottom: 20px;">Costo: 💰250 monedas</p>
             <button class="btn-green" onclick="confirmRevive()">SÍ (PAGAR)</button>
-            <button class="btn-red" onclick="finishGame()" style="background:transparent; border:1px solid #e74c3c; margin-top:10px;">NO, FINALIZAR</button>
+            <button class="btn-red" onclick="finishGame()" style="background:transparent; border:1px solid #e74c3c; color:#e74c3c; margin-top:10px;">NO, FINALIZAR</button>
         </div>
     </div>
 
@@ -152,7 +151,6 @@
             <button class="btn-blue" onclick="showMenu()">MENÚ PRINCIPAL</button>
         </div>
     </div>
-
     <canvas id="gameCanvas"></canvas>
 </div>
 
@@ -164,6 +162,7 @@ ctx.imageSmoothingEnabled = false;
 
 if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-controls").style.display = "flex";
 
+const audio = { play: (name) => { } }; 
 const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), magnet: new Image(), npcs: [] };
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
 assets.oil.src = 'Items/charco_aceite.png'; assets.heart.src = 'Items/heart_pixel.png'; assets.bomb.src = 'Items/bomba.png'; assets.exp.src = 'Items/explosion.png';
@@ -187,21 +186,26 @@ const MODELS = {
     'f1_nuevo': { name: 'APEX FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 48, h: 105, img: 'f1_nuevo.png', price: 95000 }
 };
 
+const UPGRADE_PRICES = {
+    'fitito': [250, 500, 750, 1000, 1250], 'furgoneta': [400, 800, 1200, 1600, 2000],
+    'auto_rosa': [600, 1200, 1800, 2400, 3000], 'camioneta4x4': [800, 1600, 2400, 3200, 4000],
+    'camaro': [1000, 2000, 3000, 4000, 5000], 'subaru': [1200, 2400, 3600, 4800, 6000],
+    'lambo': [1500, 3000, 4500, 6000, 7500], 'porsche': [1500, 3000, 4500, 6000, 7500],
+    'skyline': [2000, 4000, 6000, 8000, 10000], 'supra': [2000, 4000, 6000, 8000, 10000],
+    'mercedes': [3000, 6000, 9000, 12000, 15000], 'f1_clasico': [3000, 5000, 8000, 12000, 15000],
+    'f1_nuevo': [5000, 10000, 15000, 20000, 25000]
+};
+
 const DAILY_MISSIONS = [
     { id: 0, desc: "Junta 50 monedas en una carrera", goal: 50, type: 'coins' },
     { id: 1, desc: "Logra 10 Near Miss en una carrera", goal: 10, type: 'nearmiss' },
     { id: 2, desc: "Llega al Nivel 5 en una carrera", goal: 5, type: 'level' },
     { id: 3, desc: "Logra 20 Near Miss en una carrera", goal: 20, type: 'nearmiss' },
-    { id: 4, desc: "Recorre 3.000m en una carrera", goal: 3000, type: 'dist' },
+    { id: 4, desc: "Recorre 3000m en una carrera", goal: 3000, type: 'dist' },
     { id: 5, desc: "Junta 100 monedas en una carrera", goal: 100, type: 'coins' }
 ];
 
-const MILESTONES = {
-    totalDist: [1000, 5000, 10000, 50000, 100000],
-    totalCoins: [500, 2000, 5000, 10000, 50000],
-    totalPlays: [10, 50, 100, 250, 500],
-    totalNear: [50, 200, 500, 1000, 5000]
-};
+const MILESTONES = { totalDist: [1000, 5000, 10000, 50000, 100000], totalCoins: [500, 2000, 5000, 10000, 50000], totalPlays: [10, 50, 100, 250, 500], totalNear: [50, 200, 500, 1000, 5000] };
 
 const NEONES = {
     'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 },
@@ -220,10 +224,8 @@ Object.keys(MODELS).forEach(k => { if(!garage.carStats[k]) garage.carStats[k] = 
 
 function showToast(title, msg, isAchievement = false) {
     const container = document.getElementById("toast-container");
-    const t = document.createElement("div");
-    t.className = `toast ${isAchievement ? 'logro' : ''}`;
-    t.innerHTML = `<b>${title}</b><p>${msg}</p>`;
-    container.appendChild(t);
+    const t = document.createElement("div"); t.className = `toast ${isAchievement ? 'logro' : ''}`;
+    t.innerHTML = `<b>${title}</b><p>${msg}</p>`; container.appendChild(t);
     setTimeout(() => t.remove(), 3200);
 }
 
@@ -251,7 +253,6 @@ function startGame() {
     state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); loop();
 }
 
-let lastTime = 0;
 function loop(t) { if(state !== "PLAYING") return; let dt = (t - lastTime) / 16.66; if(isNaN(dt) || dt > 3) dt = 1; lastTime = t; update(dt); draw(); requestAnimationFrame(loop); }
 
 function update(dt) {
@@ -271,10 +272,8 @@ function update(dt) {
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     fuel -= (0.018 - (stats.tanque * 0.0015)) * currentSpeed * dt;
-
     if(screenShake > 0.1) screenShake *= 0.85;
     if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
-
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
     if(Math.random() < 0.02 * dt) spawnScenery();
     if(Math.random() < 0.006 * dt) spawnItem('coin');
@@ -354,10 +353,27 @@ function draw() {
 
 function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
 function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); document.getElementById("fuel-bar").style.width = fuel + "%"; }
+
 function showMenu() { clearInterval(reviveInterval); state = "MENU"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarEstructuraMisiones(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
-function updateUI() { const carKey = garage.selected, stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX"; document.getElementById("menu-high-score").innerText = garage.high.toLocaleString(); document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString(); document.getElementById("up-car-name").innerText = MODELS[carKey].name; }
-function buyUpgrade(t) { const stats = garage.carStats[garage.selected], price = UPGRADE_PRICES[garage.selected][stats[t]]; if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } }
+
+function updateUI() { 
+    const carKey = garage.selected; const stats = garage.carStats[carKey];
+    document.getElementById("lvl-motor").innerText = stats.motor;
+    document.getElementById("lvl-tanque").innerText = stats.tanque;
+    // --- FIX DE PRECIOS VISIBLES ---
+    document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX";
+    document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX";
+    document.getElementById("menu-high-score").innerText = garage.high.toLocaleString();
+    document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString();
+    document.getElementById("up-car-name").innerText = MODELS[carKey].name;
+}
+
+function buyUpgrade(t) { 
+    const carKey = garage.selected; const stats = garage.carStats[carKey];
+    const price = UPGRADE_PRICES[carKey][stats[t]];
+    if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } 
+}
 
 function spawnTraffic() {
     let l = (Math.random()*4)|0; let tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80;
@@ -375,7 +391,6 @@ function finishGame() {
     clearInterval(reviveInterval); state = "OVER"; hideAll();
     if(score > garage.high) garage.high = score|0;
     garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; garage.weeklyDist += score|0;
-
     const misionActual = DAILY_MISSIONS[garage.missionId], hoy = new Date().toDateString();
     if (garage.missionDoneDate !== hoy) {
         let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'dist' && score >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal);
@@ -410,7 +425,7 @@ function openNeones() {
         const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div");
         btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`;
         btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price}`;
-        btn.onclick = () => { if(owned) garage.selectedNeon = k; else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); };
+        btn.onclick = () => { if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); };
         container.appendChild(btn);
     });
     document.getElementById("shop-neones").classList.remove("hidden");
