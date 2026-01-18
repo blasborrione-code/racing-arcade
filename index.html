@@ -9,6 +9,7 @@
             --accent: #f1c40f;
             --bg-glass: rgba(0, 0, 0, 0.85);
             --border-glass: rgba(255, 255, 255, 0.1);
+            --weekly-clr: #9b59b6;
         }
         body { margin: 0; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; display: flex; justify-content: center; align-items: center; min-height: 100vh; color: white; }
         #game-container { position: fixed; inset: 0; background: #2c3e50; overflow: hidden; display: flex; justify-content: center; align-items: center; }
@@ -45,7 +46,7 @@
         .magnet-active { color: #f1c40f; text-shadow: 0 0 10px #f1c40f; animation: blink 0.5s infinite; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        .mission-box { background: rgba(255,255,255,0.05); border: 1px dashed rgba(241,196,15,0.5); padding: 15px; border-radius: 20px; margin: 10px 0; }
+        .mission-box { background: rgba(255,255,255,0.05); border: 1px dashed rgba(241,196,15,0.5); padding: 15px; border-radius: 20px; margin: 10px 0; text-align: left; }
         .stats-row { display: flex; justify-content: space-around; font-size: 12px; color: #bdc3c7; margin-bottom: 10px; }
 
         #mobile-controls { position: absolute; bottom: 40px; left: 0; width: 100%; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; }
@@ -83,19 +84,18 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <h1>RACING ARCADE</h1>
-            <p style="margin: 0 0 20px; font-size: 12px; color: #bdc3c7;">creado por Blas Borrione</p>
+            <h1 style="font-size: 24px;">RACING ARCADE</h1>
             <div class="stats-row"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             
             <div class="mission-box">
-                <small style="color:#f1c40f">MISIÓN DIARIA</small>
-                <p id="menu-mission-desc" style="margin:5px 0; font-size:13px; font-weight:bold;"></p>
+                <small style="color:#f1c40f; font-weight:800;">DIARIA</small>
+                <p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p>
             </div>
 
-            <div class="mission-box" style="border-color: #9b59b6;">
-                <small style="color:#9b59b6">SEMANAL: <span id="weekly-timer"></span></small>
-                <p id="menu-weekly-desc" style="margin:5px 0; font-size:11px;"></p>
-                <div class="bar-container" style="width:100%; height:6px;"><div id="weekly-bar" style="width:0%; background:#9b59b6;"></div></div>
+            <div class="mission-box" style="border-color: var(--weekly-clr); border-style: solid;">
+                <small style="color:var(--weekly-clr); font-weight:800;">SEMANAL (5.000💰)</small>
+                <p id="menu-weekly-desc" style="margin:2px 0; font-size:11px;"></p>
+                <div class="bar-container" style="width:100%; height:6px; background:rgba(255,255,255,0.05); border:none;"><div id="weekly-bar" style="width:0%; background:var(--weekly-clr); height:100%; border-radius:3px;"></div></div>
             </div>
 
             <button class="btn-green" onclick="startGame()">CORRER</button>
@@ -118,18 +118,18 @@
             <h1>GARAJE</h1>
             <button class="btn-blue" onclick="openConcesionario()">AUTOS</button>
             <button class="btn-orange" onclick="openMejoras()">MEJORAS</button>
-            <button class="btn-green" onclick="openLogros()" style="background: #9b59b6;">LOGROS</button>
+            <button class="btn-green" onclick="openLogros()" style="background: var(--weekly-clr);">LOGROS</button>
             <button class="btn-red" onclick="showMenu()">VOLVER</button>
         </div>
     </div>
 
     <div id="shop-cars" class="overlay hidden">
         <div class="ui-card">
-            <h1>CONCESIONARIO</h1>
+            <h1>TIENDA</h1>
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
                 <div onclick="prevCar()" style="cursor:pointer; font-size:30px;">◀</div>
                 <div style="text-align:center;">
-                    <img id="shop-car-img" style="height:100px; object-fit:contain;">
+                    <img id="shop-car-img" style="height:90px; object-fit:contain;">
                     <h4 id="shop-car-name" style="color:#f1c40f; margin:10px 0;"></h4>
                     <div style="font-size:11px; color:#bdc3c7; margin-bottom:10px;">
                         <span id="shop-car-speed"></span> | <span id="shop-car-lives"></span>
@@ -145,8 +145,7 @@
     <div id="shop-logros" class="overlay hidden">
         <div class="ui-card">
             <h1>LOGROS</h1>
-            <div id="logros-container" style="max-height: 250px; overflow-y: auto; text-align: left; margin-bottom: 15px; padding-right:5px;">
-            </div>
+            <div id="logros-container" style="max-height: 250px; overflow-y: auto; text-align: left; margin-bottom: 15px; padding-right:5px;"></div>
             <button class="btn-red" onclick="openShop()">ATRÁS</button>
         </div>
     </div>
@@ -199,6 +198,8 @@ ctx.imageSmoothingEnabled = false;
 
 if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-controls").style.display = "flex";
 
+const audio = { play: (name) => { } }; 
+
 const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), magnet: new Image(), npcs: [] };
 const sceneryAssets = { arboles: [new Image()] };
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
@@ -234,12 +235,12 @@ const UPGRADE_PRICES = {
 };
 
 const DAILY_MISSIONS = [
-    { id: 0, desc: "Junta 50 monedas en una carrera", goal: 50, type: 'coins' },
-    { id: 1, desc: "Logra 10 Near Miss en una carrera", goal: 10, type: 'nearmiss' },
-    { id: 2, desc: "Llega al Nivel 5 en una carrera", goal: 5, type: 'level' },
-    { id: 3, desc: "Logra 20 Near Miss en una carrera", goal: 20, type: 'nearmiss' },
-    { id: 4, desc: "Recorre 3000m en una carrera", goal: 3000, type: 'dist' },
-    { id: 5, desc: "Junta 100 monedas en una carrera", goal: 100, type: 'coins' }
+    { id: 0, desc: "Juntar 50 monedas en una carrera", goal: 50, type: 'coins' },
+    { id: 1, desc: "Lograr 10 Near Miss en una carrera", goal: 10, type: 'nearmiss' },
+    { id: 2, desc: "Llegar al Nivel 5 en una carrera", goal: 5, type: 'level' },
+    { id: 3, desc: "Lograr 20 Near Miss en una carrera", goal: 20, type: 'nearmiss' },
+    { id: 4, desc: "Recorrer 3.000m en una carrera", goal: 3000, type: 'dist' },
+    { id: 5, desc: "Juntar 100 monedas en una carrera", goal: 100, type: 'coins' }
 ];
 
 const MILESTONES = {
@@ -249,16 +250,8 @@ const MILESTONES = {
     totalNear: [50, 200, 500, 1000, 5000]
 };
 
-const NEONES = {
-    'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 },
-    'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 },
-    'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 },
-    'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 },
-    'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 },
-    'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
-};
-
-let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, missionId: 0, missionDoneDate: "", carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, 
+let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, missionId: 0, missionDoneDate: "", carStats: {}, neonOwned: ['white'], selectedNeon: 'white', 
+    totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, 
     unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, 
     weeklyDist: 0, weeklyWeek: -1, weeklyDone: false };
 
@@ -270,25 +263,19 @@ function getWeekNumber(d) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
     var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-    var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
-    return weekNo;
+    return Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
 }
 
 function actualizarEstructuraMisiones() {
     const hoy = new Date().toDateString();
     const currWeek = getWeekNumber(new Date());
     if(garage.weeklyWeek !== currWeek) {
-        garage.weeklyWeek = currWeek;
-        garage.weeklyDist = 0;
-        garage.weeklyDone = false;
+        garage.weeklyWeek = currWeek; garage.weeklyDist = 0; garage.weeklyDone = false;
     }
-    
     garage.missionId = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000) % DAILY_MISSIONS.length;
     document.getElementById("menu-mission-desc").innerText = (garage.missionDoneDate !== hoy) ? DAILY_MISSIONS[garage.missionId].desc : "¡Completada!";
-    
-    document.getElementById("menu-weekly-desc").innerText = garage.weeklyDone ? "¡Completada!" : `Recorrer 50.000m esta semana (${garage.weeklyDist}/50000)`;
+    document.getElementById("menu-weekly-desc").innerText = garage.weeklyDone ? "¡Misión completada!" : `Meta: ${garage.weeklyDist.toLocaleString()} / 50.000m`;
     document.getElementById("weekly-bar").style.width = Math.min(100, (garage.weeklyDist/50000)*100) + "%";
-    document.getElementById("weekly-timer").innerText = "S" + currWeek;
 }
 
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, isPaused = false, level = 1, shopIndex = 0;
@@ -298,8 +285,7 @@ let screenShake = 0, magnetTimer = 0;
 
 function togglePause() {
     if(state !== "PLAYING" && state !== "PAUSED") return;
-    isPaused = !isPaused;
-    state = isPaused ? "PAUSED" : "PLAYING";
+    isPaused = !isPaused; state = isPaused ? "PAUSED" : "PLAYING";
     if(isPaused) document.getElementById("pause-screen").classList.remove("hidden");
     else { document.getElementById("pause-screen").classList.add("hidden"); lastTime = performance.now(); loop(); }
 }
@@ -445,7 +431,7 @@ function updateHUD() { document.getElementById("ui-speed").innerText = (currentS
 function showMenu() { clearInterval(reviveInterval); state = "MENU"; isPaused = false; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarEstructuraMisiones(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function save() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); }
-function updateUI() { const carKey = garage.selected, stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX"; document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; document.getElementById("up-car-name").innerText = MODELS[carKey].name; }
+function updateUI() { const carKey = garage.selected, stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX"; document.getElementById("menu-high-score").innerText = garage.high.toLocaleString(); document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString(); document.getElementById("up-car-name").innerText = MODELS[carKey].name; }
 function buyUpgrade(t) { const carKey = garage.selected, stats = garage.carStats[carKey], price = UPGRADE_PRICES[carKey][stats[t]]; if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } }
 
 function spawnTraffic() {
@@ -465,36 +451,21 @@ function finishGame() {
     clearInterval(reviveInterval); state = "OVER"; hideAll();
     if(score > garage.high) garage.high = score|0;
     
-    // Guardar estadísticas generales
-    garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun;
-    garage.weeklyDist += score|0;
+    garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; garage.weeklyDist += score|0;
 
-    // Chequeo de Misión Diaria
     const misionActual = DAILY_MISSIONS[garage.missionId], hoy = new Date().toDateString();
     if (garage.missionDoneDate !== hoy) {
-        let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || 
-                   (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || 
-                   (misionActual.type === 'dist' && score >= misionActual.goal) ||
-                   (misionActual.type === 'level' && level >= misionActual.goal);
+        let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'dist' && score >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal);
         if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; document.getElementById("mission-complete-msg").classList.remove("hidden"); }
     }
 
-    // Chequeo de Misión Semanal
-    if(!garage.weeklyDone && garage.weeklyDist >= 50000) {
-        garage.weeklyDone = true; garage.coins += 5000;
-        alert("¡MISIÓN SEMANAL COMPLETADA!\nPremio: 💰5000 monedas");
-    }
+    if(!garage.weeklyDone && garage.weeklyDist >= 50000) { garage.weeklyDone = true; garage.coins += 5000; alert("¡MISIÓN SEMANAL COMPLETADA! +5.000💰"); }
     
-    // Chequeo de Milestones (Logros escalonados)
     Object.keys(MILESTONES).forEach(key => {
         let currentLvl = garage.unlockedLogros[key];
         if(currentLvl < 5) {
-            let goal = MILESTONES[key][currentLvl];
             let val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays;
-            if(val >= goal) {
-                garage.unlockedLogros[key]++; garage.coins += 1000;
-                alert(`¡LOGRO COMPLETADO!\nEscalón ${currentLvl + 1} de ${key}\nPremio: 💰1000`);
-            }
+            if(val >= MILESTONES[key][currentLvl]) { garage.unlockedLogros[key]++; garage.coins += 1000; alert(`¡LOGRO DESBLOQUEADO!\nNivel ${currentLvl + 1} de ${key}`); }
         }
     });
 
@@ -507,19 +478,14 @@ function finishGame() {
 function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-
 function openLogros() {
     hideAll(); const cont = document.getElementById("logros-container"); cont.innerHTML = "";
     Object.keys(MILESTONES).forEach(key => {
         let currentLvl = garage.unlockedLogros[key];
-        let categoryName = (key === 'totalDist') ? 'KILOMETRAJE' : (key === 'totalCoins') ? 'RIQUEZA' : (key === 'totalNear') ? 'REFLEJOS' : 'PERSISTENCIA';
         let val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays;
-        
-        const div = document.createElement("div");
-        div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid #9b59b6;";
-        
-        let goalText = currentLvl < 5 ? `${val} / ${MILESTONES[key][currentLvl]}` : "MAXEADO";
-        div.innerHTML = `<small style="color:#9b59b6">${categoryName} - NIVEL ${currentLvl}</small><br><b>${goalText}</b><br><small>Siguiente premio: 💰1000</small>`;
+        const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);";
+        let goalText = currentLvl < 5 ? `${val.toLocaleString()} / ${MILESTONES[key][currentLvl].toLocaleString()}` : "¡COMPLETADO AL MÁXIMO!";
+        div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${currentLvl}</small><br><b>${goalText}</b><br><small>Premio: 1.000💰</small>`;
         cont.appendChild(div);
     });
     document.getElementById("shop-logros").classList.remove("hidden");
@@ -542,6 +508,7 @@ actualizarEstructuraMisiones();
 </script>
 </body>
 </html>
+
 
 
 
