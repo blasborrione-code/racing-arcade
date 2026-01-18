@@ -206,19 +206,25 @@ const MODELS = {
     'furgoneta': { name: 'CARGO VIAJES', maxSpeed: 6.25, accel: 0.07, handling: 1.0, lives: 3, w: 55, h: 95, img: 'furgoneta.png', price: 3000 },
     'auto_rosa': { name: 'PINKY', maxSpeed: 7.17, accel: 0.1, handling: 1.2, lives: 4, w: 58, h: 98, img: 'auto_rosa.png', price: 5500 },
     'camioneta4x4': { name: 'TODO TERRENO', maxSpeed: 7.5, accel: 0.12, handling: 1.0, lives: 5, w: 65, h: 115, img: 'camioneta4x4.png', price: 11000 },
+    'camaro': { name: 'V8 BEAST', maxSpeed: 7.92, accel: 0.14, handling: 0.9, lives: 5, w: 58, h: 105, img: 'camaro_negro.png', price: 15000 },
     'subaru': { name: 'BLUE RALLY', maxSpeed: 8.08, accel: 0.15, handling: 1.5, lives: 4, w: 52, h: 92, img: 'subaru.png', price: 25000 },
+    'lambo': { name: 'YELLOW STREAK', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 60, h: 100, img: 'lambo_amarillo.png', price: 30000 },
     'porsche': { name: 'DEPORTIVO GT', maxSpeed: 8.92, accel: 0.2, handling: 1.8, lives: 4, w: 62, h: 98, img: 'porsche_negro.png', price: 47000 },
     'skyline': { name: 'NIGHT WALKER', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 58, h: 102, img: 'skyline.png', price: 60000 },
     'supra': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 52, h: 92, img: 'supra.png', price: 60000 },
-    'f1_clasico': { name: 'PRIME ONE', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 85000 }
+    'mercedes': { name: 'SILVER ARROW', maxSpeed: 9.83, accel: 0.24, handling: 2.2, lives: 4, w: 62, h: 108, img: 'mercedes_blanco.png', price: 68000 },
+    'f1_clasico': { name: 'PRIME ONE', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 85000 },
+    'f1_nuevo': { name: 'HYPER FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 60, h: 115, img: 'f1_nuevo.png', price: 95000 }
 };
 
 const UPGRADE_PRICES = {
     'fitito': [250, 500, 750, 1000, 1250], 'furgoneta': [400, 800, 1200, 1600, 2000],
     'auto_rosa': [600, 1200, 1800, 2400, 3000], 'camioneta4x4': [800, 1600, 2400, 3200, 4000],
-    'subaru': [1200, 2400, 3600, 4800, 6000], 'porsche': [1500, 3000, 4500, 6000, 7500],
+    'camaro': [900, 1800, 2700, 3600, 4500], 'subaru': [1200, 2400, 3600, 4800, 6000],
+    'lambo': [1300, 2600, 3900, 5200, 6500], 'porsche': [1500, 3000, 4500, 6000, 7500],
     'skyline': [2000, 4000, 6000, 8000, 10000], 'supra': [2000, 4000, 6000, 8000, 10000],
-    'f1_clasico': [3000, 5000, 8000, 12000, 15000]
+    'mercedes': [2500, 5000, 7500, 10000, 12500], 'f1_clasico': [3000, 5000, 8000, 12000, 15000],
+    'f1_nuevo': [4000, 8000, 12000, 16000, 20000]
 };
 
 const NEONES = {
@@ -336,15 +342,14 @@ function update(dt) {
         let futureLanes = [en.l];
         if(en.chg || en.blink) futureLanes.push(en.tl);
         let ahead = enemies.find(o => 
-            o !== en && 
-            (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) &&
-            o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)
+            o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) &&
+            o.y < en.y && (en.y - o.y) < (en.h > 90 ? 320 : 250)
         );
         let desiredSpeed = en.baseSpeed;
         if (ahead) {
             let gap = en.y - (ahead.y + ahead.h);
-            if (gap < 30) desiredSpeed = ahead.speed * 0.5;
-            else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9);
+            if (gap < 40) desiredSpeed = ahead.speed * 0.6;
+            else desiredSpeed = ahead.speed * 0.9;
         }
         en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
         en.y += (currentSpeed - en.speed) * dt;
@@ -381,15 +386,9 @@ function update(dt) {
             let dx = (player.x + player.w/2) - (it.x + it.w/2);
             let dy = (player.y + player.h/2) - (it.y + it.h/2);
             let dist = Math.sqrt(dx*dx + dy*dy);
-            if(dist < 300) {
-                it.x += (dx/dist) * 12 * dt;
-                it.y += (dy/dist) * 12 * dt;
-            } else {
-                it.y += currentSpeed * dt;
-            }
-        } else {
-            it.y += currentSpeed * dt;
-        }
+            if(dist < 300) { it.x += (dx/dist) * 12 * dt; it.y += (dy/dist) * 12 * dt; } 
+            else { it.y += currentSpeed * dt; }
+        } else { it.y += currentSpeed * dt; }
 
         if(checkCollision(player, it)) {
             if(it.t === 'coin') { garage.coins++; coinsThisRun++; }
@@ -428,9 +427,7 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
 
 function draw() {
     ctx.save();
-    if (screenShake > 0.1) {
-        ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
-    }
+    if (screenShake > 0.1) { ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); }
     let sunset = false, rain = false, night = false; if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
     ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750);
     ctx.fillStyle = "#27ae60"; 
@@ -496,11 +493,7 @@ function endGame(r) {
     state = "PAUSED";
     lastReason = r;
     document.getElementById("btn-pause-trigger").style.display = "none";
-    if (!hasRevived && garage.coins >= 250) {
-        startReviveCountdown();
-    } else {
-        finishGame();
-    }
+    if (!hasRevived && garage.coins >= 250) { startReviveCountdown(); } else { finishGame(); }
 }
 
 function startReviveCountdown() {
@@ -510,31 +503,21 @@ function startReviveCountdown() {
     reviveInterval = setInterval(() => {
         reviveCounter--;
         document.getElementById("timer-display").innerText = reviveCounter;
-        if (reviveCounter <= 0) {
-            clearInterval(reviveInterval);
-            finishGame();
-        }
+        if (reviveCounter <= 0) { clearInterval(reviveInterval); finishGame(); }
     }, 1000);
 }
 
 function confirmRevive() {
     clearInterval(reviveInterval);
-    garage.coins -= 250;
-    lives = 1;
-    fuel = 100;
-    hasRevived = true;
-    state = "PLAYING";
-    hideAll();
-    document.getElementById("btn-pause-trigger").style.display = "flex";
-    save();
-    lastTime = performance.now();
-    loop();
+    garage.coins -= 250; lives = 1; fuel = 100;
+    hasRevived = true; state = "PLAYING";
+    hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex";
+    save(); lastTime = performance.now(); loop();
 }
 
 function finishGame() {
     clearInterval(reviveInterval);
-    state = "OVER";
-    hideAll();
+    state = "OVER"; hideAll();
     if(score > garage.high) garage.high = score|0;
     const misionActual = DAILY_MISSIONS[garage.missionId];
     const hoy = new Date().toDateString();
@@ -573,23 +556,34 @@ function openNeones() {
     document.getElementById("shop-neones").classList.remove("hidden");
 }
 
-function updateShopUI() { const carKeys = Object.keys(MODELS); const key = carKeys[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; }
+function updateShopUI() { 
+    const carKeys = Object.keys(MODELS); 
+    const key = carKeys[shopIndex], car = MODELS[key]; 
+    document.getElementById("shop-car-img").src = `Autos/${car.img}`; 
+    document.getElementById("shop-car-name").innerText = car.name; 
+    document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; 
+    document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; 
+    const btn = document.getElementById("shop-car-btn"); 
+    btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; 
+    btn.onclick = () => { 
+        if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } 
+        else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } 
+    }; 
+}
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
 function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
 
-window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause(); keys[e.code] = true; }); window.addEventListener("keyup", e => keys[e.code] = false);
+window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause(); keys[e.code] = true; }); 
+window.addEventListener("keyup", e => keys[e.code] = false);
 const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
 setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
 
-setTimeout(() => {
-    document.getElementById("loading-screen").classList.add("hidden");
-    showMenu();
-}, 2500);
-
+setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
 actualizarMisionDiaria();
 </script>
 </body>
 </html>
+
 
 
 
