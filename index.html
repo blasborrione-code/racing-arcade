@@ -186,13 +186,20 @@ const MODELS = {
     'f1_nuevo': { name: 'APEX FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 48, h: 105, img: 'f1_nuevo.png', price: 95000 }
 };
 
+// --- ESCALA DE PRECIOS POR AUTO ---
 const UPGRADE_PRICES = {
-    'fitito': [250, 500, 750, 1000, 1250], 'furgoneta': [400, 800, 1200, 1600, 2000],
-    'auto_rosa': [600, 1200, 1800, 2400, 3000], 'camioneta4x4': [800, 1600, 2400, 3200, 4000],
-    'camaro': [1000, 2000, 3000, 4000, 5000], 'subaru': [1200, 2400, 3600, 4800, 6000],
-    'lambo': [1500, 3000, 4500, 6000, 7500], 'porsche': [1500, 3000, 4500, 6000, 7500],
-    'skyline': [2000, 4000, 6000, 8000, 10000], 'supra': [2000, 4000, 6000, 8000, 10000],
-    'mercedes': [3000, 6000, 9000, 12000, 15000], 'f1_clasico': [3000, 5000, 8000, 12000, 15000],
+    'fitito': [250, 500, 750, 1000, 1250],
+    'furgoneta': [400, 800, 1200, 1600, 2000],
+    'auto_rosa': [600, 1200, 1800, 2400, 3000],
+    'camioneta4x4': [800, 1600, 2400, 3200, 4000],
+    'camaro': [1000, 2000, 3000, 4000, 5000],
+    'subaru': [1200, 2400, 3600, 4800, 6000],
+    'lambo': [1500, 3000, 4500, 6000, 7500],
+    'porsche': [1500, 3000, 4500, 6000, 7500],
+    'skyline': [2000, 4000, 6000, 8000, 10000],
+    'supra': [2000, 4000, 6000, 8000, 10000],
+    'mercedes': [3000, 6000, 9000, 12000, 15000],
+    'f1_clasico': [3000, 6000, 10000, 15000, 20000],
     'f1_nuevo': [5000, 10000, 15000, 20000, 25000]
 };
 
@@ -361,9 +368,14 @@ function updateUI() {
     const carKey = garage.selected; const stats = garage.carStats[carKey];
     document.getElementById("lvl-motor").innerText = stats.motor;
     document.getElementById("lvl-tanque").innerText = stats.tanque;
-    // --- FIX DE PRECIOS VISIBLES ---
-    document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX";
-    document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX";
+    
+    // --- ACTUALIZACIÓN DINÁMICA DE PRECIOS SEGÚN EL AUTO ---
+    const motorPrice = UPGRADE_PRICES[carKey][stats.motor];
+    const tanquePrice = UPGRADE_PRICES[carKey][stats.tanque];
+    
+    document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${motorPrice.toLocaleString()}` : "MAX";
+    document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${tanquePrice.toLocaleString()}` : "MAX";
+    
     document.getElementById("menu-high-score").innerText = garage.high.toLocaleString();
     document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString();
     document.getElementById("up-car-name").innerText = MODELS[carKey].name;
@@ -424,7 +436,7 @@ function openNeones() {
     Object.keys(NEONES).forEach(k => {
         const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div");
         btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`;
-        btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price}`;
+        btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`;
         btn.onclick = () => { if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); };
         container.appendChild(btn);
     });
@@ -432,7 +444,7 @@ function openNeones() {
 }
 function updateShopUI() { 
     const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; 
-    const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; 
+    const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; 
     btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; 
 }
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
@@ -447,7 +459,6 @@ actualizarEstructuraMisiones();
 </script>
 </body>
 </html>
-
 
 
 
