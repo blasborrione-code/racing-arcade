@@ -87,6 +87,16 @@
         </div>
     </div>
 
+    <div id="revive-screen" class="overlay hidden">
+        <div class="ui-card">
+            <h1 style="color:var(--accent);">¡PUM!</h1>
+            <p id="revive-msg">¿Querés seguir corriendo?</p>
+            <p style="font-size: 14px; color:#bdc3c7;">Costo: 💰500</p>
+            <button class="btn-green" onclick="confirmRevive()">PAGAR Y SEGUIR</button>
+            <button class="btn-red" onclick="finishGame()">FINALIZAR</button>
+        </div>
+    </div>
+
     <div id="shop-main" class="overlay hidden">
         <div class="ui-card">
             <h1>GARAJE</h1>
@@ -236,7 +246,7 @@ function actualizarMisionDiaria() {
 
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, isPaused = false, level = 1, shopIndex = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = []; let items = []; let scenery = []; let keys = {}; let nmT = null; let isS = false; let expObj = null;
-let coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false;
+let coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "";
 
 function togglePause() {
     if(state !== "PLAYING" && state !== "PAUSED") return;
@@ -251,8 +261,8 @@ function startGame() {
     assets.player.src = `Autos/${car.img}`;
     player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 };
     score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; 
-    enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = false;
-    coinsThisRun = 0; nearMissesThisRun = 0; nmT = null; isPaused = false;
+    enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; // Fix para no dar vida de entrada
+    coinsThisRun = 0; nearMissesThisRun = 0; nmT = null; isPaused = false; hasRevived = false;
     state = "PLAYING"; hideAll(); 
     document.getElementById("btn-pause-trigger").style.display = "flex";
     lastTime = performance.now(); loop();
@@ -276,12 +286,8 @@ function update(dt) {
     let sunset = false, rain = false, night = false;
     if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
     
-    // --- NUEVA FÍSICA DE LLUVIA ---
-    let turnInertia = 0.8; // Fricción normal
-    if(rain) { 
-        hndl *= 0.45; // Doblar es un 55% más lento
-        turnInertia = 0.92; // El auto resbala más al soltar el giro
-    }
+    let turnInertia = 0.8;
+    if(rain) { hndl *= 0.45; turnInertia = 0.92; }
     
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else {
@@ -303,8 +309,11 @@ function update(dt) {
     if(Math.random() < 0.006 * dt) spawnItem('coin');
     if(Math.random() < 0.004 * dt) spawnItem('fuel');
 
+    if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
+    if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil');
+    if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
+
     enemies.forEach((en, i) => {
-        // --- IA BLINDADA v5: RESERVA DE CARRIL ---
         let futureLanes = [en.l];
         if(en.chg || en.blink) futureLanes.push(en.tl);
 
@@ -342,7 +351,13 @@ function update(dt) {
         if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
 
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; }
-        if(checkCollision(player, en)) { lives--; if(lives<=0) endGame("CHOQUE"); enemies.splice(i,1); }
+        if(checkCollision(player, en)) { 
+            lives--; 
+            if(lives <= 0) { 
+                endGame("CHOQUE"); 
+            } 
+            enemies.splice(i,1); 
+        }
         else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
     });
 
@@ -382,7 +397,6 @@ function draw() {
     ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750);
     ctx.fillStyle = "#34495e";
     for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); }
-
     ctx.fillStyle = "rgba(255,255,255,0.1)";
     for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); }
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
@@ -420,7 +434,6 @@ function spawnTraffic() {
     let h = isC ? 110 : 80;
     let areaBusy = enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150));
     if(areaBusy) return;
-
     enemies.push({
         x: tx - (w / 2),
         y: -200,
@@ -437,7 +450,49 @@ function spawnTraffic() {
 
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) return; scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
-function endGame(r) { state="OVER"; document.getElementById("btn-pause-trigger").style.display = "none"; if(score > garage.high) garage.high = score|0; const misionActual = DAILY_MISSIONS[garage.missionId]; const hoy = new Date().toDateString(); if (garage.missionDoneDate !== hoy) { let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal); if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; document.getElementById("mission-complete-msg").classList.remove("hidden"); } } save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = r; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`; }
+
+// LÓGICA DE FIN DE JUEGO Y REVIVIR
+function endGame(r) { 
+    state = "PAUSED";
+    lastReason = r;
+    document.getElementById("btn-pause-trigger").style.display = "none";
+    
+    // Si tiene monedas suficentes y no revivió todavía
+    if (!hasRevived && garage.coins >= 500) {
+        document.getElementById("revive-screen").classList.remove("hidden");
+    } else {
+        finishGame();
+    }
+}
+
+function confirmRevive() {
+    garage.coins -= 500;
+    lives = 1;
+    fuel = 50;
+    hasRevived = true;
+    state = "PLAYING";
+    hideAll();
+    document.getElementById("btn-pause-trigger").style.display = "flex";
+    save();
+    lastTime = performance.now();
+    loop();
+}
+
+function finishGame() {
+    state = "OVER";
+    hideAll();
+    if(score > garage.high) garage.high = score|0;
+    const misionActual = DAILY_MISSIONS[garage.missionId];
+    const hoy = new Date().toDateString();
+    if (garage.missionDoneDate !== hoy) {
+        let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal);
+        if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; document.getElementById("mission-complete-msg").classList.remove("hidden"); }
+    }
+    save();
+    document.getElementById("game-over").classList.remove("hidden");
+    document.getElementById("over-reason").innerText = lastReason;
+    document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
+}
 
 function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
