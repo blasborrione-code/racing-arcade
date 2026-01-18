@@ -41,6 +41,8 @@
         .btn-orange { background: #e67e22; }
         .btn-red { background: #e74c3c; }
 
+        #timer-display { font-size: 60px; font-weight: 900; color: var(--accent); margin: 10px 0; text-shadow: 0 0 20px rgba(241, 196, 15, 0.5); }
+
         .mission-box { background: rgba(255,255,255,0.05); border: 1px dashed rgba(241,196,15,0.5); padding: 15px; border-radius: 20px; margin: 15px 0; }
         .stats-row { display: flex; justify-content: space-around; font-size: 12px; color: #bdc3c7; margin-bottom: 15px; }
 
@@ -51,7 +53,7 @@
 <body>
 
 <div id="loading-screen">
-    <h1 style="margin-bottom: 5px;">RACING ARCADE</h1>
+    <h1>RACING ARCADE</h1>
     <p style="margin-top: 0; font-size: 12px; color: #bdc3c7; letter-spacing: 1px;">creado por Blas Borrione</p>
     <div class="loader"><div class="loader-bar"></div></div>
 </div>
@@ -89,11 +91,11 @@
 
     <div id="revive-screen" class="overlay hidden">
         <div class="ui-card">
-            <h1 style="color:var(--accent);">¡PUM!</h1>
-            <p id="revive-msg">¿Querés seguir corriendo?</p>
-            <p style="font-size: 14px; color:#bdc3c7;">Costo: 💰250</p>
-            <button class="btn-green" onclick="confirmRevive()">PAGAR Y SEGUIR</button>
-            <button class="btn-red" onclick="finishGame()">FINALIZAR</button>
+            <h1 style="color:var(--accent);">¿CONTINUAR?</h1>
+            <div id="timer-display">5</div>
+            <p style="font-size: 14px; color:#bdc3c7; margin-bottom: 20px;">Costo: 💰250 monedas</p>
+            <button class="btn-green" onclick="confirmRevive()">SÍ (PAGAR)</button>
+            <button class="btn-red" onclick="finishGame()" style="background:transparent; border:1px solid #e74c3c; color:#e74c3c; margin-top:10px;">NO, FINALIZAR</button>
         </div>
     </div>
 
@@ -246,7 +248,7 @@ function actualizarMisionDiaria() {
 
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, isPaused = false, level = 1, shopIndex = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = []; let items = []; let scenery = []; let keys = {}; let nmT = null; let isS = false; let expObj = null;
-let coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "";
+let coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null;
 
 function togglePause() {
     if(state !== "PLAYING" && state !== "PAUSED") return;
@@ -316,40 +318,33 @@ function update(dt) {
     enemies.forEach((en, i) => {
         let futureLanes = [en.l];
         if(en.chg || en.blink) futureLanes.push(en.tl);
-
         let ahead = enemies.find(o => 
             o !== en && 
             (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) &&
             o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)
         );
-
         let desiredSpeed = en.baseSpeed;
         if (ahead) {
             let gap = en.y - (ahead.y + ahead.h);
             if (gap < 30) desiredSpeed = ahead.speed * 0.5;
             else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9);
         }
-        
         en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
         en.y += (currentSpeed - en.speed) * dt;
-
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
                 const centers = [75, 157.5, 242.5, 325]; 
                 let tx = centers[nextLane] - (en.w / 2);
                 let laneBusy = enemies.some(o => 
-                    o !== en && 
-                    (o.l === nextLane || o.tl === nextLane) && 
+                    o !== en && (o.l === nextLane || o.tl === nextLane) && 
                     Math.abs(o.y - en.y) < (en.h + o.h + 80)
                 );
                 if(!laneBusy) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
             }
         }
-
         if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
         if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
-
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; }
         if(checkCollision(player, en)) { 
             lives--; 
@@ -417,7 +412,7 @@ function draw() {
 
 function checkCollision(p, o) { let mx = 8, my = 12; if(o.w > 50) { mx = 12; my = 8; } return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
 function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins; document.getElementById("fuel-bar").style.width = fuel + "%"; }
-function showMenu() { state = "MENU"; isPaused = false; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarMisionDiaria(); }
+function showMenu() { clearInterval(reviveInterval); state = "MENU"; isPaused = false; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarMisionDiaria(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function save() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); }
 function updateUI() { const carKey = garage.selected; const stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX"; document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; document.getElementById("up-car-name").innerText = MODELS[carKey].name; }
@@ -434,14 +429,10 @@ function spawnTraffic() {
     if(areaBusy) return;
     enemies.push({
         x: tx - (w / 2),
-        y: -200,
-        l: l,
-        w: w,
-        h: h,
+        y: -200, l: l, w: w, h: h,
         img: isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0],
         chg: false, blink: false, bCount: 0, bTimer: 0, nm: false,
-        baseSpeed: 1.5 + Math.random() * 3.0,
-        speed: 1.5 + Math.random() * 3.0,
+        baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0,
         tx: 0, tl: l
     });
 }
@@ -449,22 +440,36 @@ function spawnTraffic() {
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) return; scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
 
-// LÓGICA DE FIN DE JUEGO Y REVIVIR
+// LÓGICA DE REVIVIR MEJORADA
 function endGame(r) { 
     state = "PAUSED";
     lastReason = r;
     document.getElementById("btn-pause-trigger").style.display = "none";
     
-    // REVISIÓN: AHORA EL COSTO ES 250
     if (!hasRevived && garage.coins >= 250) {
-        document.getElementById("revive-screen").classList.remove("hidden");
+        startReviveCountdown();
     } else {
         finishGame();
     }
 }
 
+function startReviveCountdown() {
+    reviveCounter = 5;
+    document.getElementById("timer-display").innerText = reviveCounter;
+    document.getElementById("revive-screen").classList.remove("hidden");
+    
+    reviveInterval = setInterval(() => {
+        reviveCounter--;
+        document.getElementById("timer-display").innerText = reviveCounter;
+        if (reviveCounter <= 0) {
+            clearInterval(reviveInterval);
+            finishGame();
+        }
+    }, 1000);
+}
+
 function confirmRevive() {
-    // REVISIÓN: DESCONTAMOS 250
+    clearInterval(reviveInterval);
     garage.coins -= 250;
     lives = 1;
     fuel = 50;
@@ -478,6 +483,7 @@ function confirmRevive() {
 }
 
 function finishGame() {
+    clearInterval(reviveInterval);
     state = "OVER";
     hideAll();
     if(score > garage.high) garage.high = score|0;
@@ -535,6 +541,7 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
+
 
 
 
