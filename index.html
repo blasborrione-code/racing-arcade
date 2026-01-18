@@ -14,7 +14,6 @@
         #game-container { position: fixed; inset: 0; background: #2c3e50; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
         
-        /* HUD */
         .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
         .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.3; }
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
@@ -276,7 +275,13 @@ function update(dt) {
     let hndl = car.handling;
     let sunset = false, rain = false, night = false;
     if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
-    if(rain) hndl *= 0.7; 
+    
+    // --- NUEVA FÍSICA DE LLUVIA ---
+    let turnInertia = 0.8; // Fricción normal
+    if(rain) { 
+        hndl *= 0.45; // Doblar es un 55% más lento
+        turnInertia = 0.92; // El auto resbala más al soltar el giro
+    }
     
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else {
@@ -286,7 +291,9 @@ function update(dt) {
         if(keys["ArrowLeft"]) player.vx -= hndl * dt;
         if(keys["ArrowRight"]) player.vx += hndl * dt;
     }
-    player.vx *= Math.pow(0.8, dt); player.x += player.vx * dt;
+    
+    player.vx *= Math.pow(turnInertia, dt); 
+    player.x += player.vx * dt;
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
     fuel -= (0.018 - (stats.tanque * 0.0015)) * currentSpeed * dt;
@@ -296,18 +303,11 @@ function update(dt) {
     if(Math.random() < 0.006 * dt) spawnItem('coin');
     if(Math.random() < 0.004 * dt) spawnItem('fuel');
 
-    if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
-    if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil');
-    if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
-
     enemies.forEach((en, i) => {
-        // --- IA BLINDADA v4: RESERVA DE CARRIL Y SENSORES DE PROXIMIDAD ---
-        
-        // 1. Identificar zona de influencia (incluye carril destino si va a doblar)
+        // --- IA BLINDADA v5: RESERVA DE CARRIL ---
         let futureLanes = [en.l];
         if(en.chg || en.blink) futureLanes.push(en.tl);
 
-        // 2. Sensor frontal mejorado (Frenado por píxeles exactos)
         let ahead = enemies.find(o => 
             o !== en && 
             (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) &&
@@ -317,45 +317,29 @@ function update(dt) {
         let desiredSpeed = en.baseSpeed;
         if (ahead) {
             let gap = en.y - (ahead.y + ahead.h);
-            if (gap < 30) desiredSpeed = ahead.speed * 0.5; // Frenazo de seguridad total
+            if (gap < 30) desiredSpeed = ahead.speed * 0.5;
             else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9);
         }
         
         en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
         en.y += (currentSpeed - en.speed) * dt;
 
-        // 3. IA Cambio de carril con RESERVA DE CARRIL
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
                 const centers = [75, 157.5, 242.5, 325]; 
                 let tx = centers[nextLane] - (en.w / 2);
-                
-                // MIRAR SI EL CARRIL DESTINO ESTÁ LIBRE DE "RESERVAS" Y DE AUTOS FÍSICOS
                 let laneBusy = enemies.some(o => 
                     o !== en && 
-                    (o.l === nextLane || o.tl === nextLane) && // Ocupa el carril o lo tiene reservado
-                    Math.abs(o.y - en.y) < (en.h + o.h + 80) // Margen de seguridad aumentado
+                    (o.l === nextLane || o.tl === nextLane) && 
+                    Math.abs(o.y - en.y) < (en.h + o.h + 80)
                 );
-
-                if(!laneBusy) { 
-                    en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; 
-                }
+                if(!laneBusy) { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
             }
         }
 
-        if(en.blink) { 
-            en.bTimer += dt; 
-            if(en.bTimer > 20) { 
-                en.bTimer = 0; en.bCount++; 
-                if(en.bCount >= 6) { en.blink = false; en.chg = true; } 
-            } 
-        }
-        
-        if(en.chg) { 
-            en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; // Cambio lateral más veloz para despejar el carril rápido
-            if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } 
-        }
+        if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
+        if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
 
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; }
         if(checkCollision(player, en)) { lives--; if(lives<=0) endGame("CHOQUE"); enemies.splice(i,1); }
@@ -497,5 +481,6 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
+
 
 
