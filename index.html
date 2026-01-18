@@ -56,7 +56,7 @@
 
 <div id="loading-screen">
     <h1>RACING ARCADE</h1>
-    <p style="margin-top: 0; font-size: 12px; color: #bdc3c7; letter-spacing: 1px;">MODO TESTEO ACTIVADO</p>
+    <p style="margin-top: 0; font-size: 12px; color: #bdc3c7; letter-spacing: 1px;">creado por Blas Borrione</p>
     <div class="loader"><div class="loader-bar"></div></div>
 </div>
 
@@ -201,40 +201,40 @@ assets.magnet.src = 'Items/iman_pixel.png';
 ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
 sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
 
-// --- CONFIGURACIÓN DE TESTEO: PRECIOS A $0 Y TAMAÑOS AJUSTADOS (V4) ---
+// --- ECONOMÍA RESTAURADA Y TAMAÑOS FINALES (V4) ---
 const MODELS = {
     'fitito': { name: 'EL COMPACTO', maxSpeed: 5.75, accel: 0.08, handling: 1.2, lives: 3, w: 45, h: 82, img: 'auto_inicial.png', price: 0 },
-    'furgoneta': { name: 'CARGO VIAJES', maxSpeed: 6.25, accel: 0.07, handling: 1.0, lives: 3, w: 55, h: 95, img: 'furgoneta.png', price: 0 },
-    'auto_rosa': { name: 'PINKY', maxSpeed: 7.17, accel: 0.1, handling: 1.2, lives: 4, w: 58, h: 98, img: 'auto_rosa.png', price: 0 },
-    'camioneta4x4': { name: 'TODO TERRENO', maxSpeed: 7.5, accel: 0.12, handling: 1.0, lives: 5, w: 65, h: 115, img: 'camioneta4x4.png', price: 0 },
-    'camaro': { name: 'DARK PONY', maxSpeed: 7.92, accel: 0.14, handling: 0.9, lives: 5, w: 52, h: 94, img: 'camaro_negro.png', price: 0 },
-    'subaru': { name: 'BLUE RALLY', maxSpeed: 8.08, accel: 0.15, handling: 1.5, lives: 4, w: 44, h: 86, img: 'subaru.png', price: 0 },
-    'lambo': { name: 'ITALIA GTR', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 42, h: 76, img: 'lambo_amarillo.png', price: 0 },
-    'porsche': { name: 'DEPORTIVO GT', maxSpeed: 8.92, accel: 0.2, handling: 1.8, lives: 4, w: 62, h: 98, img: 'porsche_negro.png', price: 0 },
-    'skyline': { name: 'NIGHT WALKER', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 48, h: 88, img: 'skyline.png', price: 0 },
-    'supra': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 43, h: 78, img: 'supra.png', price: 0 },
-    'mercedes': { name: 'SILVER LUX', maxSpeed: 9.83, accel: 0.24, handling: 2.2, lives: 4, w: 51, h: 90, img: 'mercedes_blanco.png', price: 0 },
-    'f1_clasico': { name: 'PRIME ONE', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 0 },
-    'f1_nuevo': { name: 'APEX FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 48, h: 105, img: 'f1_nuevo.png', price: 0 }
+    'furgoneta': { name: 'CARGO VIAJES', maxSpeed: 6.25, accel: 0.07, handling: 1.0, lives: 3, w: 55, h: 95, img: 'furgoneta.png', price: 3000 },
+    'auto_rosa': { name: 'PINKY', maxSpeed: 7.17, accel: 0.1, handling: 1.2, lives: 4, w: 58, h: 98, img: 'auto_rosa.png', price: 5500 },
+    'camioneta4x4': { name: 'TODO TERRENO', maxSpeed: 7.5, accel: 0.12, handling: 1.0, lives: 5, w: 65, h: 115, img: 'camioneta4x4.png', price: 11000 },
+    'camaro': { name: 'DARK PONY', maxSpeed: 7.92, accel: 0.14, handling: 0.9, lives: 5, w: 52, h: 94, img: 'camaro_negro.png', price: 15000 },
+    'subaru': { name: 'BLUE RALLY', maxSpeed: 8.08, accel: 0.15, handling: 1.5, lives: 4, w: 44, h: 86, img: 'subaru.png', price: 25000 },
+    'lambo': { name: 'ITALIA GTR', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 42, h: 76, img: 'lambo_amarillo.png', price: 30000 },
+    'porsche': { name: 'DEPORTIVO GT', maxSpeed: 8.92, accel: 0.2, handling: 1.8, lives: 4, w: 62, h: 98, img: 'porsche_negro.png', price: 47000 },
+    'skyline': { name: 'NIGHT WALKER', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 48, h: 88, img: 'skyline.png', price: 60000 },
+    'supra': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 43, h: 78, img: 'supra.png', price: 60000 },
+    'mercedes': { name: 'SILVER LUX', maxSpeed: 9.83, accel: 0.24, handling: 2.2, lives: 4, w: 51, h: 90, img: 'mercedes_blanco.png', price: 68000 },
+    'f1_clasico': { name: 'PRIME ONE', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 85000 },
+    'f1_nuevo': { name: 'APEX FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 48, h: 105, img: 'f1_nuevo.png', price: 95000 }
 };
 
 const UPGRADE_PRICES = {
-    'fitito': [0, 0, 0, 0, 0], 'furgoneta': [0, 0, 0, 0, 0],
-    'auto_rosa': [0, 0, 0, 0, 0], 'camioneta4x4': [0, 0, 0, 0, 0],
-    'camaro': [0, 0, 0, 0, 0], 'subaru': [0, 0, 0, 0, 0],
-    'lambo': [0, 0, 0, 0, 0], 'porsche': [0, 0, 0, 0, 0],
-    'skyline': [0, 0, 0, 0, 0], 'supra': [0, 0, 0, 0, 0],
-    'mercedes': [0, 0, 0, 0, 0], 'f1_clasico': [0, 0, 0, 0, 0],
-    'f1_nuevo': [0, 0, 0, 0, 0]
+    'fitito': [250, 500, 750, 1000, 1250], 'furgoneta': [400, 800, 1200, 1600, 2000],
+    'auto_rosa': [600, 1200, 1800, 2400, 3000], 'camioneta4x4': [800, 1600, 2400, 3200, 4000],
+    'camaro': [1000, 2000, 3000, 4000, 5000], 'subaru': [1200, 2400, 3600, 4800, 6000],
+    'lambo': [1500, 3000, 4500, 6000, 7500], 'porsche': [1500, 3000, 4500, 6000, 7500],
+    'skyline': [2000, 4000, 6000, 8000, 10000], 'supra': [2000, 4000, 6000, 8000, 10000],
+    'mercedes': [3000, 6000, 9000, 12000, 15000], 'f1_clasico': [3000, 5000, 8000, 12000, 15000],
+    'f1_nuevo': [5000, 10000, 15000, 20000, 25000]
 };
 
 const NEONES = {
     'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 },
-    'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 0 },
-    'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 0 },
-    'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 0 },
-    'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 0 },
-    'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 0 }
+    'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 },
+    'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 },
+    'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 },
+    'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 },
+    'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
 };
 
 const DAILY_MISSIONS = [
@@ -415,8 +415,8 @@ function updateHUD() { document.getElementById("ui-speed").innerText = (currentS
 function showMenu() { clearInterval(reviveInterval); state = "MENU"; isPaused = false; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarMisionDiaria(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 function save() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); }
-function updateUI() { const carKey = garage.selected, stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX"; document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; document.getElementById("up-car-name").innerText = MODELS[carKey].name; }
-function buyUpgrade(t) { const carKey = garage.selected, stats = garage.carStats[carKey], price = UPGRADE_PRICES[carKey][stats[t]]; if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } }
+function updateUI() { const carKey = garage.selected; const stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX"; document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; document.getElementById("up-car-name").innerText = MODELS[carKey].name; }
+function buyUpgrade(t) { const carKey = garage.selected; const stats = garage.carStats[carKey]; const price = UPGRADE_PRICES[carKey][stats[t]]; if(garage.coins >= price && stats[t] < 5) { garage.coins -= price; stats[t]++; save(); updateUI(); } }
 
 function spawnTraffic() {
     let l = (Math.random()*4)|0; const centers = [75, 157.5, 242.5, 325]; let tx = centers[l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80;
@@ -435,31 +435,22 @@ function finishGame() { clearInterval(reviveInterval); state = "OVER"; hideAll()
 function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
+
 function openNeones() {
     hideAll(); const container = document.getElementById("neon-container"); container.innerHTML = "";
-    Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'USANDO' : 'EQUIPAR') : 'OBTENER'}`; btn.onclick = () => { if(owned) garage.selectedNeon = k; else { garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); });
+    Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'USANDO' : 'EQUIPAR') : '$' + n.price}`; btn.onclick = () => { if(owned) garage.selectedNeon = k; else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); });
     document.getElementById("shop-neones").classList.remove("hidden");
 }
 
-function updateShopUI() { 
-    const carKeys = Object.keys(MODELS); 
-    const key = carKeys[shopIndex], car = MODELS[key]; 
-    document.getElementById("shop-car-img").src = `Autos/${car.img}`; 
-    document.getElementById("shop-car-name").innerText = car.name; 
-    document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; 
-    document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; 
-    const btn = document.getElementById("shop-car-btn"); 
-    btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : "OBTENER GRATIS"; 
-    btn.onclick = () => { 
-        if(!garage.owned.includes(key)) { garage.owned.push(key); }
-        garage.selected = key; save(); updateShopUI(); 
-    }; 
+function updateShopUI() { 
+    const carKeys = Object.keys(MODELS); const key = carKeys[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; 
+    const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price}`; 
+    btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; 
 }
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
 function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
 
-window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause(); keys[e.code] = true; }); 
-window.addEventListener("keyup", e => keys[e.code] = false);
+window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause(); keys[e.code] = true; }); window.addEventListener("keyup", e => keys[e.code] = false);
 const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
 setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
 
@@ -468,7 +459,6 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
-
 
 
 
