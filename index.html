@@ -201,7 +201,7 @@ assets.magnet.src = 'Items/iman_pixel.png';
 ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
 sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
 
-// --- CONFIGURACIÓN DE TESTEO: PRECIOS A $0 Y TAMAÑOS AJUSTADOS (V3) ---
+// --- CONFIGURACIÓN DE TESTEO: PRECIOS A $0 Y TAMAÑOS AJUSTADOS (V4) ---
 const MODELS = {
     'fitito': { name: 'EL COMPACTO', maxSpeed: 5.75, accel: 0.08, handling: 1.2, lives: 3, w: 45, h: 82, img: 'auto_inicial.png', price: 0 },
     'furgoneta': { name: 'CARGO VIAJES', maxSpeed: 6.25, accel: 0.07, handling: 1.0, lives: 3, w: 55, h: 95, img: 'furgoneta.png', price: 0 },
@@ -209,10 +209,10 @@ const MODELS = {
     'camioneta4x4': { name: 'TODO TERRENO', maxSpeed: 7.5, accel: 0.12, handling: 1.0, lives: 5, w: 65, h: 115, img: 'camioneta4x4.png', price: 0 },
     'camaro': { name: 'DARK PONY', maxSpeed: 7.92, accel: 0.14, handling: 0.9, lives: 5, w: 52, h: 94, img: 'camaro_negro.png', price: 0 },
     'subaru': { name: 'BLUE RALLY', maxSpeed: 8.08, accel: 0.15, handling: 1.5, lives: 4, w: 44, h: 86, img: 'subaru.png', price: 0 },
-    'lambo': { name: 'ITALIA GTR', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 46, h: 84, img: 'lambo_amarillo.png', price: 0 },
+    'lambo': { name: 'ITALIA GTR', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 42, h: 76, img: 'lambo_amarillo.png', price: 0 },
     'porsche': { name: 'DEPORTIVO GT', maxSpeed: 8.92, accel: 0.2, handling: 1.8, lives: 4, w: 62, h: 98, img: 'porsche_negro.png', price: 0 },
     'skyline': { name: 'NIGHT WALKER', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 48, h: 88, img: 'skyline.png', price: 0 },
-    'supra': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 46, h: 83, img: 'supra.png', price: 0 },
+    'supra': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 43, h: 78, img: 'supra.png', price: 0 },
     'mercedes': { name: 'SILVER LUX', maxSpeed: 9.83, accel: 0.24, handling: 2.2, lives: 4, w: 51, h: 90, img: 'mercedes_blanco.png', price: 0 },
     'f1_clasico': { name: 'PRIME ONE', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 0 },
     'f1_nuevo': { name: 'APEX FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 48, h: 105, img: 'f1_nuevo.png', price: 0 }
@@ -468,6 +468,7 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
+
 
 
 
