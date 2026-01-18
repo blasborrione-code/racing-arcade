@@ -15,7 +15,7 @@
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
         
         .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
-        .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; }
+        .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.3; }
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
         
@@ -63,7 +63,7 @@
         <div class="stat">
             <span style="color:#f1c40f; font-size:22px;"><span id="ui-speed">0</span> KM/H</span><br>
             DIST: <span id="ui-score">0</span>m<br>
-            <small style="font-size: 12px; opacity: 0.8;">NIVEL: <span id="ui-level">1</span></small>
+            <small style="font-size: 12px; opacity: 0.9; color: white;">NIVEL: <span id="ui-level">1</span></small>
         </div>
         <div class="stat" style="text-align:right">💰 <span id="ui-coins-total">0</span><br><div class="bar-container"><div id="fuel-bar"></div></div>❤️ <span id="ui-lives-text">3</span></div>
     </div>
@@ -221,7 +221,6 @@ let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, mission
 const saved = localStorage.getItem('borrione_racing_v3'); 
 if(saved) garage = JSON.parse(saved);
 if(!garage.neonOwned) { garage.neonOwned = ['white']; garage.selectedNeon = 'white'; }
-Object.keys(MODELS).forEach(k => { if(!garage.carStats[k]) garage.carStats[k] = {motor:0, tanque:0}; });
 
 function actualizarMisionDiaria() {
     const hoy = new Date().toDateString();
@@ -284,6 +283,7 @@ function update(dt) {
     player.vx *= Math.pow(0.8, dt); player.x += player.vx * dt;
     if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w;
     roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt;
+    
     fuel -= (0.018 - (stats.tanque * 0.0015)) * currentSpeed * dt;
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic();
@@ -296,45 +296,46 @@ function update(dt) {
     if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        // --- SENSORES DE IA MEJORADOS (Capa de Seguridad Blindada) ---
+        // --- IA MEJORADA: BLOQUEO DE SOLAPAMIENTO Y SENSORES DE CAMIÓN ---
         
-        // 1. Detectar objetivo de carril actual
-        let targetX = en.chg ? en.tx : en.x;
-        
-        // 2. Sensor de proximidad frontal avanzado
+        // Determinar "carril virtual" ocupado (incluye el carril de origen y destino si está doblando)
+        let occupiedLanes = [en.l];
+        if(en.chg) occupiedLanes.push(en.tl);
+
+        // Sensor frontal inteligente por píxeles
         let ahead = enemies.find(o => 
             o !== en && 
-            Math.abs(o.x - en.x) < 40 && // Está en el mismo flujo horizontal
-            o.y < en.y && (en.y - o.y) < 250 // Está adelante a menos de 250px
+            (occupiedLanes.includes(o.l) || (o.chg && occupiedLanes.includes(o.tl))) &&
+            o.y < en.y && (en.y - o.y) < (en.h > 90 ? 280 : 230) // Más visión para camiones
         );
 
         let desiredSpeed = en.baseSpeed;
         if (ahead) {
-            // Si hay alguien adelante, igualar velocidad o frenar más si está muy cerca
-            let distance = en.y - ahead.y;
-            if (distance < 120) {
-                desiredSpeed = ahead.speed * 0.7; // Frenazo de emergencia
+            let dist = en.y - ahead.y;
+            // Frenazo agresivo si la distancia es crítica respecto al tamaño
+            if (dist < (en.h > 90 ? 150 : 110)) {
+                desiredSpeed = ahead.speed * 0.6; 
             } else {
-                desiredSpeed = ahead.speed * 0.95; // Crucero seguro
+                desiredSpeed = ahead.speed * 0.92;
             }
         }
         
-        // Suavizado de velocidad para los NPCs
-        en.speed += (desiredSpeed - en.speed) * 0.15 * dt;
+        en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
         en.y += (currentSpeed - en.speed) * dt;
 
-        // 3. IA de cambio de carril con sensor de punto ciego
+        // IA Cambio de carril blindada
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
                 const centers = [75, 157.5, 242.5, 325]; 
                 let tx = centers[nextLane] - (en.w / 2);
                 
-                // Sensor lateral: ¿Hay espacio suficiente en el carril de destino?
+                // Sensor de "Punto Ciego" expandido para camiones
+                let safeDist = en.h > 90 ? 280 : 220; 
                 let laneBusy = enemies.some(o => 
                     o !== en && 
-                    Math.abs(o.x - tx) < 55 && // El ancho del otro auto ocupando ese espacio
-                    Math.abs(o.y - en.y) < 220 // Distancia de seguridad vertical para no encerrarlo
+                    (o.l === nextLane || (o.chg && o.tl === nextLane)) && 
+                    Math.abs(o.y - en.y) < safeDist
                 );
 
                 if(!laneBusy) { 
@@ -345,7 +346,7 @@ function update(dt) {
 
         if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
         if(en.chg) { 
-            en.x += (en.x < en.tx ? 2.5 : -2.5) * dt; // Movimiento lateral un poco más rápido para evitar dudas de la IA
+            en.x += (en.x < en.tx ? 2.5 : -2.5) * dt;
             if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } 
         }
 
@@ -438,8 +439,7 @@ function spawnTraffic() {
     let isC = (level >= 2 && Math.random() < 0.3);
     let w = isC ? 55 : 45;
     
-    // SPAWN SEGURO: Aumentamos el margen de entrada a 250px
-    let areaBusy = enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < 250);
+    let areaBusy = enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < 280); // Mayor margen de spawn
     if(areaBusy) return;
 
     enemies.push({
@@ -502,7 +502,5 @@ actualizarMisionDiaria();
 </script>
 </body>
 </html>
-
-
 
 
