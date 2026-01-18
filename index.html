@@ -14,8 +14,9 @@
         #game-container { position: fixed; inset: 0; background: #2c3e50; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
         
+        /* HUD */
         .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
-        .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; }
+        .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.3; }
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
         
@@ -63,7 +64,7 @@
         <div class="stat">
             <span style="color:#f1c40f; font-size:22px;"><span id="ui-speed">0</span> KM/H</span><br>
             DIST: <span id="ui-score">0</span>m<br>
-            <small style="font-size: 12px; opacity: 0.8;">NIVEL: <span id="ui-level">1</span></small>
+            <small style="font-size: 12px; opacity: 0.9; color: white;">NIVEL: <span id="ui-level">1</span></small>
         </div>
         <div class="stat" style="text-align:right">💰 <span id="ui-coins-total">0</span><br><div class="bar-container"><div id="fuel-bar"></div></div>❤️ <span id="ui-lives-text">3</span></div>
     </div>
@@ -217,12 +218,11 @@ const DAILY_MISSIONS = [
     { id: 2, desc: "Llega al Nivel 5 en una carrera", goal: 5, type: 'level' }
 ];
 
-// INICIALIZACIÓN SEGURA DE GARAGE (Arregla el pantallazo negro)
 let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, missionId: 0, missionDoneDate: "", carStats: {}, neonOwned: ['white'], selectedNeon: 'white' };
 const saved = localStorage.getItem('borrione_racing_v3'); 
 if(saved) {
     let parsed = JSON.parse(saved);
-    garage = {...garage, ...parsed}; // Mezclamos con los valores por defecto por seguridad
+    garage = {...garage, ...parsed}; 
 }
 if(!garage.selectedNeon) garage.selectedNeon = 'white';
 if(!garage.neonOwned) garage.neonOwned = ['white'];
@@ -301,39 +301,41 @@ function update(dt) {
     if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        // IA BLINDADA v3: DETECCIÓN POR PIXELES Y CAJAS DE SEGURIDAD
-        let sensorDist = en.h > 90 ? 320 : 250; // Camiones ven más lejos
+        // --- IA BLINDADA v4: RESERVA DE CARRIL Y SENSORES DE PROXIMIDAD ---
+        
+        // 1. Identificar zona de influencia (incluye carril destino si va a doblar)
+        let futureLanes = [en.l];
+        if(en.chg || en.blink) futureLanes.push(en.tl);
+
+        // 2. Sensor frontal mejorado (Frenado por píxeles exactos)
         let ahead = enemies.find(o => 
             o !== en && 
-            Math.abs(o.x - en.x) < 50 && // Misma trayectoria horizontal
-            o.y < en.y && (en.y - o.y) < sensorDist
+            (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) &&
+            o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)
         );
 
         let desiredSpeed = en.baseSpeed;
         if (ahead) {
             let gap = en.y - (ahead.y + ahead.h);
-            if (gap < 40) {
-                desiredSpeed = ahead.speed * 0.6; // Frenazo de emergencia
-            } else {
-                desiredSpeed = ahead.speed * 0.90; // Mantener distancia
-            }
+            if (gap < 30) desiredSpeed = ahead.speed * 0.5; // Frenazo de seguridad total
+            else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9);
         }
         
-        en.speed += (desiredSpeed - en.speed) * 0.25 * dt;
+        en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
         en.y += (currentSpeed - en.speed) * dt;
 
-        // Cambio de carril con sensor lateral predictivo
+        // 3. IA Cambio de carril con RESERVA DE CARRIL
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) {
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
             if(nextLane >= 0 && nextLane <= 3) {
                 const centers = [75, 157.5, 242.5, 325]; 
                 let tx = centers[nextLane] - (en.w / 2);
                 
-                // Sensor de punto ciego ancho para evitar roces laterales
+                // MIRAR SI EL CARRIL DESTINO ESTÁ LIBRE DE "RESERVAS" Y DE AUTOS FÍSICOS
                 let laneBusy = enemies.some(o => 
                     o !== en && 
-                    Math.abs(o.x - tx) < 60 && 
-                    Math.abs(o.y - en.y) < (en.h + o.h + 60)
+                    (o.l === nextLane || o.tl === nextLane) && // Ocupa el carril o lo tiene reservado
+                    Math.abs(o.y - en.y) < (en.h + o.h + 80) // Margen de seguridad aumentado
                 );
 
                 if(!laneBusy) { 
@@ -342,9 +344,16 @@ function update(dt) {
             }
         }
 
-        if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
+        if(en.blink) { 
+            en.bTimer += dt; 
+            if(en.bTimer > 20) { 
+                en.bTimer = 0; en.bCount++; 
+                if(en.bCount >= 6) { en.blink = false; en.chg = true; } 
+            } 
+        }
+        
         if(en.chg) { 
-            en.x += (en.x < en.tx ? 2.5 : -2.5) * dt;
+            en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; // Cambio lateral más veloz para despejar el carril rápido
             if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } 
         }
 
@@ -363,33 +372,23 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
     const lightLength = isPlayer ? 230 : 140;
     const lightWidth = isPlayer ? 65 : 45;
     const lightY = y + 15; 
-    
-    // ARREGLO SEGURIDAD: Chequeo de existencia del Neon
     let neonKey = garage.selectedNeon || 'white';
     let c = isPlayer ? (NEONES[neonKey] ? NEONES[neonKey].color : [255, 250, 200]) : [255, 250, 200];
-
     if(isNight) ctx.globalCompositeOperation = 'lighter';
     let grad = ctx.createLinearGradient(x + w/2, lightY, x + w/2, lightY - lightLength);
     grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`); 
     grad.addColorStop(0.6, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.2)`); 
     grad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`); 
-    
-    ctx.fillStyle = grad;
-    ctx.beginPath();
+    ctx.fillStyle = grad; ctx.beginPath();
     ctx.moveTo(x + 10, lightY); ctx.lineTo(x - lightWidth, lightY - lightLength); ctx.lineTo(x + w + lightWidth, lightY - lightLength); ctx.lineTo(x + w - 10, lightY); 
     ctx.fill();
-    
-    ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.95)`;
-    ctx.beginPath();
-    ctx.arc(x + 12, lightY, 3, 0, Math.PI * 2); ctx.arc(x + w - 12, lightY, 3, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.95)`; ctx.beginPath();
+    ctx.arc(x + 12, lightY, 3, 0, Math.PI * 2); ctx.arc(x + w - 12, lightY, 3, 0, Math.PI * 2); ctx.fill();
     if(isNight) ctx.globalCompositeOperation = 'source-over';
 }
 
 function draw() {
     let sunset = false, rain = false, night = false; if (level >= 6) { let w = (level - 6) % 4; if (w === 0) sunset = true; if (w === 1) rain = true; if (w === 2) night = true; }
-    
-    // ESCENARIO DETALLADO
     ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750);
     ctx.fillStyle = "#27ae60"; 
     for(let gy = (roadY%40)-40; gy < 750; gy+=40) {
@@ -404,24 +403,19 @@ function draw() {
     for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); }
     scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); });
     items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); });
-
     if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); }
-
     enemies.forEach(en => { 
         if(sunset || rain || night) { drawProHeadlights(en.x, en.y, en.w, en.h, false, night); }
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
         if(en.blink && Math.floor(en.bCount % 2) === 0) { ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tx < en.x ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill(); }
     });
-
     if(!expObj && assets.player.complete) {
         if(sunset || rain || night) { drawProHeadlights(player.x, player.y, player.w, player.h, true, night); }
         ctx.drawImage(assets.player, (player.x + (isS ? (Math.random()-0.5)*10 : 0))|0, player.y|0, player.w, player.h);
     }
-    
     if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140);
     if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); }
     if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; for(let r=0; r<20; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } }
-    
     if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; }
 }
 
@@ -440,8 +434,6 @@ function spawnTraffic() {
     let isC = (level >= 2 && Math.random() < 0.3);
     let w = isC ? 55 : 45;
     let h = isC ? 110 : 80;
-    
-    // SPAWN SEGURO: Aumentamos el margen de entrada a 250px
     let areaBusy = enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150));
     if(areaBusy) return;
 
@@ -455,7 +447,7 @@ function spawnTraffic() {
         chg: false, blink: false, bCount: 0, bTimer: 0, nm: false,
         baseSpeed: 1.5 + Math.random() * 3.0,
         speed: 1.5 + Math.random() * 3.0,
-        tx: 0, tl: 0
+        tx: 0, tl: l
     });
 }
 
