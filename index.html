@@ -266,7 +266,6 @@ function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected]; 
     let nextLvl = (score < 4000) ? Math.floor(score / 500) + 1 : 9 + Math.floor((score - 4000) / 1000);
     
-    // Reset de spawn de corazón al subir de nivel
     if(nextLvl > level) heartSpawnedInLevel = false;
     level = nextLvl;
 
@@ -275,12 +274,15 @@ function update(dt) {
         currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; 
     }
     else { if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); if(keys["ArrowLeft"]) player.vx -= hndl * dt; if(keys["ArrowRight"]) player.vx += hndl * dt; }
-    player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; fuel -= (0.018 - (stats.tanque * 0.0015)) * currentSpeed * dt;
+    player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
+    
+    // --- OPTIMIZACIÓN DE CONSUMO DE NAFTA (BAJADO DE 0.018 A 0.014) ---
+    fuel -= (0.014 - (stats.tanque * 0.0015)) * currentSpeed * dt;
+    
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); if(Math.random() < 0.004 * dt) spawnItem('fuel'); if(Math.random() < 0.0008 * dt) spawnItem('magnet'); 
     
-    // Corazón extra por nivel a partir del nivel 2
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
     
     if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil'); if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
@@ -288,7 +290,6 @@ function update(dt) {
     enemies.forEach((en, i) => {
         let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); let desiredSpeed = en.baseSpeed; if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt; en.y += (currentSpeed - en.speed) * dt;
         
-        // Lógica de Giro: Parpadeo 3 veces y al 4to cambia
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1); 
             if(nextLane >= 0 && nextLane <= 3) { 
@@ -302,9 +303,7 @@ function update(dt) {
             en.bTimer += dt; 
             if(en.bTimer > 20) { 
                 en.bTimer = 0; en.bCount++; 
-                if(en.bCount >= 6) { // 3 parpadeos
-                    en.blink = false; en.chg = true; 
-                } 
+                if(en.bCount >= 6) { en.blink = false; en.chg = true; } 
             } 
         }
         if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
@@ -321,7 +320,7 @@ function update(dt) {
             if(it.t === 'magnet') magnetTimer = 600; 
             if(it.t === 'oil') { 
                 isS = true; 
-                screenShake = 5; // AGREGADO: Temblor al pisar aceite
+                screenShake = 5; 
                 setTimeout(()=>isS=false, 1500); 
             } 
             if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; screenShake = 15; setTimeout(()=> endGame("EXPLOSIÓN"), 500); } 
@@ -344,7 +343,6 @@ function draw() {
         if(sunset || rain || night) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
         
-        // DIBUJAR LUZ DE GIRO SI ESTA PARPADEANDO
         if(en.blink && Math.floor(en.bCount % 2) === 0) {
             ctx.fillStyle = "#ffa500"; ctx.beginPath();
             ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
