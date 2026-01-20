@@ -1,10 +1,10 @@
-const CACHE_NAME = 'racing-arcade-v1';
+const CACHE_NAME = 'racing-arcade-v2'; // Cambiamos el nombre para forzar actualización
 
-// Lista de archivos esenciales para que el juego funcione offline
 const assetsToCache = [
   './',
   './index.html',
   './manifest.json',
+  './sw.js',
   './Items/fondo_carga.png',
   './Items/bidon_nafta.png',
   './Items/moneda_pixel.png',
@@ -30,14 +30,13 @@ const assetsToCache = [
   './Entorno/arbol_1.png'
 ];
 
-// Instalación: Guarda los archivos en el caché
+// Instalación: Solo guarda lo que realmente encuentra
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      // Usamos map para que si un archivo falla, los demás se guarden igual
       return Promise.all(
         assetsToCache.map(url => {
-          return cache.add(url).catch(err => console.warn(`No se pudo cachear: ${url}`, err));
+          return cache.add(url).catch(err => console.warn("Fallo descarga de:", url));
         })
       );
     })
@@ -45,22 +44,16 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Activación: Limpia cachés antiguos
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-      );
-    })
+    caches.keys().then(keys => Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    ))
   );
 });
 
-// Estrategia: Primero busca en caché, si no encuentra, va a internet
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
+    caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
