@@ -155,7 +155,7 @@
 
     <div id="game-over" class="overlay hidden">
         <div class="ui-card">
-            <h1 style="color:#e74c3c;">FIN</h1>
+            <h1>FIN</h1>
             <p id="over-reason" style="font-weight:bold;"></p>
             <p id="final-stats" style="color:#bdc3c7; font-size:14px;"></p>
             <div id="mission-complete-msg" style="color:#f1c40f; font-weight:bold; margin-bottom:15px;" class="hidden">¡MISIÓN COMPLETADA!</div>
@@ -271,12 +271,11 @@ function update(dt) {
 
     const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
     
-    // --- LÓGICA DE CLIMA: Lluvia ---
     let rain = (level >= 6 && (level - 6) % 4 === 1); 
     let turnInertia = 0.8; 
     if(rain) { 
-        hndl *= 0.30; // CORRECCIÓN: Manejo mucho más reducido para lluvia
-        turnInertia = 0.97; // CORRECCIÓN: Mucha más inercia (deslizamiento) al soltar el giro
+        hndl *= 0.30; 
+        turnInertia = 0.97; 
     }
     
     if(isS) { 
@@ -285,12 +284,16 @@ function update(dt) {
     else { if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); if(keys["ArrowLeft"]) player.vx -= hndl * dt; if(keys["ArrowRight"]) player.vx += hndl * dt; }
     player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
     
-    // --- CONSUMO DE NAFTA (PUNTO MEDIO: 0.016) ---
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
-    if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); if(Math.random() < 0.004 * dt) spawnItem('fuel'); if(Math.random() < 0.0008 * dt) spawnItem('magnet'); 
+    if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
+    
+    // --- AJUSTE DE APARICIÓN DE BIDONES (AUMENTADO A 0.007) ---
+    if(Math.random() < 0.007 * dt) spawnItem('fuel'); 
+    
+    if(Math.random() < 0.0008 * dt) spawnItem('magnet'); 
     
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
     
