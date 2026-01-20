@@ -1,5 +1,7 @@
 const CACHE_NAME = 'racing-arcade-v1';
-const assets = [
+
+// Lista de archivos esenciales para que el juego funcione offline
+const assetsToCache = [
   './',
   './index.html',
   './manifest.json',
@@ -28,14 +30,37 @@ const assets = [
   './Entorno/arbol_1.png'
 ];
 
+// Instalación: Guarda los archivos en el caché
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(assets))
+    caches.open(CACHE_NAME).then(cache => {
+      // Usamos map para que si un archivo falla, los demás se guarden igual
+      return Promise.all(
+        assetsToCache.map(url => {
+          return cache.add(url).catch(err => console.warn(`No se pudo cachear: ${url}`, err));
+        })
+      );
+    })
+  );
+  self.skipWaiting();
+});
+
+// Activación: Limpia cachés antiguos
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      );
+    })
   );
 });
 
+// Estrategia: Primero busca en caché, si no encuentra, va a internet
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
   );
 });
