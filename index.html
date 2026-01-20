@@ -276,8 +276,8 @@ function update(dt) {
     else { if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); if(keys["ArrowLeft"]) player.vx -= hndl * dt; if(keys["ArrowRight"]) player.vx += hndl * dt; }
     player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
     
-    // --- OPTIMIZACIÓN DE CONSUMO DE NAFTA (BAJADO DE 0.018 A 0.014) ---
-    fuel -= (0.014 - (stats.tanque * 0.0015)) * currentSpeed * dt;
+    // --- CONSUMO DE NAFTA (PUNTO MEDIO: 0.016) ---
+    fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
@@ -399,6 +399,7 @@ setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "
 setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
 actualizarEstructuraMisiones();
 
+// Registro del Service Worker para PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
