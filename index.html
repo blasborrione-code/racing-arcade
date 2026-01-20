@@ -269,7 +269,16 @@ function update(dt) {
     if(nextLvl > level) heartSpawnedInLevel = false;
     level = nextLvl;
 
-    const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; let rain = (level >= 6 && (level - 6) % 4 === 1); let turnInertia = 0.8; if(rain) { hndl *= 0.45; turnInertia = 0.92; }
+    const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
+    
+    // --- LÓGICA DE CLIMA: Lluvia ---
+    let rain = (level >= 6 && (level - 6) % 4 === 1); 
+    let turnInertia = 0.8; 
+    if(rain) { 
+        hndl *= 0.30; // CORRECCIÓN: Manejo mucho más reducido para lluvia
+        turnInertia = 0.97; // CORRECCIÓN: Mucha más inercia (deslizamiento) al soltar el giro
+    }
+    
     if(isS) { 
         currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; 
     }
@@ -399,7 +408,6 @@ setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "
 setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
 actualizarEstructuraMisiones();
 
-// Registro del Service Worker para PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
