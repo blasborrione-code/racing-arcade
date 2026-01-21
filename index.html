@@ -159,6 +159,15 @@
         </div>
     </div>
 
+    <div id="confirm-modal" class="overlay hidden" style="z-index:200;">
+        <div class="ui-card">
+            <h1 id="confirm-title" style="color:var(--accent);">MEJORAR</h1>
+            <p id="confirm-desc" style="font-size:14px; color:#bdc3c7; margin-bottom:25px;"></p>
+            <button class="btn-green" id="confirm-btn-yes">CONFIRMAR COMPRA</button>
+            <button class="btn-red" onclick="closeConfirmModal()" style="background:transparent; border:1px solid #e74c3c; color:#e74c3c; margin-top:10px;">CANCELAR</button>
+        </div>
+    </div>
+
     <div id="game-over" class="overlay hidden">
         <div class="ui-card">
             <h1>FIN</h1>
@@ -397,6 +406,9 @@ function updateUI() {
     updateShopCoinDisplays();
 }
 
+// NUEVA LÓGICA DE CONFIRMACIÓN ESTÉTICA
+let pendingUpgrade = null;
+
 function buyUpgrade(t) { 
     const carKey = garage.selected;
     const stats = garage.carStats[carKey]; 
@@ -404,21 +416,33 @@ function buyUpgrade(t) {
     
     if (stats[t] < 5) {
         if (garage.coins >= p) {
+            pendingUpgrade = { type: t, price: p, carKey: carKey };
             const nextLvl = stats[t] + 1;
             const desc = t === 'motor' ? 
                 `aumentará tu velocidad máxima en aproximadamente 5 KM/H` : 
                 `mejorará la eficiencia del consumo de combustible`;
             
-            if (confirm(`Mejorar ${t === 'motor' ? 'MOTOR' : 'TANQUE'} al Nivel ${nextLvl} ${desc}.\n\n¿Confirmar compra por $${p.toLocaleString()}?`)) {
-                garage.coins -= p; 
-                stats[t]++; 
+            document.getElementById("confirm-title").innerText = `MEJORAR ${t.toUpperCase()}`;
+            document.getElementById("confirm-desc").innerText = `¿Quieres mejorar al Nivel ${nextLvl}? Esto ${desc}.\n\nCosto: $${p.toLocaleString()} monedas.`;
+            document.getElementById("confirm-modal").classList.remove("hidden");
+            
+            document.getElementById("confirm-btn-yes").onclick = function() {
+                garage.coins -= pendingUpgrade.price; 
+                garage.carStats[pendingUpgrade.carKey][pendingUpgrade.type]++; 
                 save(); 
                 updateUI(); 
-            }
+                closeConfirmModal();
+                showToast("ÉXITO", "Mejora instalada correctamente");
+            };
         } else {
             showToast("ERROR", "No tienes suficientes monedas");
         }
     } 
+}
+
+function closeConfirmModal() {
+    document.getElementById("confirm-modal").classList.add("hidden");
+    pendingUpgrade = null;
 }
 
 function spawnTraffic() { 
@@ -476,3 +500,4 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+       
