@@ -49,6 +49,7 @@
         .mission-box { background: rgba(255,255,255,0.05); border: 1px dashed rgba(241,196,15,0.5); padding: 15px; border-radius: 20px; margin: 10px 0; text-align: left; }
         #mobile-controls { position: absolute; bottom: 40px; left: 0; width: 100%; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; }
         .touch-btn { width: 70px; height: 70px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .shop-coin-tag { text-align: right; font-size: 14px; color: var(--accent); font-weight: 800; margin-bottom: 10px; margin-top: -10px; }
     </style>
 </head>
 <body>
@@ -104,6 +105,7 @@
     <div id="shop-main" class="overlay hidden">
         <div class="ui-card">
             <h1>GARAJE</h1>
+            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
             <button class="btn-blue" onclick="openConcesionario()">AUTOS</button>
             <button class="btn-orange" onclick="openMejoras()">MEJORAS</button>
             <button class="btn-green" onclick="openLogros()" style="background: var(--weekly-clr);">LOGROS</button>
@@ -114,6 +116,7 @@
     <div id="shop-cars" class="overlay hidden">
         <div class="ui-card">
             <h1>TIENDA</h1>
+            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
                 <div onclick="prevCar()" style="cursor:pointer; font-size:30px;">◀</div>
                 <div style="text-align:center;"><img id="shop-car-img" style="height:90px; object-fit:contain;"><h4 id="shop-car-name" style="color:#f1c40f; margin:10px 0;"></h4><div style="font-size:11px; color:#bdc3c7;"><span id="shop-car-speed"></span> | <span id="shop-car-lives"></span></div></div>
@@ -127,6 +130,7 @@
     <div id="shop-logros" class="overlay hidden">
         <div class="ui-card">
             <h1>LOGROS</h1>
+            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
             <div id="logros-container" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px;"></div>
             <button class="btn-red" onclick="openShop()">ATRÁS</button>
         </div>
@@ -135,6 +139,7 @@
     <div id="shop-neones" class="overlay hidden">
         <div class="ui-card">
             <h1>NEONES</h1>
+            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
             <div id="neon-container" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px;"></div>
             <button class="btn-red" onclick="openMejoras()">ATRÁS</button>
         </div>
@@ -143,6 +148,7 @@
     <div id="shop-upgrades" class="overlay hidden">
         <div class="ui-card">
             <h1>MEJORAS</h1>
+            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
             <p id="up-car-name" style="color:#f1c40f; font-size:14px;"></p>
             <div style="display:flex; gap:10px; margin:15px 0;">
                 <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;"><small>MOTOR</small><br><b>Lvl <span id="lvl-motor">0</span></b><button class="btn-orange" onclick="buyUpgrade('motor')" id="cost-motor" style="font-size:10px; padding:8px; min-width:auto; margin-top:5px;"></button></div>
@@ -222,7 +228,10 @@ const NEONES = {
 
 let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, missionId: 0, missionDoneDate: "", carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, weeklyDist: 0, weeklyWeek: -1, weeklyDone: false };
 
-function save() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); }
+function save() { 
+    localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); 
+    updateShopCoinDisplays();
+}
 const saved = localStorage.getItem('borrione_racing_v3'); if(saved) garage = {...garage, ...JSON.parse(saved)};
 Object.keys(MODELS).forEach(k => { if(!garage.carStats[k]) garage.carStats[k] = {motor:0, tanque:0}; });
 
@@ -319,7 +328,6 @@ function update(dt) {
         }
         if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
         
-        // --- LÓGICA DE NEAR MISS: RECARGA 7.5% DE BARRA ---
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
             en.nm = true; 
             garage.coins += 10; 
@@ -373,6 +381,12 @@ function draw() {
 
 function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
 function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); document.getElementById("fuel-bar").style.width = fuel + "%"; }
+
+function updateShopCoinDisplays() {
+    const displays = document.querySelectorAll('.shop-coin-display');
+    displays.forEach(d => d.innerText = garage.coins.toLocaleString());
+}
+
 function showMenu() { clearInterval(reviveInterval); state = "MENU"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarEstructuraMisiones(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 
@@ -380,6 +394,7 @@ function updateUI() {
     const carKey = garage.selected; const stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque;
     document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor].toLocaleString()}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque].toLocaleString()}` : "MAX";
     document.getElementById("menu-high-score").innerText = garage.high.toLocaleString(); document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString(); document.getElementById("up-car-name").innerText = MODELS[carKey].name;
+    updateShopCoinDisplays();
 }
 function buyUpgrade(t) { const stats = garage.carStats[garage.selected], p = UPGRADE_PRICES[garage.selected][stats[t]]; if(garage.coins >= p && stats[t] < 5) { garage.coins -= p; stats[t]++; save(); updateUI(); } }
 
@@ -403,12 +418,12 @@ function finishGame() {
     save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = lastReason; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
 }
 
-function openShop() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); }
-function openConcesionario() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
-function openMejoras() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-function openLogros() { hideAll(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
-function openNeones() { hideAll(); const container = document.getElementById("neon-container"); container.innerHTML = ""; Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; btn.onclick = () => { if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); }); document.getElementById("shop-neones").classList.remove("hidden"); }
-function updateShopUI() { const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; }
+function openShop() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
+function openConcesionario() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
+function openMejoras() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
+function openLogros() { hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
+function openNeones() { hideAll(); updateShopCoinDisplays(); const container = document.getElementById("neon-container"); container.innerHTML = ""; Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; btn.onclick = () => { if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); }); document.getElementById("shop-neones").classList.remove("hidden"); }
+function updateShopUI() { const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; updateShopCoinDisplays(); }
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
 function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
 
