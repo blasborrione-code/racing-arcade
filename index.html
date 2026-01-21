@@ -290,7 +290,6 @@ function update(dt) {
     
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
     
-    // --- AJUSTE DE APARICIÓN DE BIDONES (AUMENTADO A 0.007) ---
     if(Math.random() < 0.007 * dt) spawnItem('fuel'); 
     
     if(Math.random() < 0.0008 * dt) spawnItem('magnet'); 
@@ -320,7 +319,16 @@ function update(dt) {
         }
         if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
         
-        if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nearMissesThisRun++; nmT = {y: player.y, t: 40}; screenShake = 1.5; }
+        // --- LÓGICA DE NEAR MISS: AGREGADO COMBUSTIBLE ---
+        if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
+            en.nm = true; 
+            garage.coins += 10; 
+            nearMissesThisRun++; 
+            fuel = Math.min(100, fuel + 2); // RECOMPENSA: +2% de combustible
+            nmT = {y: player.y, t: 40}; 
+            screenShake = 1.5; 
+        }
+        
         if(checkCollision(player, en)) { lives--; screenShake = 10; if(lives <= 0) endGame("CHOQUE"); enemies.splice(i,1); } else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
     });
     items.forEach((it, i) => {
@@ -421,3 +429,4 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+ 
