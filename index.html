@@ -396,7 +396,30 @@ function updateUI() {
     document.getElementById("menu-high-score").innerText = garage.high.toLocaleString(); document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString(); document.getElementById("up-car-name").innerText = MODELS[carKey].name;
     updateShopCoinDisplays();
 }
-function buyUpgrade(t) { const stats = garage.carStats[garage.selected], p = UPGRADE_PRICES[garage.selected][stats[t]]; if(garage.coins >= p && stats[t] < 5) { garage.coins -= p; stats[t]++; save(); updateUI(); } }
+
+function buyUpgrade(t) { 
+    const carKey = garage.selected;
+    const stats = garage.carStats[carKey]; 
+    const p = UPGRADE_PRICES[carKey][stats[t]]; 
+    
+    if (stats[t] < 5) {
+        if (garage.coins >= p) {
+            const nextLvl = stats[t] + 1;
+            const desc = t === 'motor' ? 
+                `aumentará tu velocidad máxima en aproximadamente 5 KM/H` : 
+                `mejorará la eficiencia del consumo de combustible`;
+            
+            if (confirm(`Mejorar ${t === 'motor' ? 'MOTOR' : 'TANQUE'} al Nivel ${nextLvl} ${desc}.\n\n¿Confirmar compra por $${p.toLocaleString()}?`)) {
+                garage.coins -= p; 
+                stats[t]++; 
+                save(); 
+                updateUI(); 
+            }
+        } else {
+            showToast("ERROR", "No tienes suficientes monedas");
+        }
+    } 
+}
 
 function spawnTraffic() { 
     let l = (Math.random()*4)|0, tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; 
@@ -411,11 +434,20 @@ function startReviveCountdown() { reviveCounter = 5; document.getElementById("ti
 function confirmRevive() { clearInterval(reviveInterval); garage.coins -= 250; lives = 1; fuel = 100; hasRevived = true; state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; save(); lastTime = performance.now(); loop(); }
 
 function finishGame() {
-    clearInterval(reviveInterval); state = "OVER"; hideAll(); if(score > garage.high) garage.high = score|0; garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; garage.weeklyDist += score|0; const misionActual = DAILY_MISSIONS[garage.missionId], hoy = new Date().toDateString();
+    clearInterval(reviveInterval); state = "OVER"; hideAll(); 
+    
+    let isNewRecord = score > garage.high;
+    if(isNewRecord) garage.high = score|0; 
+    
+    garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; garage.weeklyDist += score|0; const misionActual = DAILY_MISSIONS[garage.missionId], hoy = new Date().toDateString();
     if (garage.missionDoneDate !== hoy) { let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'dist' && score >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal); if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; showToast("MISIÓN COMPLETADA", "+💰500 monedas"); } }
     if(!garage.weeklyDone && garage.weeklyDist >= 50000) { garage.weeklyDone = true; garage.coins += 5000; showToast("¡SEMANA SUPERADA!", "+💰5.000 monedas", true); }
     Object.keys(MILESTONES).forEach(key => { let c = garage.unlockedLogros[key]; if(c < 5 && ((key === 'totalDist' ? garage.totalDist : key === 'totalCoins' ? garage.totalCoinsRec : key === 'totalNear' ? garage.totalNear : garage.totalPlays) >= MILESTONES[key][c])) { garage.unlockedLogros[key]++; garage.coins += 1000; showToast("LOGRO DESBLOQUEADO", `Nivel ${c + 1} de ${key}`, true); } });
-    save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = lastReason; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
+    save(); 
+    
+    document.getElementById("game-over").classList.remove("hidden"); 
+    document.getElementById("over-reason").innerText = lastReason + (isNewRecord ? " - ¡NUEVO RÉCORD!" : ""); 
+    document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
 }
 
 function openShop() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
