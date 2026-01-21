@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v2'; // Cambiamos el nombre para forzar actualización
+const CACHE_NAME = 'racing-arcade-v3'; // Cambiado a v3 para forzar la actualización
 
 const assetsToCache = [
   './',
@@ -27,16 +27,22 @@ const assetsToCache = [
   './Autos/mercedes_blanco.png',
   './Autos/f1_clasico.png',
   './Autos/f1_nuevo.png',
+  './Autos/npc_azul.png',
+  './Autos/npc_blanco.png',
+  './Autos/npc_taxi.png',
+  './Autos/npc_rojo.png',
+  './Autos/npc_gris.png',
   './Entorno/arbol_1.png'
 ];
 
-// Instalación: Solo guarda lo que realmente encuentra
+// Instalación: Guarda los archivos en el caché
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
+      // Usamos map para que si un archivo falta (ej. los conos), los demás se guarden igual
       return Promise.all(
         assetsToCache.map(url => {
-          return cache.add(url).catch(err => console.warn("Fallo descarga de:", url));
+          return cache.add(url).catch(err => console.warn(`No se pudo cachear: ${url}`, err));
         })
       );
     })
@@ -44,16 +50,23 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
+// Activación: Borra el caché antiguo (v1, v2) para liberar espacio y evitar conflictos
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-    ))
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      );
+    })
   );
+  self.clients.claim(); // Toma el control de las pestañas abiertas inmediatamente
 });
 
+// Estrategia: Primero busca en caché, si no está, va a internet
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
   );
 });
