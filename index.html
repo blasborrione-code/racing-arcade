@@ -319,12 +319,12 @@ function update(dt) {
         }
         if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
         
-        // --- LÓGICA DE NEAR MISS: AGREGADO COMBUSTIBLE ---
+        // --- LÓGICA DE NEAR MISS: RECARGA 1/8 DE BARRA (12.5) ---
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
             en.nm = true; 
             garage.coins += 10; 
             nearMissesThisRun++; 
-            fuel = Math.min(100, fuel + 2); // RECOMPENSA: +2% de combustible
+            fuel = Math.min(100, fuel + 12.5); 
             nmT = {y: player.y, t: 40}; 
             screenShake = 1.5; 
         }
@@ -429,4 +429,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
- 
