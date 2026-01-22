@@ -28,7 +28,7 @@
         @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
 
-        .hud { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
+        .hud { position: absolute; top: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
         .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.3; }
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
@@ -151,26 +151,28 @@
             <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
             <p id="up-car-name" style="color:#f1c40f; font-size:14px;"></p>
             <div style="display:flex; gap:10px; margin:15px 0;">
-                <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;"><small>MOTOR</small><br><b>Lvl <span id="lvl-motor">0</span></b><button class="btn-orange" onclick="buyUpgrade('motor')" id="cost-motor" style="font-size:10px; padding:8px; min-width:auto; margin-top:5px;"></button></div>
-                <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;"><small>TANQUE</small><br><b>Lvl <span id="lvl-tanque">0</span></b><button class="btn-orange" onclick="buyUpgrade('tanque')" id="cost-tanque" style="font-size:10px; padding:8px; min-width:auto; margin-top:5px;"></button></div>
+                <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;"><small>MOTOR</small><br><b>Lvl <span id="lvl-motor">0</span></b><button class="btn-orange" onclick="prepUpgrade('motor')" id="cost-motor" style="font-size:10px; padding:8px; min-width:auto; margin-top:5px;"></button></div>
+                <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;"><small>TANQUE</small><br><b>Lvl <span id="lvl-tanque">0</span></b><button class="btn-orange" onclick="prepUpgrade('tanque')" id="cost-tanque" style="font-size:10px; padding:8px; min-width:auto; margin-top:5px;"></button></div>
             </div>
             <button class="btn-green" onclick="openNeones()" style="background: linear-gradient(90deg, #3498db, #2ecc71); margin-bottom:15px;">COLOR DE LUCES</button>
             <button class="btn-red" onclick="openShop()">ATRÁS</button>
         </div>
     </div>
 
-    <div id="confirm-modal" class="overlay hidden" style="z-index:200;">
+    <div id="upgrade-modal" class="overlay hidden" style="z-index: 300;">
         <div class="ui-card">
-            <h1 id="confirm-title" style="color:var(--accent);">MEJORAR</h1>
-            <p id="confirm-desc" style="font-size:14px; color:#bdc3c7; margin-bottom:25px;"></p>
-            <button class="btn-green" id="confirm-btn-yes">CONFIRMAR COMPRA</button>
-            <button class="btn-red" onclick="closeConfirmModal()" style="background:transparent; border:1px solid #e74c3c; color:#e74c3c; margin-top:10px;">CANCELAR</button>
+            <h1 id="modal-title">MEJORAR</h1>
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 20px; margin-bottom: 20px;">
+                <p id="modal-desc" style="font-size: 14px; margin: 0; line-height: 1.4; color: #bdc3c7;"></p>
+            </div>
+            <button class="btn-green" onclick="confirmUpgrade()">COMPRAR</button>
+            <button class="btn-red" onclick="closeUpgradeModal()" style="background:transparent; border: 1px solid #e74c3c; color:#e74c3c; margin-top:10px;">CANCELAR</button>
         </div>
     </div>
 
     <div id="game-over" class="overlay hidden">
         <div class="ui-card">
-            <h1>FIN</h1>
+            <h1 id="over-title" style="color:#e74c3c;">FIN</h1>
             <p id="over-reason" style="font-weight:bold;"></p>
             <p id="final-stats" style="color:#bdc3c7; font-size:14px;"></p>
             <div id="mission-complete-msg" style="color:#f1c40f; font-weight:bold; margin-bottom:15px;" class="hidden">¡MISIÓN COMPLETADA!</div>
@@ -283,42 +285,25 @@ function loop(t) { if(state !== "PLAYING") return; let dt = (t - lastTime) / 16.
 function update(dt) {
     const car = MODELS[garage.selected], stats = garage.carStats[garage.selected]; 
     let nextLvl = (score < 4000) ? Math.floor(score / 500) + 1 : 9 + Math.floor((score - 4000) / 1000);
-    
     if(nextLvl > level) heartSpawnedInLevel = false;
     level = nextLvl;
-
     const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
-    
     let rain = (level >= 6 && (level - 6) % 4 === 1); 
     let turnInertia = 0.8; 
-    if(rain) { 
-        hndl *= 0.30; 
-        turnInertia = 0.97; 
-    }
-    
-    if(isS) { 
-        currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; 
-    }
+    if(rain) { hndl *= 0.30; turnInertia = 0.97; }
+    if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else { if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); if(keys["ArrowLeft"]) player.vx -= hndl * dt; if(keys["ArrowRight"]) player.vx += hndl * dt; }
     player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
-    
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
-    
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
-    
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
-    
     if(Math.random() < 0.007 * dt) spawnItem('fuel'); 
-    
     if(Math.random() < 0.0008 * dt) spawnItem('magnet'); 
-    
     if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
-    
     if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil'); if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
         let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); let desiredSpeed = en.baseSpeed; if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt; en.y += (currentSpeed - en.speed) * dt;
-        
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1); 
             if(nextLane >= 0 && nextLane <= 3) { 
@@ -328,24 +313,11 @@ function update(dt) {
                 } 
             } 
         }
-        if(en.blink) { 
-            en.bTimer += dt; 
-            if(en.bTimer > 20) { 
-                en.bTimer = 0; en.bCount++; 
-                if(en.bCount >= 6) { en.blink = false; en.chg = true; } 
-            } 
-        }
+        if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
         if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
-        
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
-            en.nm = true; 
-            garage.coins += 10; 
-            nearMissesThisRun++; 
-            fuel = Math.min(100, fuel + 7.5); 
-            nmT = {y: player.y, t: 40}; 
-            screenShake = 1.5; 
+            en.nm = true; garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
         }
-        
         if(checkCollision(player, en)) { lives--; screenShake = 10; if(lives <= 0) endGame("CHOQUE"); enemies.splice(i,1); } else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
     });
     items.forEach((it, i) => {
@@ -355,11 +327,7 @@ function update(dt) {
             if(it.t === 'fuel') fuel = Math.min(100, fuel+40); 
             if(it.t === 'heart') lives++; 
             if(it.t === 'magnet') magnetTimer = 600; 
-            if(it.t === 'oil') { 
-                isS = true; 
-                screenShake = 5; 
-                setTimeout(()=>isS=false, 1500); 
-            } 
+            if(it.t === 'oil') { isS = true; screenShake = 5; setTimeout(()=>isS=false, 1500); } 
             if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; screenShake = 15; setTimeout(()=> endGame("EXPLOSIÓN"), 500); } 
             items.splice(i,1); 
         } else if(it.y > 800) items.splice(i,1);
@@ -379,10 +347,8 @@ function draw() {
     enemies.forEach(en => { 
         if(sunset || rain || night) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
-        
         if(en.blink && Math.floor(en.bCount % 2) === 0) {
-            ctx.fillStyle = "#ffa500"; ctx.beginPath();
-            ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
         }
     }); 
     if(!expObj && assets.player.complete) { if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); } if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; for(let r=0; r<15; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } } if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; } ctx.restore();
@@ -390,12 +356,7 @@ function draw() {
 
 function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
 function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); document.getElementById("fuel-bar").style.width = fuel + "%"; }
-
-function updateShopCoinDisplays() {
-    const displays = document.querySelectorAll('.shop-coin-display');
-    displays.forEach(d => d.innerText = garage.coins.toLocaleString());
-}
-
+function updateShopCoinDisplays() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
 function showMenu() { clearInterval(reviveInterval); state = "MENU"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarEstructuraMisiones(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 
@@ -407,43 +368,29 @@ function updateUI() {
 }
 
 // NUEVA LÓGICA DE CONFIRMACIÓN ESTÉTICA
-let pendingUpgrade = null;
-
-function buyUpgrade(t) { 
-    const carKey = garage.selected;
-    const stats = garage.carStats[carKey]; 
-    const p = UPGRADE_PRICES[carKey][stats[t]]; 
+let tempUpgrade = null;
+function prepUpgrade(type) {
+    const stats = garage.carStats[garage.selected];
+    const cost = UPGRADE_PRICES[garage.selected][stats[type]];
+    if(stats[type] >= 5) return;
+    if(garage.coins < cost) { showToast("ERROR", "No tienes suficientes monedas"); return; }
     
-    if (stats[t] < 5) {
-        if (garage.coins >= p) {
-            pendingUpgrade = { type: t, price: p, carKey: carKey };
-            const nextLvl = stats[t] + 1;
-            const desc = t === 'motor' ? 
-                `aumentará tu velocidad máxima en aproximadamente 5 KM/H` : 
-                `mejorará la eficiencia del consumo de combustible`;
-            
-            document.getElementById("confirm-title").innerText = `MEJORAR ${t.toUpperCase()}`;
-            document.getElementById("confirm-desc").innerText = `¿Quieres mejorar al Nivel ${nextLvl}? Esto ${desc}.\n\nCosto: $${p.toLocaleString()} monedas.`;
-            document.getElementById("confirm-modal").classList.remove("hidden");
-            
-            document.getElementById("confirm-btn-yes").onclick = function() {
-                garage.coins -= pendingUpgrade.price; 
-                garage.carStats[pendingUpgrade.carKey][pendingUpgrade.type]++; 
-                save(); 
-                updateUI(); 
-                closeConfirmModal();
-                showToast("ÉXITO", "Mejora instalada correctamente");
-            };
-        } else {
-            showToast("ERROR", "No tienes suficientes monedas");
-        }
-    } 
+    tempUpgrade = { type, cost };
+    const nextLvl = stats[type] + 1;
+    const benefit = type === 'motor' ? "5 KM/H más de velocidad máxima" : "un tanque más eficiente (gasta menos)";
+    
+    document.getElementById("modal-title").innerText = `MEJORAR ${type.toUpperCase()}`;
+    document.getElementById("modal-desc").innerHTML = `¿Quieres instalar el <b>Nivel ${nextLvl}</b>?<br><br>Beneficio: <b>+${benefit}</b>.<br><br>Costo: <span style="color:#f1c40f">$${cost.toLocaleString()}</span>`;
+    document.getElementById("upgrade-modal").classList.remove("hidden");
 }
-
-function closeConfirmModal() {
-    document.getElementById("confirm-modal").classList.add("hidden");
-    pendingUpgrade = null;
+function confirmUpgrade() {
+    if(!tempUpgrade) return;
+    garage.coins -= tempUpgrade.cost;
+    garage.carStats[garage.selected][tempUpgrade.type]++;
+    save(); updateUI(); closeUpgradeModal();
+    showToast("ÉXITO", "Mejora instalada correctamente");
 }
+function closeUpgradeModal() { document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
 
 function spawnTraffic() { 
     let l = (Math.random()*4)|0, tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; 
@@ -459,18 +406,16 @@ function confirmRevive() { clearInterval(reviveInterval); garage.coins -= 250; l
 
 function finishGame() {
     clearInterval(reviveInterval); state = "OVER"; hideAll(); 
-    
-    let isNewRecord = score > garage.high;
-    if(isNewRecord) garage.high = score|0; 
-    
+    let newRec = score > garage.high;
+    if(newRec) garage.high = score|0;
     garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; garage.weeklyDist += score|0; const misionActual = DAILY_MISSIONS[garage.missionId], hoy = new Date().toDateString();
     if (garage.missionDoneDate !== hoy) { let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'dist' && score >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal); if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; showToast("MISIÓN COMPLETADA", "+💰500 monedas"); } }
     if(!garage.weeklyDone && garage.weeklyDist >= 50000) { garage.weeklyDone = true; garage.coins += 5000; showToast("¡SEMANA SUPERADA!", "+💰5.000 monedas", true); }
     Object.keys(MILESTONES).forEach(key => { let c = garage.unlockedLogros[key]; if(c < 5 && ((key === 'totalDist' ? garage.totalDist : key === 'totalCoins' ? garage.totalCoinsRec : key === 'totalNear' ? garage.totalNear : garage.totalPlays) >= MILESTONES[key][c])) { garage.unlockedLogros[key]++; garage.coins += 1000; showToast("LOGRO DESBLOQUEADO", `Nivel ${c + 1} de ${key}`, true); } });
     save(); 
-    
-    document.getElementById("game-over").classList.remove("hidden"); 
-    document.getElementById("over-reason").innerText = lastReason + (isNewRecord ? " - ¡NUEVO RÉCORD!" : ""); 
+    document.getElementById("game-over").classList.remove("hidden");
+    document.getElementById("over-title").innerText = newRec ? "¡NUEVO RÉCORD!" : "FIN";
+    document.getElementById("over-reason").innerText = lastReason;
     document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
 }
 
@@ -490,14 +435,22 @@ setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "
 setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
 actualizarEstructuraMisiones();
 
+// REGISTRO AGRESIVO DE SERVICE WORKER
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('Service Worker registrado con éxito.'))
-            .catch(err => console.log('Error al registrar Service Worker:', err));
+        navigator.serviceWorker.register('sw.js').then(reg => {
+            reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showToast("ACTUALIZACIÓN", "Mejoras listas. Reiniciando...", true);
+                        setTimeout(() => window.location.reload(), 1500);
+                    }
+                };
+            };
+        });
     });
 }
 </script>
 </body>
 </html>
-       
