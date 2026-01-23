@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v3'; // Cambiado a v3 para forzar la actualización
+const CACHE_NAME = 'racing-arcade-v4'; // Cambiado a v3 para forzar la actualización
 
 const assetsToCache = [
   './',
