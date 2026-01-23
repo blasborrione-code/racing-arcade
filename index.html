@@ -32,6 +32,9 @@
         .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.3; }
         .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
         #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
+        .fuel-low { animation: pulse-red 0.5s infinite; }
+        @keyframes pulse-red { 0%, 100% { background: #e74c3c; } 50% { background: #c0392b; opacity: 0.5; } }
+
         #btn-pause-trigger { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 45px; height: 45px; background: var(--bg-glass); border: 2px solid white; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; pointer-events: auto; z-index: 20; }
         #loading-screen { position: absolute; inset: 0; background: #000 url('Items/fondo_carga.png') no-repeat center center; background-size: contain; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 25px; text-align: center; }
@@ -39,7 +42,7 @@
         .loader { width: 200px; height: 4px; background: #333; margin-top: 20px; border-radius: 2px; overflow: hidden; }
         .loader-bar { width: 0%; height: 100%; background: var(--accent); animation: load 2.5s forwards; }
         @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
-        .ui-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 30px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 320px; }
+        .ui-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 30px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 320px; position: relative; }
         h1 { margin: 0 0 20px; font-size: 28px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
         button { padding: 16px; font-size: 14px; cursor: pointer; border: none; color: white; border-radius: 15px; font-weight: 800; min-width: 100%; margin: 8px 0; text-transform: uppercase; }
         .btn-green { background: #2ecc71; } .btn-blue { background: #3498db; } .btn-orange { background: #e67e22; } .btn-red { background: #e74c3c; }
@@ -50,6 +53,7 @@
         #mobile-controls { position: absolute; bottom: 40px; left: 0; width: 100%; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; }
         .touch-btn { width: 70px; height: 70px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
         .shop-coin-tag { text-align: right; font-size: 14px; color: var(--accent); font-weight: 800; margin-bottom: 10px; margin-top: -10px; }
+        .ver-tag { position: absolute; top: 15px; left: 20px; font-size: 10px; color: rgba(255,255,255,0.3); font-weight: 800; }
     </style>
 </head>
 <body>
@@ -75,6 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
+            <span class="ver-tag">V4</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -263,8 +268,11 @@ function actualizarEstructuraMisiones() {
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
 
+// NUEVO: LÓGICA DE CONSTRUCCIÓN
+let constEvent = { active: false, lane: -1, remaining: 0 };
+
 function startGame() {
-    const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0;
+    const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0 };
     state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); loop();
 }
 
@@ -296,6 +304,20 @@ function update(dt) {
     player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
+    
+    // LOGICA ZONA DE OBRAS
+    if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
+        constEvent.active = true;
+        constEvent.lane = Math.random() < 0.5 ? 0 : 3;
+        constEvent.remaining = 100 + Math.random() * 600;
+        showToast("🚧 OBRAS", "Carril bloqueado por construcción");
+    }
+    if(constEvent.active) {
+        constEvent.remaining -= currentSpeed * 0.05 * dt;
+        if(constEvent.remaining <= 0) constEvent.active = false;
+        if(Math.random() < 0.05 * dt) spawnObstacle();
+    }
+
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
     if(Math.random() < 0.007 * dt) spawnItem('fuel'); 
     if(Math.random() < 0.0008 * dt) spawnItem('magnet'); 
@@ -306,7 +328,7 @@ function update(dt) {
         let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); let desiredSpeed = en.baseSpeed; if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt; en.y += (currentSpeed - en.speed) * dt;
         if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1); 
-            if(nextLane >= 0 && nextLane <= 3) { 
+            if(nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) { 
                 let tx = [75, 157.5, 242.5, 325][nextLane] - (en.w / 2); 
                 if(!enemies.some(o => o !== en && (o.l === nextLane || o.tl === nextLane) && Math.abs(o.y - en.y) < (en.h + o.h + 80))) { 
                     en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; 
@@ -318,7 +340,10 @@ function update(dt) {
         if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
             en.nm = true; garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
         }
-        if(checkCollision(player, en)) { lives--; screenShake = 10; if(lives <= 0) endGame("CHOQUE"); enemies.splice(i,1); } else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
+        if(checkCollision(player, en)) {
+            if(en.type === 'obs') { endGame("OBRAS: MUERTE INSTANTÁNEA"); } // FATAL
+            else { lives--; screenShake = 10; if(lives <= 0) endGame("CHOQUE"); enemies.splice(i,1); }
+        } else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
     });
     items.forEach((it, i) => {
         if(it.t === 'coin' && magnetTimer > 0) { let dx = (player.x + player.w/2) - (it.x + it.w/2), dy = (player.y + player.h/2) - (it.y + it.h/2), dist = Math.sqrt(dx*dx + dy*dy); if(dist < 300) { it.x += (dx/dist) * 12 * dt; it.y += (dy/dist) * 12 * dt; } else it.y += currentSpeed * dt; } else it.y += currentSpeed * dt;
@@ -335,6 +360,11 @@ function update(dt) {
     scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); }); if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; } if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
 }
 
+function spawnObstacle() {
+    let tx = [75, 157.5, 242.5, 325][constEvent.lane];
+    enemies.push({ x: tx - 15, y: -100, l: constEvent.lane, w: 30, h: 40, type: 'obs', img: null, baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, blink: false, bCount: 0, bTimer: 0, chg: false });
+}
+
 function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
     const lightLength = isPlayer ? 230 : 140, lightWidth = isPlayer ? 65 : 45, lightY = y + 15; let c = isPlayer ? (NEONES[garage.selectedNeon].color) : [255, 250, 200];
     if(isNight) ctx.globalCompositeOperation = 'lighter'; 
@@ -343,10 +373,21 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
 
 function draw() {
     ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2); ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#27ae60"; for(let gy = (roadY%40)-40; gy < 750; gy+=40) { for(let gx = 0; gx < 35; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); for(let gx = 365; gx < 400; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); }
-    ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
+    ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
+    
+    // DIBUJAR CARRIL BLOQUEADO POR OBRAS
+    if(constEvent.active) {
+        ctx.fillStyle = "rgba(231, 76, 60, 0.2)";
+        ctx.fillRect(35 + (constEvent.lane * 82.5), 0, 82.5, 750);
+    }
+
+    ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
     enemies.forEach(en => { 
         if(sunset || rain || night) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
-        if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
+        if(en.type === 'obs') {
+            ctx.fillStyle = "#e67e22"; ctx.fillRect(en.x, en.y, en.w, en.h); // CONO (NARANJA)
+            ctx.fillStyle = "white"; ctx.fillRect(en.x, en.y + 10, en.w, 10); // RAYA BLANCA
+        } else if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
         if(en.blink && Math.floor(en.bCount % 2) === 0) {
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
         }
@@ -355,7 +396,17 @@ function draw() {
 }
 
 function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
-function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); document.getElementById("fuel-bar").style.width = fuel + "%"; }
+function updateHUD() { 
+    document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
+    document.getElementById("ui-score").innerText = score|0; 
+    document.getElementById("ui-level").innerText = level; 
+    document.getElementById("ui-lives-text").innerText = lives; 
+    document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); 
+    
+    const fuelBar = document.getElementById("fuel-bar");
+    fuelBar.style.width = fuel + "%";
+    if(fuel < 20) fuelBar.classList.add("fuel-low"); else fuelBar.classList.remove("fuel-low");
+}
 function updateShopCoinDisplays() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
 function showMenu() { clearInterval(reviveInterval); state = "MENU"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarEstructuraMisiones(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
@@ -390,14 +441,16 @@ function confirmUpgrade() {
 function closeUpgradeModal() { document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
 
 function spawnTraffic() { 
-    let l = (Math.random()*4)|0, tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; 
+    let l = (Math.random()*4)|0;
+    if(constEvent.active && l === constEvent.lane) return; // NO SPAWNEAR EN CARRIL BLOQUEADO
+    let tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; 
     if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150))) return; 
     enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false }); 
 }
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(!scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
 
-function endGame(r) { state = "PAUSED"; lastReason = r; document.getElementById("btn-pause-trigger").style.display = "none"; if (!hasRevived && garage.coins >= 250) startReviveCountdown(); else finishGame(); }
+function endGame(r) { state = "PAUSED"; lastReason = r; document.getElementById("btn-pause-trigger").style.display = "none"; if (!hasRevived && garage.coins >= 250 && r !== "OBRAS: MUERTE INSTANTÁNEA") startReviveCountdown(); else finishGame(); }
 function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
 function confirmRevive() { clearInterval(reviveInterval); garage.coins -= 250; lives = 1; fuel = 100; hasRevived = true; state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; save(); lastTime = performance.now(); loop(); }
 
@@ -432,13 +485,10 @@ setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "
 setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
 actualizarEstructuraMisiones();
 
-// REGISTRO AGRESIVO DE SERVICE WORKER CON AUTO-ACTUALIZACIÓN
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').then(reg => {
-            // Forzar chequeo contra GitHub inmediatamente
             reg.update();
-            
             reg.onupdatefound = () => {
                 const installingWorker = reg.installing;
                 installingWorker.onstatechange = () => {
