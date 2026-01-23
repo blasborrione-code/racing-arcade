@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V12</span>
+            <span class="ver-tag">V13</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -307,7 +307,7 @@ function update(dt) {
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
-    // LOGICA ZONA DE OBRAS (VERSION REALISTA)
+    // LOGICA ZONA DE OBRAS (VERSION REALISTA V13)
     if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
         constEvent.active = true;
         constEvent.lane = Math.random() < 0.5 ? 0 : 3;
@@ -321,23 +321,24 @@ function update(dt) {
         constEvent.remaining -= currentSpeed * 0.05 * dt;
         if(constEvent.remaining <= 0) constEvent.active = false;
         
-        // 1. SPAWN DE CONOS (DELIMITADORES DE LINEA BLANCA) - CONSTANTES
+        // 1. SPAWN DE CONOS LATERALES (Más separados y uniformes)
         constEvent.coneTimer -= dt;
         if(constEvent.coneTimer <= 0) {
             spawnConstructionItem('cono_line');
-            constEvent.coneTimer = 15; // Conos seguidos cada poco espacio
+            constEvent.coneTimer = 40; // Distancia fija y mayor entre conos
         }
 
-        // 2. SPAWN DE MAQUINAS Y BARRERAS - INTERNOS
+        // 2. SPAWN DE MAQUINAS Y BARRERAS INTERNAS
         constEvent.spawnTimer -= dt;
         if(constEvent.spawnTimer <= 0 && constEvent.remaining > 40) {
             if(constEvent.isFirst) {
                 spawnConstructionItem('valla_start');
                 constEvent.isFirst = false;
-                constEvent.spawnTimer = 60; // Espacio después de la valla inicial
+                constEvent.spawnTimer = 60; 
             } else {
                 spawnConstructionItem('machine');
-                constEvent.spawnTimer = 80 + Math.random() * 40; // Espacio regular entre máquinas
+                // Máquinas más juntas entre sí
+                constEvent.spawnTimer = 50 + Math.random() * 20; 
             }
         }
     }
@@ -400,9 +401,18 @@ function spawnConstructionItem(type) {
         tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
         subType = 'valla';
     } else {
-        w = 80; h = 130; // TAMAÑO ESTANDAR PARA TODAS LAS MAQUINAS
+        // TAMAÑOS VISUALMENTE EQUILIBRADOS (V13)
         const machines = ['m1', 'm2', 'm3', 'm4'];
         variant = machines[Math.floor(Math.random() * machines.length)];
+        // Definimos tamaños específicos para que se vean parejas
+        const sizes = {
+            'm1': {w: 75, h: 120}, // Camión
+            'm2': {w: 70, h: 110}, // Excavadora
+            'm3': {w: 75, h: 115}, // Tractor (Achicado)
+            'm4': {w: 70, h: 110}  // Topadora
+        };
+        w = sizes[variant].w;
+        h = sizes[variant].h;
         tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
         subType = 'machine';
     }
