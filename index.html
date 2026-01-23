@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V6.1</span>
+            <span class="ver-tag">V7</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -205,10 +205,17 @@ function requestFullScreen() {
 }
 
 const audio = { play: (name) => { } }; 
-const assets = { player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), heart: new Image(), bomb: new Image(), exp: new Image(), magnet: new Image(), npcs: [] };
+const assets = { 
+    player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), 
+    heart: new Image(), bomb: new Image(), exp: new Image(), magnet: new Image(), npcs: [],
+    m1: new Image(), m2: new Image(), m3: new Image(), m4: new Image(), valla: new Image(), cono: new Image()
+};
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
 assets.oil.src = 'Items/charco_aceite.png'; assets.heart.src = 'Items/heart_pixel.png'; assets.bomb.src = 'Items/bomba.png'; assets.exp.src = 'Items/explosion.png';
 assets.magnet.src = 'Items/iman_pixel.png';
+assets.m1.src = 'Items/maquina_1.png'; assets.m2.src = 'Items/maquina_2.png'; assets.m3.src = 'Items/maquina_3.png'; assets.m4.src = 'Items/maquina_4.png';
+assets.valla.src = 'Items/valla.png'; assets.cono.src = 'Items/cono.png';
+
 ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
 const sceneryAssets = { arboles: [new Image()] }; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
 
@@ -272,19 +279,14 @@ let constEvent = { active: false, lane: -1, remaining: 0 };
 
 function startGame() {
     const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0 };
-    state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); loop();
+    state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); loop();
 }
 
 function togglePause() { 
     if(state !== "PLAYING" && state !== "PAUSED") return; 
     state = (state === "PAUSED") ? "PLAYING" : "PAUSED"; 
-    if(state === "PAUSED") {
-        document.getElementById("pause-screen").classList.remove("hidden"); 
-    } else { 
-        document.getElementById("pause-screen").classList.add("hidden"); 
-        lastTime = performance.now(); 
-        loop(); 
-    } 
+    if(state === "PAUSED") document.getElementById("pause-screen").classList.remove("hidden"); 
+    else { document.getElementById("pause-screen").classList.add("hidden"); lastTime = performance.now(); loop(); } 
 }
 
 function loop(t) { if(state !== "PLAYING") return; let dt = (t - lastTime) / 16.66; if(isNaN(dt) || dt > 3) dt = 1; lastTime = t; update(dt); draw(); requestAnimationFrame(loop); }
@@ -304,7 +306,7 @@ function update(dt) {
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
-    // LOGICA ZONA DE OBRAS
+    // LOGICA ZONA DE OBRAS (CADA 4 NIVELES O AZAR)
     if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
         constEvent.active = true;
         constEvent.lane = Math.random() < 0.5 ? 0 : 3;
@@ -314,7 +316,7 @@ function update(dt) {
     if(constEvent.active) {
         constEvent.remaining -= currentSpeed * 0.05 * dt;
         if(constEvent.remaining <= 0) constEvent.active = false;
-        if(Math.random() < 0.04 * dt) spawnObstacle();
+        if(Math.random() < 0.05 * dt) spawnObstacle();
     }
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
@@ -324,9 +326,13 @@ function update(dt) {
     if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil'); if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
 
     enemies.forEach((en, i) => {
-        let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); let desiredSpeed = en.baseSpeed; if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt; en.y += (currentSpeed - en.speed) * dt;
+        let desiredSpeed = en.baseSpeed;
+        if(en.type !== 'obs') {
+            let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
+        }
+        en.y += (currentSpeed - en.speed) * dt;
         
-        // CORRECCION: SOLO AUTOS NORMALES CAMBIAN DE CARRIL
+        // CORRECCION: OBSTACULOS NO CAMBIAN DE CARRIL
         if(en.type !== 'obs' && level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1); 
             if(nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) { 
@@ -365,30 +371,31 @@ function update(dt) {
 
 function spawnObstacle() {
     let tx = [75, 157.5, 242.5, 325][constEvent.lane];
-    let variant = Math.random() < 0.7 ? 'v' : 'm';
+    let rand = Math.random();
+    let variant = 'valla';
+    let w = 60, h = 40;
+    
+    if(rand < 0.2) { variant = 'cono'; w = 35; h = 35; }
+    else if(rand < 0.4) { variant = 'm1'; w = 65; h = 120; }
+    else if(rand < 0.6) { variant = 'm2'; w = 65; h = 100; }
+    else if(rand < 0.8) { variant = 'm3'; w = 60; h = 120; }
+    else { variant = 'm4'; w = 65; h = 110; }
+
     enemies.push({ 
-        x: tx - (variant === 'v' ? 25 : 35), y: -150, 
-        l: constEvent.lane, 
-        w: variant === 'v' ? 50 : 70, h: variant === 'v' ? 30 : 60, 
-        type: 'obs', subType: variant, img: null, 
-        baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, 
-        blink: false, bCount: 0, bTimer: 0, chg: false 
+        x: tx - w/2, y: -200, l: constEvent.lane, w, h, 
+        type: 'obs', img: assets[variant], 
+        baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, blink: false, bCount: 0, bTimer: 0, chg: false 
     });
 }
 
-// NUEVA FUNCIÓN PARA DIBUJAR LUCES DE OBRA PARPADEANTES
 function drawConstructionLights(x, y, w, h) {
-    // Parpadeo rítmico basado en el tiempo
-    const blink = Math.sin(performance.now() / 200) > 0;
-    if (blink) {
+    const isBlink = Math.sin(performance.now() / 150) > 0;
+    if(isBlink) {
         ctx.save();
-        ctx.shadowBlur = 15; // Efecto de resplandor (glow)
-        ctx.shadowColor = "#ffa500";
-        ctx.fillStyle = "#ffa500"; // Color naranja
-        ctx.beginPath();
-        // Dibuja una luz redonda centrada arriba del objeto
-        ctx.arc(x + w / 2, y + 5, 6, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.shadowBlur = 20; ctx.shadowColor = "#e67e22";
+        ctx.fillStyle = "#ffa500";
+        // Luz centrada arriba
+        ctx.beginPath(); ctx.arc(x + w/2, y + 5, 8, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
 }
@@ -402,35 +409,12 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
 function draw() {
     ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2); ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#27ae60"; for(let gy = (roadY%40)-40; gy < 750; gy+=40) { for(let gx = 0; gx < 35; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); for(let gx = 365; gx < 400; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); }
     ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
-    
     ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
     
     enemies.forEach(en => { 
-        // 1. DIBUJAR LUCES ALTAS (SOLO SI NO ES OBSTÁCULO Y ES DE NOCHE/LLUVIA)
-        if(en.type !== 'obs' && (sunset || rain || night)) {
-            drawProHeadlights(en.x, en.y, en.w, en.h, false, night);
-        }
-
-        // 2. DIBUJAR EL OBJETO
-        if(en.type === 'obs') {
-            // Dibujar luz de obra parpadeante (siempre)
-            drawConstructionLights(en.x, en.y, en.w, en.h);
-
-            if(en.subType === 'v') {
-                // DIBUJO DE VALLA
-                ctx.fillStyle = "#f39c12"; ctx.fillRect(en.x, en.y + en.h - 10, en.w, 10);
-                ctx.fillStyle = "white"; ctx.fillRect(en.x, en.y, en.w, 10);
-                ctx.fillStyle = "#f39c12"; ctx.fillRect(en.x, en.y + 10, en.w, 10);
-                ctx.fillStyle = "black"; ctx.fillRect(en.x + 5, en.y, 5, en.h); ctx.fillRect(en.x + en.w - 10, en.y, 5, en.h);
-            } else {
-                // DIBUJO DE MÁQUINA
-                ctx.fillStyle = "#f1c40f"; ctx.fillRect(en.x, en.y, en.w, en.h);
-                ctx.fillStyle = "#2c3e50"; ctx.fillRect(en.x + 5, en.y + 5, en.w - 10, en.h - 20);
-                ctx.fillStyle = "black"; for(let stripe=0; stripe<en.w; stripe+=10) ctx.fillRect(en.x + stripe, en.y + en.h - 5, 5, 5);
-            }
-        } else if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
-        
-        // 3. DIBUJAR GUIÑOS (SOLO SI NO ES OBSTÁCULO)
+        if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
+        if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
+        if(en.type === 'obs') drawConstructionLights(en.x, en.y, en.w, en.h);
         if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
         }
