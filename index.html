@@ -367,18 +367,15 @@ function updateUI() {
     updateShopCoinDisplays();
 }
 
-// NUEVA LÓGICA DE CONFIRMACIÓN ESTÉTICA
 let tempUpgrade = null;
 function prepUpgrade(type) {
     const stats = garage.carStats[garage.selected];
     const cost = UPGRADE_PRICES[garage.selected][stats[type]];
     if(stats[type] >= 5) return;
     if(garage.coins < cost) { showToast("ERROR", "No tienes suficientes monedas"); return; }
-    
     tempUpgrade = { type, cost };
     const nextLvl = stats[type] + 1;
     const benefit = type === 'motor' ? "5 KM/H más de velocidad máxima" : "un tanque más eficiente (gasta menos)";
-    
     document.getElementById("modal-title").innerText = `MEJORAR ${type.toUpperCase()}`;
     document.getElementById("modal-desc").innerHTML = `¿Quieres instalar el <b>Nivel ${nextLvl}</b>?<br><br>Beneficio: <b>+${benefit}</b>.<br><br>Costo: <span style="color:#f1c40f">$${cost.toLocaleString()}</span>`;
     document.getElementById("upgrade-modal").classList.remove("hidden");
@@ -435,16 +432,19 @@ setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "
 setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
 actualizarEstructuraMisiones();
 
-// REGISTRO AGRESIVO DE SERVICE WORKER
+// REGISTRO AGRESIVO DE SERVICE WORKER CON AUTO-ACTUALIZACIÓN
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').then(reg => {
+            // Forzar chequeo contra GitHub inmediatamente
+            reg.update();
+            
             reg.onupdatefound = () => {
                 const installingWorker = reg.installing;
                 installingWorker.onstatechange = () => {
                     if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        showToast("ACTUALIZACIÓN", "Mejoras listas. Reiniciando...", true);
-                        setTimeout(() => window.location.reload(), 1500);
+                        showToast("NUEVAS MEJORAS", "Instalando actualización...", true);
+                        setTimeout(() => window.location.reload(), 2000);
                     }
                 };
             };
