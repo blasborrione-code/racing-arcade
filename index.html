@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V8</span>
+            <span class="ver-tag">V9</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -275,10 +275,10 @@ function actualizarEstructuraMisiones() {
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
 
-let constEvent = { active: false, lane: -1, remaining: 0 };
+let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0 };
 
 function startGame() {
-    const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0 };
+    const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0 };
     state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); loop();
 }
 
@@ -311,12 +311,19 @@ function update(dt) {
         constEvent.active = true;
         constEvent.lane = Math.random() < 0.5 ? 0 : 3;
         constEvent.remaining = 200 + Math.random() * 800;
+        constEvent.spawnTimer = 0;
         showToast("🚧 OBRAS", "Carril bloqueado por construcción");
     }
     if(constEvent.active) {
         constEvent.remaining -= currentSpeed * 0.05 * dt;
         if(constEvent.remaining <= 0) constEvent.active = false;
-        if(Math.random() < 0.03 * dt) spawnObstacle(); // Menor frecuencia para evitar superposición
+        
+        constEvent.spawnTimer -= dt;
+        if(constEvent.spawnTimer <= 0 && constEvent.remaining > 20) {
+            spawnObstacle();
+            // Temporizador para asegurar espacio entre máquinas (aprox. 40-60 frames)
+            constEvent.spawnTimer = 40 + Math.random() * 20;
+        }
     }
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
@@ -371,23 +378,22 @@ function update(dt) {
 function spawnObstacle() {
     let rand = Math.random();
     let variant = 'valla';
-    // Tamaños ajustados (más grandes)
-    let w = 65, h = 45; 
+    // Tamaño uniforme para máquinas y vallas
+    let w = 65, h = 110; 
     
-    if(rand < 0.2) { variant = 'cono'; w = 45; h = 45; } // Cono más grande
-    else if(rand < 0.4) { variant = 'm1'; w = 70; h = 130; } // Máquinas más grandes
-    else if(rand < 0.6) { variant = 'm2'; w = 70; h = 115; }
-    else if(rand < 0.8) { variant = 'm3'; w = 65; h = 125; }
-    else { variant = 'm4'; w = 70; h = 120; }
+    if(rand < 0.2) { variant = 'cono'; w = 30; h = 30; } // Cono más chico
+    else if(rand < 0.4) { variant = 'valla'; w = 65; h = 110; }
+    else if(rand < 0.55) { variant = 'm1'; w = 65; h = 110; }
+    else if(rand < 0.70) { variant = 'm2'; w = 65; h = 110; }
+    else if(rand < 0.85) { variant = 'm3'; w = 65; h = 110; }
+    else { variant = 'm4'; w = 65; h = 110; }
 
     let tx;
     if (variant === 'cono') {
-        // Lógica especial para conos: aparecen en la línea blanca divisoria
-        // Si el carril bloqueado es el 0 (izq), los conos van en la línea de la derecha (aprox X=115)
-        // Si el carril bloqueado es el 3 (der), los conos van en la línea de la izquierda (aprox X=285)
+        // Conos en la línea blanca divisoria
         tx = (constEvent.lane === 0 ? 115 : 285) - (w / 2);
     } else {
-        // Máquinas y vallas van al centro del carril
+        // Máquinas y vallas centradas en el carril
         tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
     }
 
