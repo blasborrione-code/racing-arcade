@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V6</span>
+            <span class="ver-tag">V6.1</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -365,7 +365,6 @@ function update(dt) {
 
 function spawnObstacle() {
     let tx = [75, 157.5, 242.5, 325][constEvent.lane];
-    // Variamos entre valla (v) y máquina (m)
     let variant = Math.random() < 0.7 ? 'v' : 'm';
     enemies.push({ 
         x: tx - (variant === 'v' ? 25 : 35), y: -150, 
@@ -375,6 +374,23 @@ function spawnObstacle() {
         baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, 
         blink: false, bCount: 0, bTimer: 0, chg: false 
     });
+}
+
+// NUEVA FUNCIÓN PARA DIBUJAR LUCES DE OBRA PARPADEANTES
+function drawConstructionLights(x, y, w, h) {
+    // Parpadeo rítmico basado en el tiempo
+    const blink = Math.sin(performance.now() / 200) > 0;
+    if (blink) {
+        ctx.save();
+        ctx.shadowBlur = 15; // Efecto de resplandor (glow)
+        ctx.shadowColor = "#ffa500";
+        ctx.fillStyle = "#ffa500"; // Color naranja
+        ctx.beginPath();
+        // Dibuja una luz redonda centrada arriba del objeto
+        ctx.arc(x + w / 2, y + 5, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
 }
 
 function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
@@ -390,8 +406,16 @@ function draw() {
     ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
     
     enemies.forEach(en => { 
-        if(sunset || rain || night) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
+        // 1. DIBUJAR LUCES ALTAS (SOLO SI NO ES OBSTÁCULO Y ES DE NOCHE/LLUVIA)
+        if(en.type !== 'obs' && (sunset || rain || night)) {
+            drawProHeadlights(en.x, en.y, en.w, en.h, false, night);
+        }
+
+        // 2. DIBUJAR EL OBJETO
         if(en.type === 'obs') {
+            // Dibujar luz de obra parpadeante (siempre)
+            drawConstructionLights(en.x, en.y, en.w, en.h);
+
             if(en.subType === 'v') {
                 // DIBUJO DE VALLA
                 ctx.fillStyle = "#f39c12"; ctx.fillRect(en.x, en.y + en.h - 10, en.w, 10);
@@ -406,6 +430,7 @@ function draw() {
             }
         } else if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
         
+        // 3. DIBUJAR GUIÑOS (SOLO SI NO ES OBSTÁCULO)
         if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
         }
