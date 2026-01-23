@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V4</span>
+            <span class="ver-tag">V6</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -268,12 +268,11 @@ function actualizarEstructuraMisiones() {
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
 
-// NUEVO: LÓGICA DE CONSTRUCCIÓN
 let constEvent = { active: false, lane: -1, remaining: 0 };
 
 function startGame() {
     const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0 };
-    state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); loop();
+    state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); loop();
 }
 
 function togglePause() { 
@@ -309,13 +308,13 @@ function update(dt) {
     if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
         constEvent.active = true;
         constEvent.lane = Math.random() < 0.5 ? 0 : 3;
-        constEvent.remaining = 100 + Math.random() * 600;
+        constEvent.remaining = 200 + Math.random() * 800;
         showToast("🚧 OBRAS", "Carril bloqueado por construcción");
     }
     if(constEvent.active) {
         constEvent.remaining -= currentSpeed * 0.05 * dt;
         if(constEvent.remaining <= 0) constEvent.active = false;
-        if(Math.random() < 0.05 * dt) spawnObstacle();
+        if(Math.random() < 0.04 * dt) spawnObstacle();
     }
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
@@ -326,7 +325,9 @@ function update(dt) {
 
     enemies.forEach((en, i) => {
         let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); let desiredSpeed = en.baseSpeed; if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt; en.y += (currentSpeed - en.speed) * dt;
-        if(level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
+        
+        // CORRECCION: SOLO AUTOS NORMALES CAMBIAN DE CARRIL
+        if(en.type !== 'obs' && level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1); 
             if(nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) { 
                 let tx = [75, 157.5, 242.5, 325][nextLane] - (en.w / 2); 
@@ -335,13 +336,15 @@ function update(dt) {
                 } 
             } 
         }
-        if(en.blink) { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
-        if(en.chg) { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
-        if(!en.nm && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
+        if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
+        if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
+        
+        if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
             en.nm = true; garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
         }
+        
         if(checkCollision(player, en)) {
-            if(en.type === 'obs') { endGame("OBRAS: MUERTE INSTANTÁNEA"); } // FATAL
+            if(en.type === 'obs') { endGame("OBRAS: MUERTE INSTANTÁNEA"); }
             else { lives--; screenShake = 10; if(lives <= 0) endGame("CHOQUE"); enemies.splice(i,1); }
         } else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
     });
@@ -362,7 +365,16 @@ function update(dt) {
 
 function spawnObstacle() {
     let tx = [75, 157.5, 242.5, 325][constEvent.lane];
-    enemies.push({ x: tx - 15, y: -100, l: constEvent.lane, w: 30, h: 40, type: 'obs', img: null, baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, blink: false, bCount: 0, bTimer: 0, chg: false });
+    // Variamos entre valla (v) y máquina (m)
+    let variant = Math.random() < 0.7 ? 'v' : 'm';
+    enemies.push({ 
+        x: tx - (variant === 'v' ? 25 : 35), y: -150, 
+        l: constEvent.lane, 
+        w: variant === 'v' ? 50 : 70, h: variant === 'v' ? 30 : 60, 
+        type: 'obs', subType: variant, img: null, 
+        baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, 
+        blink: false, bCount: 0, bTimer: 0, chg: false 
+    });
 }
 
 function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
@@ -375,20 +387,26 @@ function draw() {
     ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2); ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#27ae60"; for(let gy = (roadY%40)-40; gy < 750; gy+=40) { for(let gx = 0; gx < 35; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); for(let gx = 365; gx < 400; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); }
     ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
     
-    // DIBUJAR CARRIL BLOQUEADO POR OBRAS
-    if(constEvent.active) {
-        ctx.fillStyle = "rgba(231, 76, 60, 0.2)";
-        ctx.fillRect(35 + (constEvent.lane * 82.5), 0, 82.5, 750);
-    }
-
     ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
+    
     enemies.forEach(en => { 
         if(sunset || rain || night) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
         if(en.type === 'obs') {
-            ctx.fillStyle = "#e67e22"; ctx.fillRect(en.x, en.y, en.w, en.h); // CONO (NARANJA)
-            ctx.fillStyle = "white"; ctx.fillRect(en.x, en.y + 10, en.w, 10); // RAYA BLANCA
+            if(en.subType === 'v') {
+                // DIBUJO DE VALLA
+                ctx.fillStyle = "#f39c12"; ctx.fillRect(en.x, en.y + en.h - 10, en.w, 10);
+                ctx.fillStyle = "white"; ctx.fillRect(en.x, en.y, en.w, 10);
+                ctx.fillStyle = "#f39c12"; ctx.fillRect(en.x, en.y + 10, en.w, 10);
+                ctx.fillStyle = "black"; ctx.fillRect(en.x + 5, en.y, 5, en.h); ctx.fillRect(en.x + en.w - 10, en.y, 5, en.h);
+            } else {
+                // DIBUJO DE MÁQUINA
+                ctx.fillStyle = "#f1c40f"; ctx.fillRect(en.x, en.y, en.w, en.h);
+                ctx.fillStyle = "#2c3e50"; ctx.fillRect(en.x + 5, en.y + 5, en.w - 10, en.h - 20);
+                ctx.fillStyle = "black"; for(let stripe=0; stripe<en.w; stripe+=10) ctx.fillRect(en.x + stripe, en.y + en.h - 5, 5, 5);
+            }
         } else if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
-        if(en.blink && Math.floor(en.bCount % 2) === 0) {
+        
+        if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
         }
     }); 
@@ -402,7 +420,6 @@ function updateHUD() {
     document.getElementById("ui-level").innerText = level; 
     document.getElementById("ui-lives-text").innerText = lives; 
     document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); 
-    
     const fuelBar = document.getElementById("fuel-bar");
     fuelBar.style.width = fuel + "%";
     if(fuel < 20) fuelBar.classList.add("fuel-low"); else fuelBar.classList.remove("fuel-low");
@@ -442,7 +459,7 @@ function closeUpgradeModal() { document.getElementById("upgrade-modal").classLis
 
 function spawnTraffic() { 
     let l = (Math.random()*4)|0;
-    if(constEvent.active && l === constEvent.lane) return; // NO SPAWNEAR EN CARRIL BLOQUEADO
+    if(constEvent.active && l === constEvent.lane) return; 
     let tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; 
     if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150))) return; 
     enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false }); 
