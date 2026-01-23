@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V7</span>
+            <span class="ver-tag">V8</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -306,7 +306,7 @@ function update(dt) {
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
-    // LOGICA ZONA DE OBRAS (CADA 4 NIVELES O AZAR)
+    // LOGICA ZONA DE OBRAS
     if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
         constEvent.active = true;
         constEvent.lane = Math.random() < 0.5 ? 0 : 3;
@@ -316,7 +316,7 @@ function update(dt) {
     if(constEvent.active) {
         constEvent.remaining -= currentSpeed * 0.05 * dt;
         if(constEvent.remaining <= 0) constEvent.active = false;
-        if(Math.random() < 0.05 * dt) spawnObstacle();
+        if(Math.random() < 0.03 * dt) spawnObstacle(); // Menor frecuencia para evitar superposición
     }
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
@@ -332,7 +332,6 @@ function update(dt) {
         }
         en.y += (currentSpeed - en.speed) * dt;
         
-        // CORRECCION: OBSTACULOS NO CAMBIAN DE CARRIL
         if(en.type !== 'obs' && level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1); 
             if(nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) { 
@@ -370,19 +369,30 @@ function update(dt) {
 }
 
 function spawnObstacle() {
-    let tx = [75, 157.5, 242.5, 325][constEvent.lane];
     let rand = Math.random();
     let variant = 'valla';
-    let w = 60, h = 40;
+    // Tamaños ajustados (más grandes)
+    let w = 65, h = 45; 
     
-    if(rand < 0.2) { variant = 'cono'; w = 35; h = 35; }
-    else if(rand < 0.4) { variant = 'm1'; w = 65; h = 120; }
-    else if(rand < 0.6) { variant = 'm2'; w = 65; h = 100; }
-    else if(rand < 0.8) { variant = 'm3'; w = 60; h = 120; }
-    else { variant = 'm4'; w = 65; h = 110; }
+    if(rand < 0.2) { variant = 'cono'; w = 45; h = 45; } // Cono más grande
+    else if(rand < 0.4) { variant = 'm1'; w = 70; h = 130; } // Máquinas más grandes
+    else if(rand < 0.6) { variant = 'm2'; w = 70; h = 115; }
+    else if(rand < 0.8) { variant = 'm3'; w = 65; h = 125; }
+    else { variant = 'm4'; w = 70; h = 120; }
+
+    let tx;
+    if (variant === 'cono') {
+        // Lógica especial para conos: aparecen en la línea blanca divisoria
+        // Si el carril bloqueado es el 0 (izq), los conos van en la línea de la derecha (aprox X=115)
+        // Si el carril bloqueado es el 3 (der), los conos van en la línea de la izquierda (aprox X=285)
+        tx = (constEvent.lane === 0 ? 115 : 285) - (w / 2);
+    } else {
+        // Máquinas y vallas van al centro del carril
+        tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
+    }
 
     enemies.push({ 
-        x: tx - w/2, y: -200, l: constEvent.lane, w, h, 
+        x: tx, y: -200, l: constEvent.lane, w, h, 
         type: 'obs', img: assets[variant], 
         baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, blink: false, bCount: 0, bTimer: 0, chg: false 
     });
@@ -394,8 +404,8 @@ function drawConstructionLights(x, y, w, h) {
         ctx.save();
         ctx.shadowBlur = 20; ctx.shadowColor = "#e67e22";
         ctx.fillStyle = "#ffa500";
-        // Luz centrada arriba
-        ctx.beginPath(); ctx.arc(x + w/2, y + 5, 8, 0, Math.PI * 2); ctx.fill();
+        // Luz centrada exactamente en el borde superior
+        ctx.beginPath(); ctx.arc(x + w/2, y, 8, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
 }
@@ -414,7 +424,8 @@ function draw() {
     enemies.forEach(en => { 
         if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
-        if(en.type === 'obs') drawConstructionLights(en.x, en.y, en.w, en.h);
+        // Dibujar luces solo en máquinas y vallas, no en conos
+        if(en.type === 'obs' && en.img !== assets.cono) drawConstructionLights(en.x, en.y, en.w, en.h);
         if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
         }
