@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V11</span>
+            <span class="ver-tag">V12</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -275,10 +275,11 @@ function actualizarEstructuraMisiones() {
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
 
-let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0 };
+// LOGICA MEJORADA DE CONSTRUCCION
+let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneTimer: 0 };
 
 function startGame() {
-    const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0 };
+    const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneTimer: 0 };
     state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); loop();
 }
 
@@ -306,22 +307,38 @@ function update(dt) {
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
-    // LOGICA ZONA DE OBRAS
+    // LOGICA ZONA DE OBRAS (VERSION REALISTA)
     if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
         constEvent.active = true;
         constEvent.lane = Math.random() < 0.5 ? 0 : 3;
-        constEvent.remaining = 200 + Math.random() * 800;
+        constEvent.remaining = 300 + Math.random() * 700;
+        constEvent.isFirst = true;
         constEvent.spawnTimer = 0;
-        showToast("🚧 OBRAS", "Carril bloqueado por construcción");
+        constEvent.coneTimer = 0;
+        showToast("🚧 OBRAS", "Comienza carril bloqueado");
     }
     if(constEvent.active) {
         constEvent.remaining -= currentSpeed * 0.05 * dt;
         if(constEvent.remaining <= 0) constEvent.active = false;
         
+        // 1. SPAWN DE CONOS (DELIMITADORES DE LINEA BLANCA) - CONSTANTES
+        constEvent.coneTimer -= dt;
+        if(constEvent.coneTimer <= 0) {
+            spawnConstructionItem('cono_line');
+            constEvent.coneTimer = 15; // Conos seguidos cada poco espacio
+        }
+
+        // 2. SPAWN DE MAQUINAS Y BARRERAS - INTERNOS
         constEvent.spawnTimer -= dt;
-        if(constEvent.spawnTimer <= 0 && constEvent.remaining > 20) {
-            spawnObstacle();
-            constEvent.spawnTimer = 45 + Math.random() * 25; // Espaciado seguro
+        if(constEvent.spawnTimer <= 0 && constEvent.remaining > 40) {
+            if(constEvent.isFirst) {
+                spawnConstructionItem('valla_start');
+                constEvent.isFirst = false;
+                constEvent.spawnTimer = 60; // Espacio después de la valla inicial
+            } else {
+                spawnConstructionItem('machine');
+                constEvent.spawnTimer = 80 + Math.random() * 40; // Espacio regular entre máquinas
+            }
         }
     }
 
@@ -337,7 +354,6 @@ function update(dt) {
             let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
         }
         en.y += (currentSpeed - en.speed) * dt;
-        
         if(en.type !== 'obs' && level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
             let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1); 
             if(nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) { 
@@ -349,11 +365,9 @@ function update(dt) {
         }
         if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
         if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
-        
         if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
             en.nm = true; garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
         }
-        
         if(checkCollision(player, en)) {
             if(en.type === 'obs') { endGame("OBRAS: MUERTE INSTANTÁNEA"); }
             else { lives--; screenShake = 10; if(lives <= 0) endGame("CHOQUE"); enemies.splice(i,1); }
@@ -374,24 +388,23 @@ function update(dt) {
     scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); }); if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; } if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
 }
 
-function spawnObstacle() {
-    const pool = ['cono', 'valla', 'm1', 'm2', 'm3', 'm4'];
-    let variant = pool[Math.floor(Math.random() * pool.length)];
-    let w, h, subType;
+function spawnConstructionItem(type) {
+    let w, h, variant, tx, subType;
 
-    if (variant === 'cono') {
-        w = 30; h = 30; subType = 'cono';
-    } else if (variant === 'valla') {
-        w = 55; h = 35; subType = 'valla'; // SOLO VALLA CHICA
-    } else {
-        w = 65; h = 110; subType = 'machine'; // TODAS LAS MAQUINAS MISMO TAMAÑO
-    }
-
-    let tx;
-    if (variant === 'cono') {
+    if (type === 'cono_line') {
+        w = 30; h = 30; variant = 'cono';
         tx = (constEvent.lane === 0 ? 115 : 285) - (w / 2);
-    } else {
+        subType = 'cono';
+    } else if (type === 'valla_start') {
+        w = 70; h = 50; variant = 'valla';
         tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
+        subType = 'valla';
+    } else {
+        w = 80; h = 130; // TAMAÑO ESTANDAR PARA TODAS LAS MAQUINAS
+        const machines = ['m1', 'm2', 'm3', 'm4'];
+        variant = machines[Math.floor(Math.random() * machines.length)];
+        tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
+        subType = 'machine';
     }
 
     enemies.push({ 
@@ -407,8 +420,7 @@ function drawConstructionLights(x, y, w, h) {
         ctx.save();
         ctx.shadowBlur = 20; ctx.shadowColor = "#e67e22";
         ctx.fillStyle = "#ffa500";
-        // Sirena centrada justo sobre la valla chica
-        ctx.beginPath(); ctx.arc(x + w/2, y - 4, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + w/2, y - 5, 8, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
 }
@@ -427,7 +439,7 @@ function draw() {
     enemies.forEach(en => { 
         if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
-        // LUCES SOLO ARRIBA DE LAS VALLAS
+        // Luces solo en vallas
         if(en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h);
         if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
