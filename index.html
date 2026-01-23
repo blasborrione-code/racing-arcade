@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V10</span>
+            <span class="ver-tag">V11</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -321,7 +321,7 @@ function update(dt) {
         constEvent.spawnTimer -= dt;
         if(constEvent.spawnTimer <= 0 && constEvent.remaining > 20) {
             spawnObstacle();
-            constEvent.spawnTimer = 40 + Math.random() * 20;
+            constEvent.spawnTimer = 45 + Math.random() * 25; // Espaciado seguro
         }
     }
 
@@ -375,18 +375,17 @@ function update(dt) {
 }
 
 function spawnObstacle() {
-    let rand = Math.random();
-    let variant = 'valla';
-    // TAMAÑOS ESTANDARIZADOS (v10)
-    let w = 60, h = 100; // Tamaño estándar para Máquinas
-    let subType = 'machine';
+    const pool = ['cono', 'valla', 'm1', 'm2', 'm3', 'm4'];
+    let variant = pool[Math.floor(Math.random() * pool.length)];
+    let w, h, subType;
 
-    if(rand < 0.2) { 
-        variant = 'cono'; w = 30; h = 30; subType = 'cono'; // Conos (tamaño original)
-    } else if(rand < 0.4) { 
-        variant = 'valla'; w = 55; h = 35; subType = 'valla'; // Vallas (más chicas que máquinas)
+    if (variant === 'cono') {
+        w = 30; h = 30; subType = 'cono';
+    } else if (variant === 'valla') {
+        w = 55; h = 35; subType = 'valla'; // SOLO VALLA CHICA
+    } else {
+        w = 65; h = 110; subType = 'machine'; // TODAS LAS MAQUINAS MISMO TAMAÑO
     }
-    // Las máquinas m1, m2, m3, m4 usan el tamaño estándar 60x100
 
     let tx;
     if (variant === 'cono') {
@@ -408,7 +407,7 @@ function drawConstructionLights(x, y, w, h) {
         ctx.save();
         ctx.shadowBlur = 20; ctx.shadowColor = "#e67e22";
         ctx.fillStyle = "#ffa500";
-        // Luz centrada y apoyada en el borde superior
+        // Sirena centrada justo sobre la valla chica
         ctx.beginPath(); ctx.arc(x + w/2, y - 4, 6, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
@@ -428,7 +427,7 @@ function draw() {
     enemies.forEach(en => { 
         if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
         if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
-        // DIBUJAR LUCES SOLO EN VALLAS
+        // LUCES SOLO ARRIBA DE LAS VALLAS
         if(en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h);
         if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
             ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
