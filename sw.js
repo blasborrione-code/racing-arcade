@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v5.2'; // Cambiado a v3 para forzar la actualización
+const CACHE_NAME = 'racing-arcade-v7'; // Versión actualizada a v7
 
 const assetsToCache = [
   './',
@@ -13,6 +13,12 @@ const assetsToCache = [
   './Items/bomba.png',
   './Items/explosion.png',
   './Items/iman_pixel.png',
+  './Items/maquina_1.png',
+  './Items/maquina_2.png',
+  './Items/maquina_3.png',
+  './Items/maquina_4.png',
+  './Items/valla.png',
+  './Items/cono.png',
   './Autos/camion_cisterna.png',
   './Autos/auto_inicial.png',
   './Autos/furgoneta.png',
@@ -35,11 +41,9 @@ const assetsToCache = [
   './Entorno/arbol_1.png'
 ];
 
-// Instalación: Guarda los archivos en el caché
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      // Usamos map para que si un archivo falta (ej. los conos), los demás se guarden igual
       return Promise.all(
         assetsToCache.map(url => {
           return cache.add(url).catch(err => console.warn(`No se pudo cachear: ${url}`, err));
@@ -50,7 +54,6 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Activación: Borra el caché antiguo (v1, v2) para liberar espacio y evitar conflictos
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -59,10 +62,9 @@ self.addEventListener('activate', event => {
       );
     })
   );
-  self.clients.claim(); // Toma el control de las pestañas abiertas inmediatamente
+  self.clients.claim();
 });
 
-// Estrategia: Primero busca en caché, si no está, va a internet
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(response => {
