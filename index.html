@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V20 FINAL</span>
+            <span class="ver-tag">V16</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -275,7 +275,7 @@ function actualizarEstructuraMisiones() {
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
 
-// LOGICA MEJORADA DE CONSTRUCCION V20
+// LOGICA MEJORADA DE CONSTRUCCION
 let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneTimer: 0 };
 
 function startGame() {
@@ -307,37 +307,42 @@ function update(dt) {
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
-    // LOGICA REALISTA DE OBRA V20
+    // LOGICA ZONA DE OBRAS (CORREGIDA V16)
     if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
         constEvent.active = true;
-        constEvent.lane = Math.random() < 0.5 ? 0 : 3;
-        constEvent.remaining = 350 + Math.random() * 700;
-        constEvent.isFirst = true;
+        constEvent.lane = Math.random() < 0.5 ? 0 : 3; // Solo carriles extremos para facilitar
+        constEvent.remaining = 400 + Math.random() * 800; // Obras un poco más largas
+        constEvent.isFirst = true; // Bandera para saber que falta la valla
         constEvent.spawnTimer = 0;
         constEvent.coneTimer = 0;
-        showToast("🚧 OBRAS", "Comienza zona de mantenimiento");
+        showToast("🚧 OBRAS", "Carril bloqueado adelante");
     }
+
     if(constEvent.active) {
         constEvent.remaining -= currentSpeed * 0.05 * dt;
         if(constEvent.remaining <= 0) constEvent.active = false;
         
-        // 1. CONOS LATERALES (Ordenados)
+        // 1. GENERACIÓN DE CONOS (Delimitación lateral)
+        // Aparecen rápido para formar una línea visual continua
         constEvent.coneTimer -= dt;
         if(constEvent.coneTimer <= 0) {
             spawnConstructionItem('cono_line');
-            constEvent.coneTimer = 75; 
+            constEvent.coneTimer = 22; // Valor bajo = conos más juntos
         }
 
-        // 2. INTERNOS (Valla inicial y Máquinas)
+        // 2. GENERACIÓN DE OBSTÁCULOS (Valla al inicio -> Máquinas después)
         constEvent.spawnTimer -= dt;
-        if(constEvent.spawnTimer <= 0 && constEvent.remaining > 40) {
+        if(constEvent.spawnTimer <= 0 && constEvent.remaining > 50) {
             if(constEvent.isFirst) {
+                // LO PRIMERO SIEMPRE ES LA VALLA
                 spawnConstructionItem('valla_start');
                 constEvent.isFirst = false;
-                constEvent.spawnTimer = 90; 
+                constEvent.spawnTimer = 70; // Espacio después de la valla
             } else {
+                // DESPUÉS VIENEN LAS MÁQUINAS
                 spawnConstructionItem('machine');
-                constEvent.spawnTimer = 130 + Math.random() * 50; 
+                // Espacio grande entre máquinas para que no se encimen
+                constEvent.spawnTimer = 140 + Math.random() * 60; 
             }
         }
     }
@@ -390,71 +395,70 @@ function update(dt) {
 
 function spawnConstructionItem(type) {
     let w, h, variant, tx, subType;
+
+    // CONFIGURACIÓN DE CONOS (Delimitan el carril)
     if (type === 'cono_line') {
         w = 30; h = 30; variant = 'cono';
-        tx = (constEvent.lane === 0 ? 115 : 285) - 15;
         subType = 'cono';
+        // Lógica de posición:
+        // Si cortamos carril 0 (izquierda), los conos van a la derecha de ese carril (aprox 115).
+        // Si cortamos carril 3 (derecha), los conos van a la izquierda de ese carril (aprox 285).
+        tx = (constEvent.lane === 0 ? 115 : 285) - (w / 2);
+    
+    // CONFIGURACIÓN DE VALLA (Inicio de obra)
     } else if (type === 'valla_start') {
         w = 70; h = 50; variant = 'valla';
-        tx = [75, 157.5, 242.5, 325][constEvent.lane] - 35;
         subType = 'valla';
+        // La valla va centrada en el carril cortado
+        tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
+
+    // CONFIGURACIÓN DE MÁQUINAS (Dentro de la obra)
     } else {
         const machines = ['m1', 'm2', 'm3', 'm4'];
         variant = machines[Math.floor(Math.random() * machines.length)];
+        // Tamaños ajustados
         const sizes = {
-            'm1': {w: 85, h: 140}, // Camión
-            'm2': {w: 75, h: 120}, // Excavadora
-            'm3': {w: 75, h: 115}, // Tractor
-            'm4': {w: 80, h: 130}  // Topadora
+            'm1': {w: 85, h: 140}, 
+            'm2': {w: 75, h: 120}, 
+            'm3': {w: 75, h: 115}, 
+            'm4': {w: 80, h: 130}  
         };
-        w = sizes[variant].w; h = sizes[variant].h;
-        tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
+        w = sizes[variant].w;
+        h = sizes[variant].h;
         subType = 'machine';
+        // Las máquinas van centradas en el carril
+        tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
     }
-    enemies.push({ x: tx, y: -200, l: constEvent.lane, w, h, type: 'obs', subType: subType, img: assets[variant], baseSpeed: 0, speed: 0 });
+
+    enemies.push({ 
+        x: tx, y: -200, l: constEvent.lane, w, h, 
+        type: 'obs', subType: subType, img: assets[variant], 
+        baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, blink: false, bCount: 0, bTimer: 0, chg: false 
+    });
 }
 
-// DIBUJO PROFESIONAL CON SOMBRAS Y GLOW
-function draw() {
-    ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); 
-    let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2); 
-    ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); 
-    ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
-    
-    if(constEvent.active) {
-        ctx.fillStyle = "rgba(0,0,0,0.15)";
-        ctx.fillRect(35 + (constEvent.lane * 82), 0, 82, 750);
-    }
+function drawConstructionLights(x, y, w, h) {
+    // Usamos el tiempo para alternar luces (izquierda / derecha)
+    const time = performance.now();
+    const blinkLeft = Math.floor(time / 250) % 2 === 0; // Cambia cada 250ms
 
-    scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
-    items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
-    if(night) { ctx.fillStyle = "rgba(0, 0, 10, 0.70)"; ctx.fillRect(0,0,400,750); } 
-    
-    enemies.forEach(en => { 
-        if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
-        
-        // SOMBRA EN LA BASE
-        ctx.fillStyle = "rgba(0,0,0,0.35)";
-        ctx.beginPath(); ctx.ellipse(en.x + en.w/2, en.y + en.h - 5, en.w/2.2, 10, 0, 0, Math.PI*2); ctx.fill();
+    ctx.save();
+    ctx.shadowBlur = 20; 
+    ctx.shadowColor = "#e67e22"; // Brillo naranja fuerte
 
-        if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
-        
-        // GLOW EN VALLAS
-        if(en.subType === 'valla') {
-            const isBlink = Math.sin(performance.now() / 150) > 0;
-            if(isBlink) {
-                let grad = ctx.createRadialGradient(en.x + en.w/2, en.y, 0, en.x + en.w/2, en.y, 35);
-                grad.addColorStop(0, "rgba(255, 165, 0, 0.8)"); grad.addColorStop(1, "rgba(255, 165, 0, 0)");
-                ctx.fillStyle = grad; ctx.fillRect(en.x + en.w/2 - 35, en.y - 35, 70, 70);
-                ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(en.x + en.w/2, en.y, 5, 0, Math.PI*2); ctx.fill();
-            }
-        }
-    }); 
-    
-    // SOMBRA JUGADOR
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath(); ctx.ellipse(player.x + player.w/2, player.y + player.h - 5, player.w/2.2, 12, 0, 0, Math.PI*2); ctx.fill();
-    if(!expObj && assets.player.complete) { if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); } if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; for(let r=0; r<15; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } } if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; } ctx.restore();
+    // Luz Izquierda
+    ctx.fillStyle = blinkLeft ? "#ffaa00" : "#553300"; // Encendido vs Apagado
+    ctx.beginPath(); 
+    ctx.arc(x + 10, y + 5, 6, 0, Math.PI * 2); 
+    ctx.fill();
+
+    // Luz Derecha (Inversa a la izquierda)
+    ctx.fillStyle = !blinkLeft ? "#ffaa00" : "#553300"; 
+    ctx.beginPath(); 
+    ctx.arc(x + w - 10, y + 5, 6, 0, Math.PI * 2); 
+    ctx.fill();
+
+    ctx.restore();
 }
 
 function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
@@ -463,32 +467,112 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
     let grad = ctx.createLinearGradient(x + w/2, lightY, x + w/2, lightY - lightLength); grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`); grad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`); ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(x + 10, lightY); ctx.lineTo(x - lightWidth, lightY - lightLength); ctx.lineTo(x + w + lightWidth, lightY - lightLength); ctx.lineTo(x + w - 10, lightY); ctx.fill(); if(isNight) ctx.globalCompositeOperation = 'source-over';
 }
 
-function checkCollision(p, o) { let mx = 10, my = 15; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
-function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); const fuelBar = document.getElementById("fuel-bar"); fuelBar.style.width = fuel + "%"; if(fuel < 20) fuelBar.classList.add("fuel-low"); else fuelBar.classList.remove("fuel-low"); }
+function draw() {
+    ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2); ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#27ae60"; for(let gy = (roadY%40)-40; gy < 750; gy+=40) { for(let gx = 0; gx < 35; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); for(let gx = 365; gx < 400; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); }
+    ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
+    ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
+    
+    enemies.forEach(en => { 
+        if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
+        if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
+        // Luces solo en vallas
+        if(en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h);
+        if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
+            ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
+        }
+    }); 
+    if(!expObj && assets.player.complete) { if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); } if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; for(let r=0; r<15; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } } if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; } ctx.restore();
+}
+
+function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
+function updateHUD() { 
+    document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
+    document.getElementById("ui-score").innerText = score|0; 
+    document.getElementById("ui-level").innerText = level; 
+    document.getElementById("ui-lives-text").innerText = lives; 
+    document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); 
+    const fuelBar = document.getElementById("fuel-bar");
+    fuelBar.style.width = fuel + "%";
+    if(fuel < 20) fuelBar.classList.add("fuel-low"); else fuelBar.classList.remove("fuel-low");
+}
 function updateShopCoinDisplays() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
 function showMenu() { clearInterval(reviveInterval); state = "MENU"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarEstructuraMisiones(); }
 function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
-function updateUI() { const carKey = garage.selected; const stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque; document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor].toLocaleString()}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque].toLocaleString()}` : "MAX"; document.getElementById("menu-high-score").innerText = garage.high.toLocaleString(); document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString(); document.getElementById("up-car-name").innerText = MODELS[carKey].name; updateShopCoinDisplays(); }
-function spawnTraffic() { let l = (Math.random()*4)|0; if(constEvent.active && l === constEvent.lane) return; let tx = [75, 157.5, 242.5, 325][l], w = 45, h = 80; if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < 200)) return; enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: assets.npcs[(Math.random()*assets.npcs.length)|0], baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false }); }
+
+function updateUI() { 
+    const carKey = garage.selected; const stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque;
+    document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor].toLocaleString()}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque].toLocaleString()}` : "MAX";
+    document.getElementById("menu-high-score").innerText = garage.high.toLocaleString(); document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString(); document.getElementById("up-car-name").innerText = MODELS[carKey].name;
+    updateShopCoinDisplays();
+}
+
+let tempUpgrade = null;
+function prepUpgrade(type) {
+    const stats = garage.carStats[garage.selected];
+    const cost = UPGRADE_PRICES[garage.selected][stats[type]];
+    if(stats[type] >= 5) return;
+    if(garage.coins < cost) { showToast("ERROR", "No tienes suficientes monedas"); return; }
+    tempUpgrade = { type, cost };
+    const nextLvl = stats[type] + 1;
+    const benefit = type === 'motor' ? "5 KM/H más de velocidad máxima" : "un tanque más eficiente (gasta menos)";
+    document.getElementById("modal-title").innerText = `MEJORAR ${type.toUpperCase()}`;
+    document.getElementById("modal-desc").innerHTML = `¿Quieres instalar el <b>Nivel ${nextLvl}</b>?<br><br>Beneficio: <b>+${benefit}</b>.<br><br>Costo: <span style="color:#f1c40f">$${cost.toLocaleString()}</span>`;
+    document.getElementById("upgrade-modal").classList.remove("hidden");
+}
+function confirmUpgrade() {
+    if(!tempUpgrade) return;
+    garage.coins -= tempUpgrade.cost;
+    garage.carStats[garage.selected][tempUpgrade.type]++;
+    save(); updateUI(); closeUpgradeModal();
+    showToast("ÉXITO", "Mejora instalada correctamente");
+}
+function closeUpgradeModal() { document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
+
+function spawnTraffic() { 
+    let l = (Math.random()*4)|0;
+    if(constEvent.active && l === constEvent.lane) return; 
+    let tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; 
+    if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150))) return; 
+    enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false }); 
+}
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(!scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
+
 function endGame(r) { state = "PAUSED"; lastReason = r; document.getElementById("btn-pause-trigger").style.display = "none"; if (!hasRevived && garage.coins >= 250 && r !== "OBRAS: MUERTE INSTANTÁNEA") startReviveCountdown(); else finishGame(); }
 function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
 function confirmRevive() { clearInterval(reviveInterval); garage.coins -= 250; lives = 1; fuel = 100; hasRevived = true; state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; save(); lastTime = performance.now(); loop(); }
-function finishGame() { clearInterval(reviveInterval); state = "OVER"; hideAll(); let newRec = score > garage.high; if(newRec) garage.high = score|0; garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = lastReason; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`; }
+
+function finishGame() {
+    clearInterval(reviveInterval); state = "OVER"; hideAll(); 
+    let newRec = score > garage.high;
+    if(newRec) garage.high = score|0;
+    garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; garage.weeklyDist += score|0; const misionActual = DAILY_MISSIONS[garage.missionId], hoy = new Date().toDateString();
+    if (garage.missionDoneDate !== hoy) { let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'dist' && score >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal); if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; showToast("MISIÓN COMPLETADA", "+💰500 monedas"); } }
+    if(!garage.weeklyDone && garage.weeklyDist >= 50000) { garage.weeklyDone = true; garage.coins += 5000; showToast("¡SEMANA SUPERADA!", "+💰5.000 monedas", true); }
+    Object.keys(MILESTONES).forEach(key => { let c = garage.unlockedLogros[key]; if(c < 5 && ((key === 'totalDist' ? garage.totalDist : key === 'totalCoins' ? garage.totalCoinsRec : key === 'totalNear' ? garage.totalNear : garage.totalPlays) >= MILESTONES[key][c])) { garage.unlockedLogros[key]++; garage.coins += 1000; showToast("LOGRO DESBLOQUEADO", `Nivel ${c + 1} de ${key}`, true); } });
+    save(); 
+    document.getElementById("game-over").classList.remove("hidden");
+    document.getElementById("over-title").innerText = newRec ? "¡NUEVO RÉCORD!" : "FIN";
+    document.getElementById("over-reason").innerText = lastReason;
+    document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
+}
+
 function openShop() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-function openLogros() { hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px;"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
+function openLogros() { hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
 function openNeones() { hideAll(); updateShopCoinDisplays(); const container = document.getElementById("neon-container"); container.innerHTML = ""; Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; btn.onclick = () => { if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); }); document.getElementById("shop-neones").classList.remove("hidden"); }
 function updateShopUI() { const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; updateShopCoinDisplays(); }
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
 function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
+
 window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause(); keys[e.code] = true; }); window.addEventListener("keyup", e => keys[e.code] = false);
 const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
 setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
+
 setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
 actualizarEstructuraMisiones();
+
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').then(reg => {
