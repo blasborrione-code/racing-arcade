@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v8.8'; // Versión actualizada a v7
+const CACHE_NAME = 'racing-arcade-v8.9'; // Versión actualizada a v7
 
 const assetsToCache = [
   './',
