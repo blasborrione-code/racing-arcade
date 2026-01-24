@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V18 (Nuevas Máquinas)</span>
+            <span class="ver-tag">V19 (Fix Tamaños y Revivir)</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -413,10 +413,10 @@ function spawnConstructionItem(type) {
         const machines = ['topadora', 'pavimentadora'];
         variant = machines[Math.floor(Math.random() * machines.length)];
         
-        // Tamaños ajustados para las nuevas imágenes
+        // Tamaños ajustados para las nuevas imágenes (CORREGIDO V19 - MÁS CHICOS)
         const sizes = {
-            'topadora': {w: 85, h: 140}, 
-            'pavimentadora': {w: 90, h: 150} 
+            'topadora': {w: 60, h: 100}, 
+            'pavimentadora': {w: 65, h: 110} 
         };
         w = sizes[variant].w;
         h = sizes[variant].h;
@@ -534,7 +534,20 @@ function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h
 
 function endGame(r) { state = "PAUSED"; lastReason = r; document.getElementById("btn-pause-trigger").style.display = "none"; if (!hasRevived && garage.coins >= 250 && r !== "OBRAS: MUERTE INSTANTÁNEA") startReviveCountdown(); else finishGame(); }
 function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
-function confirmRevive() { clearInterval(reviveInterval); garage.coins -= 250; lives = 1; fuel = 100; hasRevived = true; state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; save(); lastTime = performance.now(); loop(); }
+function confirmRevive() { 
+    clearInterval(reviveInterval); 
+    garage.coins -= 250; 
+    lives = 1; 
+    fuel = 100; 
+    hasRevived = true; 
+    expObj = null; // <--- CORRECCIÓN AQUÍ: Limpiamos el objeto de explosión
+    state = "PLAYING"; 
+    hideAll(); 
+    document.getElementById("btn-pause-trigger").style.display = "flex"; 
+    save(); 
+    lastTime = performance.now(); 
+    loop(); 
+}
 
 function finishGame() {
     clearInterval(reviveInterval); state = "OVER"; hideAll(); 
