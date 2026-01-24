@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V17 (Fix Conos)</span>
+            <span class="ver-tag">V18 (Nuevas Máquinas)</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -205,15 +205,18 @@ function requestFullScreen() {
 }
 
 const audio = { play: (name) => { } }; 
+// MODIFICADO: Solo cargamos las dos nuevas máquinas
 const assets = { 
     player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), 
     heart: new Image(), bomb: new Image(), exp: new Image(), magnet: new Image(), npcs: [],
-    m1: new Image(), m2: new Image(), m3: new Image(), m4: new Image(), valla: new Image(), cono: new Image()
+    topadora: new Image(), pavimentadora: new Image(), valla: new Image(), cono: new Image()
 };
 assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
 assets.oil.src = 'Items/charco_aceite.png'; assets.heart.src = 'Items/heart_pixel.png'; assets.bomb.src = 'Items/bomba.png'; assets.exp.src = 'Items/explosion.png';
 assets.magnet.src = 'Items/iman_pixel.png';
-assets.m1.src = 'Items/maquina_1.png'; assets.m2.src = 'Items/maquina_2.png'; assets.m3.src = 'Items/maquina_3.png'; assets.m4.src = 'Items/maquina_4.png';
+// ASIGNACIÓN DE LAS NUEVAS IMÁGENES
+assets.topadora.src = 'Items/topadora.png'; 
+assets.pavimentadora.src = 'Items/pavimentadora.png';
 assets.valla.src = 'Items/valla.png'; assets.cono.src = 'Items/cono.png';
 
 ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
@@ -397,33 +400,27 @@ function spawnConstructionItem(type) {
     if (type === 'cono_line') {
         w = 30; h = 30; variant = 'cono';
         subType = 'cono';
-        // Lógica de posición:
-        // Si cortamos carril 0 (izquierda), los conos van a la derecha de ese carril (aprox 115).
-        // Si cortamos carril 3 (derecha), los conos van a la izquierda de ese carril (aprox 285).
         tx = (constEvent.lane === 0 ? 115 : 285) - (w / 2);
     
     // CONFIGURACIÓN DE VALLA (Inicio de obra)
     } else if (type === 'valla_start') {
         w = 70; h = 50; variant = 'valla';
         subType = 'valla';
-        // La valla va centrada en el carril cortado
         tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
 
-    // CONFIGURACIÓN DE MÁQUINAS (Dentro de la obra)
+    // MODIFICADO: Solo Topadora y Pavimentadora
     } else {
-        const machines = ['m1', 'm2', 'm3', 'm4'];
+        const machines = ['topadora', 'pavimentadora'];
         variant = machines[Math.floor(Math.random() * machines.length)];
-        // Tamaños ajustados
+        
+        // Tamaños ajustados para las nuevas imágenes
         const sizes = {
-            'm1': {w: 85, h: 140}, 
-            'm2': {w: 75, h: 120}, 
-            'm3': {w: 75, h: 115}, 
-            'm4': {w: 80, h: 130}  
+            'topadora': {w: 85, h: 140}, 
+            'pavimentadora': {w: 90, h: 150} 
         };
         w = sizes[variant].w;
         h = sizes[variant].h;
         subType = 'machine';
-        // Las máquinas van centradas en el carril
         tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
     }
 
