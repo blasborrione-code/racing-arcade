@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V16</span>
+            <span class="ver-tag">V17 (Fix Conos)</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -275,11 +275,11 @@ function actualizarEstructuraMisiones() {
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
 
-// LOGICA MEJORADA DE CONSTRUCCION
-let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneTimer: 0 };
+// LOGICA MEJORADA DE CONSTRUCCION - VARIABLE coneDist AGREGADA
+let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
 
 function startGame() {
-    const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneTimer: 0 };
+    const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
     state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); loop();
 }
 
@@ -307,14 +307,14 @@ function update(dt) {
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
-    // LOGICA ZONA DE OBRAS (CORREGIDA V16)
+    // LOGICA ZONA DE OBRAS (CORREGIDA V17 - GENERACION POR DISTANCIA)
     if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
         constEvent.active = true;
-        constEvent.lane = Math.random() < 0.5 ? 0 : 3; // Solo carriles extremos para facilitar
-        constEvent.remaining = 400 + Math.random() * 800; // Obras un poco más largas
-        constEvent.isFirst = true; // Bandera para saber que falta la valla
+        constEvent.lane = Math.random() < 0.5 ? 0 : 3; 
+        constEvent.remaining = 400 + Math.random() * 800; 
+        constEvent.isFirst = true; 
         constEvent.spawnTimer = 0;
-        constEvent.coneTimer = 0;
+        constEvent.coneDist = 0; // Usamos distancia acumulada
         showToast("🚧 OBRAS", "Carril bloqueado adelante");
     }
 
@@ -322,26 +322,23 @@ function update(dt) {
         constEvent.remaining -= currentSpeed * 0.05 * dt;
         if(constEvent.remaining <= 0) constEvent.active = false;
         
-        // 1. GENERACIÓN DE CONOS (Delimitación lateral)
-        // Aparecen rápido para formar una línea visual continua
-        constEvent.coneTimer -= dt;
-        if(constEvent.coneTimer <= 0) {
+        // 1. GENERACIÓN DE CONOS (Ahora basada en DISTANCIA real recorrida)
+        // Esto evita que se amontonen si el auto frena, o se separen si acelera
+        constEvent.coneDist += currentSpeed * dt;
+        if(constEvent.coneDist >= 30) { // Cada 30 pixeles de avance
             spawnConstructionItem('cono_line');
-            constEvent.coneTimer = 22; // Valor bajo = conos más juntos
+            constEvent.coneDist = 0;
         }
 
         // 2. GENERACIÓN DE OBSTÁCULOS (Valla al inicio -> Máquinas después)
         constEvent.spawnTimer -= dt;
         if(constEvent.spawnTimer <= 0 && constEvent.remaining > 50) {
             if(constEvent.isFirst) {
-                // LO PRIMERO SIEMPRE ES LA VALLA
                 spawnConstructionItem('valla_start');
                 constEvent.isFirst = false;
-                constEvent.spawnTimer = 70; // Espacio después de la valla
+                constEvent.spawnTimer = 70; 
             } else {
-                // DESPUÉS VIENEN LAS MÁQUINAS
                 spawnConstructionItem('machine');
-                // Espacio grande entre máquinas para que no se encimen
                 constEvent.spawnTimer = 140 + Math.random() * 60; 
             }
         }
