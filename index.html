@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V19 (Fix Tamaños y Revivir)</span>
+            <span class="ver-tag">V20 (Ajuste fino Obras)</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -326,9 +326,8 @@ function update(dt) {
         if(constEvent.remaining <= 0) constEvent.active = false;
         
         // 1. GENERACIÓN DE CONOS (Ahora basada en DISTANCIA real recorrida)
-        // Esto evita que se amontonen si el auto frena, o se separen si acelera
         constEvent.coneDist += currentSpeed * dt;
-        if(constEvent.coneDist >= 30) { // Cada 30 pixeles de avance
+        if(constEvent.coneDist >= 45) { // AUMENTADO DE 30 A 45 PARA SEPARARLOS MÁS
             spawnConstructionItem('cono_line');
             constEvent.coneDist = 0;
         }
@@ -413,10 +412,10 @@ function spawnConstructionItem(type) {
         const machines = ['topadora', 'pavimentadora'];
         variant = machines[Math.floor(Math.random() * machines.length)];
         
-        // Tamaños ajustados para las nuevas imágenes (CORREGIDO V19 - MÁS CHICOS)
+        // Tamaños ajustados un "pelín" más chicos (V20)
         const sizes = {
-            'topadora': {w: 60, h: 100}, 
-            'pavimentadora': {w: 65, h: 110} 
+            'topadora': {w: 56, h: 94},  // Antes: 60, 100
+            'pavimentadora': {w: 60, h: 102} // Antes: 65, 110
         };
         w = sizes[variant].w;
         h = sizes[variant].h;
@@ -540,7 +539,7 @@ function confirmRevive() {
     lives = 1; 
     fuel = 100; 
     hasRevived = true; 
-    expObj = null; // <--- CORRECCIÓN AQUÍ: Limpiamos el objeto de explosión
+    expObj = null; 
     state = "PLAYING"; 
     hideAll(); 
     document.getElementById("btn-pause-trigger").style.display = "flex"; 
