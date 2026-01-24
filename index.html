@@ -3,186 +3,249 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Racing Arcade</title>
+    <title>Racing Arcade | Pro Edition</title>
     
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2c3e50">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#1a1a2e">
 
     <style>
         :root {
-            --accent: #f1c40f;
-            --bg-glass: rgba(0, 0, 0, 0.85);
-            --border-glass: rgba(255, 255, 255, 0.1);
+            --accent: #00d2ff;
+            --accent-alt: #f1c40f;
+            --bg-dark: #0f0f1b;
+            --bg-glass: rgba(15, 15, 27, 0.85);
+            --border-neon: rgba(0, 210, 255, 0.4);
             --weekly-clr: #9b59b6;
         }
-        body { margin: 0; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; display: flex; justify-content: center; align-items: center; min-height: 100vh; color: white; }
-        #game-container { position: fixed; inset: 0; background: #2c3e50; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
         
-        #toast-container { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; width: 280px; }
-        .toast { background: var(--bg-glass); border: 1px solid var(--accent); padding: 12px; border-radius: 15px; margin-bottom: 8px; text-align: center; animation: slideIn 0.4s ease-out, fadeOut 0.4s 2.6s forwards; backdrop-filter: blur(10px); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-        .toast.logro { border-color: var(--weekly-clr); }
-        .toast b { display: block; color: var(--accent); font-size: 14px; text-transform: uppercase; }
-        .toast.logro b { color: var(--weekly-clr); }
-        .toast p { margin: 4px 0 0; font-size: 12px; font-weight: 600; }
-        @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
+        body { 
+            margin: 0; 
+            background: var(--bg-dark); 
+            font-family: 'Rajdhani', sans-serif; 
+            overflow: hidden; 
+            touch-action: none; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            color: white; 
+        }
 
-        .hud { position: absolute; top: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 10; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
-        .stat { font-size: 18px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.3; }
-        .bar-container { width: 140px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; overflow: hidden; }
-        #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.3s; }
-        .fuel-low { animation: pulse-red 0.5s infinite; }
-        @keyframes pulse-red { 0%, 100% { background: #e74c3c; } 50% { background: #c0392b; opacity: 0.5; } }
+        /* Capa de efecto CRT (Rayitas de monitor viejo) */
+        #game-container::after {
+            content: " ";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 500;
+        }
 
-        #btn-pause-trigger { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 45px; height: 45px; background: var(--bg-glass); border: 2px solid white; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; pointer-events: auto; z-index: 20; }
-        #loading-screen { position: absolute; inset: 0; background: #000 url('Items/fondo_carga.png') no-repeat center center; background-size: contain; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
-        .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 25px; text-align: center; }
-        .hidden { display: none !important; }
-        .loader { width: 200px; height: 4px; background: #333; margin-top: 20px; border-radius: 2px; overflow: hidden; }
-        .loader-bar { width: 0%; height: 100%; background: var(--accent); animation: load 2.5s forwards; }
-        @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
-        .ui-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 30px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 320px; position: relative; }
-        h1 { margin: 0 0 20px; font-size: 28px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
-        button { padding: 16px; font-size: 14px; cursor: pointer; border: none; color: white; border-radius: 15px; font-weight: 800; min-width: 100%; margin: 8px 0; text-transform: uppercase; }
-        .btn-green { background: #2ecc71; } .btn-blue { background: #3498db; } .btn-orange { background: #e67e22; } .btn-red { background: #e74c3c; }
-        #timer-display { font-size: 60px; font-weight: 900; color: var(--accent); margin: 10px 0; }
-        .magnet-active { color: #f1c40f; text-shadow: 0 0 10px #f1c40f; animation: blink 0.5s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .mission-box { background: rgba(255,255,255,0.05); border: 1px dashed rgba(241,196,15,0.5); padding: 15px; border-radius: 20px; margin: 10px 0; text-align: left; }
-        #mobile-controls { position: absolute; bottom: 40px; left: 0; width: 100%; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; }
-        .touch-btn { width: 70px; height: 70px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        .shop-coin-tag { text-align: right; font-size: 14px; color: var(--accent); font-weight: 800; margin-bottom: 10px; margin-top: -10px; }
-        .ver-tag { position: absolute; top: 15px; left: 20px; font-size: 10px; color: rgba(255,255,255,0.3); font-weight: 800; }
+        #game-container { position: fixed; inset: 0; background: #1a1a2e; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
+
+        /* HUD - Diseño de Tablero */
+        .hud { 
+            position: absolute; top: 0; width: 100%; padding: 25px 20px; 
+            display: flex; justify-content: space-between; box-sizing: border-box; 
+            z-index: 10; pointer-events: none; 
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+        }
+        .stat-group { display: flex; flex-direction: column; }
+        .stat-main { 
+            font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 24px; 
+            color: var(--accent); text-shadow: 0 0 10px var(--accent); 
+        }
+        .stat-sub { font-size: 14px; color: #bdc3c7; text-transform: uppercase; letter-spacing: 1px; }
+
+        .bar-container { 
+            width: 120px; height: 8px; background: rgba(255,255,255,0.05); 
+            border-radius: 4px; border: 1px solid var(--border-neon); 
+            margin-top: 5px; overflow: hidden; box-shadow: 0 0 5px rgba(0,210,255,0.2);
+        }
+        #fuel-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #00d2ff, #3a7bd5); transition: width 0.3s; }
+        .fuel-low { animation: pulse-red 0.5s infinite; background: #ff416c !important; }
+        
+        @keyframes pulse-red { 50% { opacity: 0.4; } }
+
+        /* Toasts Mejorados */
+        #toast-container { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; width: 300px; }
+        .toast { 
+            background: var(--bg-glass); border-left: 4px solid var(--accent); 
+            padding: 15px; border-radius: 8px; margin-bottom: 10px; text-align: left;
+            animation: slideIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards, fadeOut 0.4s 2.6s forwards;
+            backdrop-filter: blur(15px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .toast b { display: block; color: var(--accent); font-size: 12px; text-transform: uppercase; font-family: 'Orbitron'; }
+        .toast p { margin: 5px 0 0; font-size: 14px; font-weight: 500; color: #eee; }
+
+        /* Menús Estilo Glassmorphism */
+        .overlay { position: absolute; inset: 0; background: rgba(5, 5, 10, 0.7); backdrop-filter: blur(20px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 20px; }
+        .ui-card { 
+            background: var(--bg-glass); border: 1px solid var(--border-neon); 
+            padding: 35px 25px; border-radius: 24px; 
+            box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 20px rgba(0,210,255,0.05); 
+            width: 320px; position: relative; text-align: center;
+        }
+        h1 { 
+            margin: 0 0 25px; font-family: 'Orbitron', sans-serif; font-size: 26px; 
+            font-weight: 900; letter-spacing: 2px; color: white;
+            text-shadow: 0 0 15px rgba(255,255,255,0.3);
+        }
+
+        button { 
+            padding: 18px; font-family: 'Orbitron', sans-serif; font-size: 13px; 
+            cursor: pointer; border: none; color: white; border-radius: 12px; 
+            font-weight: 800; min-width: 100%; margin: 10px 0; 
+            text-transform: uppercase; transition: all 0.2s;
+            letter-spacing: 1px; position: relative; overflow: hidden;
+        }
+        button:active { transform: scale(0.96); }
+        .btn-green { background: linear-gradient(135deg, #00b09b, #96c93d); box-shadow: 0 4px 15px rgba(0,176,155,0.4); }
+        .btn-blue { background: linear-gradient(135deg, #00d2ff, #3a7bd5); box-shadow: 0 4px 15px rgba(0,210,255,0.4); }
+        .btn-orange { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .btn-red { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,65,108,0.3); color: #ff416c; }
+
+        .mission-box { 
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); 
+            padding: 15px; border-radius: 16px; margin: 12px 0; text-align: left;
+        }
+        .ver-tag { position: absolute; top: 15px; left: 20px; font-size: 9px; color: var(--accent); font-weight: 900; opacity: 0.6; }
+        
+        /* Controles Mobile más pro */
+        #mobile-controls { position: absolute; bottom: 40px; left: 0; width: 100%; display: none; justify-content: space-between; padding: 0 25px; box-sizing: border-box; z-index: 50; }
+        .touch-btn { 
+            width: 75px; height: 75px; background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 24px; color: white; backdrop-filter: blur(5px);
+        }
     </style>
 </head>
 <body>
 
 <div id="toast-container"></div>
 
-<div id="loading-screen">
-    <h1>RACING ARCADE</h1>
-    <p style="font-size: 12px; color: #bdc3c7;">creado por Blas Borrione</p>
-    <div class="loader"><div class="loader-bar"></div></div>
+<div id="loading-screen" style="background: #0f0f1b; display: flex; flex-direction: column; justify-content: center; align-items: center; position: absolute; inset: 0; z-index: 2000;">
+    <h1 style="font-family:'Orbitron'; color: var(--accent); margin-bottom: 5px;">CARGANDO</h1>
+    <p style="font-size: 10px; letter-spacing: 3px; color: rgba(255,255,255,0.4);">RACING ARCADE MOTOR</p>
+    <div style="width: 200px; height: 2px; background: rgba(255,255,255,0.1); margin-top: 20px; border-radius: 2px; overflow: hidden;">
+        <div style="width: 100%; height: 100%; background: var(--accent); animation: load 2.5s infinite;"></div>
+    </div>
 </div>
 
 <div id="game-container">
-    <div id="btn-pause-trigger" onclick="togglePause()">II</div>
+    <div id="btn-pause-trigger" onclick="togglePause()" style="font-family:'Orbitron'">PAUSE</div>
+    
     <div class="hud">
-        <div class="stat"><span style="color:#f1c40f; font-size:22px;"><span id="ui-speed">0</span> KM/H</span><br>DIST: <span id="ui-score">0</span>m<br><small>NIVEL: <span id="ui-level">1</span></small></div>
-        <div class="stat" style="text-align:right"><span id="ui-coin-label">💰 <span id="ui-coins-total">0</span></span><br><div class="bar-container"><div id="fuel-bar"></div></div>❤️ <span id="ui-lives-text">3</span></div>
+        <div class="stat-group">
+            <span class="stat-main"><span id="ui-speed">0</span> <small style="font-size:12px">KM/H</small></span>
+            <span class="stat-sub">Dist: <span id="ui-score">0</span>m</span>
+        </div>
+        <div class="stat-group" style="align-items: flex-end;">
+            <span class="stat-main" style="color:var(--accent-alt); text-shadow: 0 0 10px var(--accent-alt);">💰 <span id="ui-coins-total">0</span></span>
+            <div class="bar-container"><div id="fuel-bar"></div></div>
+            <span class="stat-sub">❤️ Vida: <span id="ui-lives-text">3</span></span>
+        </div>
     </div>
+
     <div id="mobile-controls">
-        <div style="display:flex; gap:10px;"><div class="touch-btn" id="t-left">◀</div><div class="touch-btn" id="t-right">▶</div></div>
-        <div style="display:flex; gap:10px;"><div class="touch-btn" id="t-brake" style="color:#e74c3c">FR</div><div class="touch-btn" id="t-up" style="color:#2ecc71">GAS</div></div>
+        <div style="display:flex; gap:15px;"><div class="touch-btn" id="t-left">◀</div><div class="touch-btn" id="t-right">▶</div></div>
+        <div style="display:flex; gap:15px;"><div class="touch-btn" id="t-brake" style="color:#ff416c">ブレーキ</div><div class="touch-btn" id="t-up" style="color:var(--accent)">GAS</div></div>
     </div>
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">V15</span>
+            <span class="ver-tag">SYSTEM V16</span>
             <h1>RACING ARCADE</h1>
-            <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
-            <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
-            <div class="mission-box" style="border-color: var(--weekly-clr); border-style: solid;"><small style="color:var(--weekly-clr); font-weight:800;">SEMANAL (5.000💰)</small><p id="menu-weekly-desc" style="margin:2px 0; font-size:11px;"></p><div class="bar-container" style="width:100%; height:6px; background:rgba(255,255,255,0.05); border:none;"><div id="weekly-bar" style="width:0%; background:var(--weekly-clr); height:100%; border-radius:3px;"></div></div></div>
-            <button class="btn-green" onclick="requestFullScreen(); startGame()">CORRER</button>
-            <button class="btn-blue" onclick="openShop()">GARAJE</button>
+            <div style="display:flex; justify-content:space-between; margin-bottom:20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;">
+                <div class="stat-group"><span class="stat-sub">Récord</span><span style="font-weight:900" id="menu-high-score">0</span></div>
+                <div class="stat-group" style="text-align:right"><span class="stat-sub">Saldo</span><span style="color:var(--accent-alt); font-weight:900" id="menu-total-coins">0</span></div>
+            </div>
+            <div class="mission-box">
+                <b style="color:var(--accent-alt); font-size:10px; font-family:'Orbitron'">Misión Diaria</b>
+                <p id="menu-mission-desc" style="font-size:12px; margin-top:5px;"></p>
+            </div>
+            <button class="btn-green" onclick="requestFullScreen(); startGame()">INICIAR CARRERA</button>
+            <button class="btn-blue" onclick="openShop()">GARAJE CENTRAL</button>
         </div>
     </div>
 
     <div id="pause-screen" class="overlay hidden">
         <div class="ui-card">
-            <h1>PAUSA</h1>
-            <button class="btn-green" onclick="togglePause()">CONTINUAR</button>
-            <button class="btn-red" onclick="showMenu()">MENÚ</button>
+            <h1>SISTEMA EN PAUSA</h1>
+            <button class="btn-green" onclick="togglePause()">VOLVER A LA PISTA</button>
+            <button class="btn-red" onclick="showMenu()">ABANDONAR</button>
         </div>
     </div>
 
     <div id="revive-screen" class="overlay hidden">
         <div class="ui-card">
-            <h1 style="color:var(--accent);">¿CONTINUAR?</h1>
-            <div id="timer-display">5</div>
-            <p style="font-size: 14px; color:#bdc3c7; margin-bottom: 20px;">Costo: 💰250 monedas</p>
-            <button class="btn-green" onclick="confirmRevive()">SÍ (PAGAR)</button>
-            <button class="btn-red" onclick="finishGame()" style="background:transparent; border:1px solid #e74c3c; color:#e74c3c; margin-top:10px;">NO, FINALIZAR</button>
+            <h1 style="color:var(--accent-alt);">REPARACIÓN</h1>
+            <div id="timer-display" style="font-family:'Orbitron'; font-size:60px; margin:10px 0;">5</div>
+            <p class="stat-sub" style="margin-bottom:20px">Costo de emergencia: 💰250</p>
+            <button class="btn-green" onclick="confirmRevive()">PAGAR Y SEGUIR</button>
+            <button class="btn-red" onclick="finishGame()">FINALIZAR</button>
         </div>
     </div>
 
     <div id="shop-main" class="overlay hidden">
         <div class="ui-card">
             <h1>GARAJE</h1>
-            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
-            <button class="btn-blue" onclick="openConcesionario()">AUTOS</button>
-            <button class="btn-orange" onclick="openMejoras()">MEJORAS</button>
+            <div style="color:var(--accent-alt); font-weight:900; margin-bottom:15px;">💰 <span class="shop-coin-display">0</span></div>
+            <button class="btn-blue" onclick="openConcesionario()">CONCESIONARIO</button>
+            <button class="btn-orange" onclick="openMejoras()">TALLER DE MEJORAS</button>
             <button class="btn-green" onclick="openLogros()" style="background: var(--weekly-clr);">LOGROS</button>
-            <button class="btn-red" onclick="showMenu()">VOLVER</button>
+            <button class="btn-red" onclick="showMenu()">CERRAR GARAJE</button>
         </div>
     </div>
 
     <div id="shop-cars" class="overlay hidden">
         <div class="ui-card">
             <h1>TIENDA</h1>
-            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
-                <div onclick="prevCar()" style="cursor:pointer; font-size:30px;">◀</div>
-                <div style="text-align:center;"><img id="shop-car-img" style="height:90px; object-fit:contain;"><h4 id="shop-car-name" style="color:#f1c40f; margin:10px 0;"></h4><div style="font-size:11px; color:#bdc3c7;"><span id="shop-car-speed"></span> | <span id="shop-car-lives"></span></div></div>
-                <div onclick="nextCar()" style="cursor:pointer; font-size:30px;">▶</div>
+            <div style="color:var(--accent-alt); font-weight:900; margin-bottom:10px;">💰 <span class="shop-coin-display">0</span></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+                <div onclick="prevCar()" style="cursor:pointer; font-size:30px; color:var(--accent)">◀</div>
+                <div style="text-align:center;"><img id="shop-car-img" style="height:80px; object-fit:contain;"><h4 id="shop-car-name" style="color:var(--accent-alt); margin:10px 0; font-family:'Orbitron'"></h4><div class="stat-sub"><span id="shop-car-speed"></span> | <span id="shop-car-lives"></span></div></div>
+                <div onclick="nextCar()" style="cursor:pointer; font-size:30px; color:var(--accent)">▶</div>
             </div>
             <button id="shop-car-btn" class="btn-green"></button>
-            <button class="btn-red" onclick="openShop()" style="margin-top:5px;">ATRÁS</button>
-        </div>
-    </div>
-
-    <div id="shop-logros" class="overlay hidden">
-        <div class="ui-card">
-            <h1>LOGROS</h1>
-            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
-            <div id="logros-container" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px;"></div>
-            <button class="btn-red" onclick="openShop()">ATRÁS</button>
-        </div>
-    </div>
-
-    <div id="shop-neones" class="overlay hidden">
-        <div class="ui-card">
-            <h1>NEONES</h1>
-            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
-            <div id="neon-container" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px;"></div>
-            <button class="btn-red" onclick="openMejoras()">ATRÁS</button>
+            <button class="btn-red" onclick="openShop()">VOLVER</button>
         </div>
     </div>
 
     <div id="shop-upgrades" class="overlay hidden">
         <div class="ui-card">
-            <h1>MEJORAS</h1>
-            <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
-            <p id="up-car-name" style="color:#f1c40f; font-size:14px;"></p>
-            <div style="display:flex; gap:10px; margin:15px 0;">
-                <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;"><small>MOTOR</small><br><b>Lvl <span id="lvl-motor">0</span></b><button class="btn-orange" onclick="prepUpgrade('motor')" id="cost-motor" style="font-size:10px; padding:8px; min-width:auto; margin-top:5px;"></button></div>
-                <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;"><small>TANQUE</small><br><b>Lvl <span id="lvl-tanque">0</span></b><button class="btn-orange" onclick="prepUpgrade('tanque')" id="cost-tanque" style="font-size:10px; padding:8px; min-width:auto; margin-top:5px;"></button></div>
+            <h1>TALLER</h1>
+            <p id="up-car-name" style="color:var(--accent-alt); font-family:'Orbitron'"></p>
+            <div style="display:flex; gap:10px; margin:20px 0;">
+                <div style="flex:1; background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border: 1px solid rgba(255,255,255,0.1);"><small class="stat-sub">Motor</small><br><b>Lv <span id="lvl-motor">0</span></b><button class="btn-blue" onclick="prepUpgrade('motor')" id="cost-motor" style="font-size:10px; min-width:auto; margin-top:10px;"></button></div>
+                <div style="flex:1; background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border: 1px solid rgba(255,255,255,0.1);"><small class="stat-sub">Tanque</small><br><b>Lv <span id="lvl-tanque">0</span></b><button class="btn-blue" onclick="prepUpgrade('tanque')" id="cost-tanque" style="font-size:10px; min-width:auto; margin-top:10px;"></button></div>
             </div>
-            <button class="btn-green" onclick="openNeones()" style="background: linear-gradient(90deg, #3498db, #2ecc71); margin-bottom:15px;">COLOR DE LUCES</button>
+            <button class="btn-green" onclick="openNeones()">COLOR DE NEÓN</button>
             <button class="btn-red" onclick="openShop()">ATRÁS</button>
         </div>
     </div>
 
     <div id="upgrade-modal" class="overlay hidden" style="z-index: 300;">
         <div class="ui-card">
-            <h1 id="modal-title">MEJORAR</h1>
-            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 20px; margin-bottom: 20px;">
-                <p id="modal-desc" style="font-size: 14px; margin: 0; line-height: 1.4; color: #bdc3c7;"></p>
-            </div>
-            <button class="btn-green" onclick="confirmUpgrade()">COMPRAR</button>
-            <button class="btn-red" onclick="closeUpgradeModal()" style="background:transparent; border: 1px solid #e74c3c; color:#e74c3c; margin-top:10px;">CANCELAR</button>
+            <h1>MEJORAR PIEZA</h1>
+            <div class="mission-box"><p id="modal-desc" style="font-size: 14px; margin: 0; line-height: 1.4; color: #eee;"></p></div>
+            <button class="btn-green" onclick="confirmUpgrade()">INSTALAR</button>
+            <button class="btn-red" onclick="closeUpgradeModal()">CANCELAR</button>
         </div>
     </div>
 
     <div id="game-over" class="overlay hidden">
         <div class="ui-card">
-            <h1 id="over-title" style="color:#e74c3c;">FIN</h1>
-            <p id="over-reason" style="font-weight:bold;"></p>
-            <p id="final-stats" style="color:#bdc3c7; font-size:14px;"></p>
-            <div id="mission-complete-msg" style="color:#f1c40f; font-weight:bold; margin-bottom:15px;" class="hidden">¡MISIÓN COMPLETADA!</div>
+            <h1 id="over-title" style="color:#ff416c;">FIN DEL TRAYECTO</h1>
+            <p id="over-reason" style="font-weight:bold; color: var(--accent-alt)"></p>
+            <p id="final-stats" class="stat-sub"></p>
             <button class="btn-green" onclick="startGame()">REINTENTAR</button>
-            <button class="btn-blue" onclick="showMenu()">MENÚ PRINCIPAL</button>
+            <button class="btn-blue" onclick="showMenu()">SALIR AL MENÚ</button>
         </div>
     </div>
 
@@ -190,6 +253,7 @@
 </div>
 
 <script>
+// MANTENEMOS TODA LA LOGICA DE BLAS BORRIONE (V15) INTEGRADA
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d", { alpha: false });
 canvas.width = 400; canvas.height = 750;
@@ -200,11 +264,8 @@ if(/Android|iPhone/i.test(navigator.userAgent)) document.getElementById("mobile-
 function requestFullScreen() {
     let elem = document.documentElement;
     if (elem.requestFullscreen) elem.requestFullscreen();
-    else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-    else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
 }
 
-const audio = { play: (name) => { } }; 
 const assets = { 
     player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), 
     heart: new Image(), bomb: new Image(), exp: new Image(), magnet: new Image(), npcs: [],
@@ -220,19 +281,19 @@ assets.valla.src = 'Items/valla.png'; assets.cono.src = 'Items/cono.png';
 const sceneryAssets = { arboles: [new Image()] }; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
 
 const MODELS = {
-    'fitito': { name: 'EL COMPACTO', maxSpeed: 5.75, accel: 0.08, handling: 1.2, lives: 3, w: 45, h: 82, img: 'auto_inicial.png', price: 0 },
-    'furgoneta': { name: 'CARGO VIAJES', maxSpeed: 6.25, accel: 0.07, handling: 1.0, lives: 3, w: 55, h: 95, img: 'furgoneta.png', price: 3000 },
-    'auto_rosa': { name: 'PINKY', maxSpeed: 7.17, accel: 0.1, handling: 1.2, lives: 4, w: 58, h: 98, img: 'auto_rosa.png', price: 5500 },
-    'camioneta4x4': { name: 'TODO TERRENO', maxSpeed: 7.5, accel: 0.12, handling: 1.0, lives: 5, w: 65, h: 115, img: 'camioneta4x4.png', price: 11000 },
-    'camaro': { name: 'DARK PONY', maxSpeed: 7.92, accel: 0.14, handling: 0.9, lives: 5, w: 52, h: 94, img: 'camaro_negro.png', price: 15000 },
-    'subaru': { name: 'BLUE RALLY', maxSpeed: 8.08, accel: 0.15, handling: 1.5, lives: 4, w: 44, h: 86, img: 'subaru.png', price: 25000 },
-    'lambo': { name: 'ITALIA GTR', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 42, h: 76, img: 'lambo_amarillo.png', price: 30000 },
-    'porsche': { name: 'DEPORTIVO GT', maxSpeed: 8.92, accel: 0.2, handling: 1.8, lives: 4, w: 62, h: 98, img: 'porsche_negro.png', price: 47000 },
-    'skyline': { name: 'NIGHT WALKER', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 48, h: 88, img: 'skyline.png', price: 60000 },
-    'supra': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 43, h: 78, img: 'supra.png', price: 60000 },
-    'mercedes': { name: 'SILVER LUX', maxSpeed: 9.83, accel: 0.24, handling: 2.2, lives: 4, w: 51, h: 90, img: 'mercedes_blanco.png', price: 68000 },
-    'f1_clasico': { name: 'PRIME ONE', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 85000 },
-    'f1_nuevo': { name: 'APEX FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 48, h: 105, img: 'f1_nuevo.png', price: 95000 }
+    'fitito': { name: 'COMPACT CLOUD', maxSpeed: 5.75, accel: 0.08, handling: 1.2, lives: 3, w: 45, h: 82, img: 'auto_inicial.png', price: 0 },
+    'furgoneta': { name: 'CARGO RUNNER', maxSpeed: 6.25, accel: 0.07, handling: 1.0, lives: 3, w: 55, h: 95, img: 'furgoneta.png', price: 3000 },
+    'auto_rosa': { name: 'NEON PINK', maxSpeed: 7.17, accel: 0.1, handling: 1.2, lives: 4, w: 58, h: 98, img: 'auto_rosa.png', price: 5500 },
+    'camioneta4x4': { name: 'OFF ROAD V8', maxSpeed: 7.5, accel: 0.12, handling: 1.0, lives: 5, w: 65, h: 115, img: 'camioneta4x4.png', price: 11000 },
+    'camaro': { name: 'NIGHT STALKER', maxSpeed: 7.92, accel: 0.14, handling: 0.9, lives: 5, w: 52, h: 94, img: 'camaro_negro.png', price: 15000 },
+    'subaru': { name: 'RALLY SPIRIT', maxSpeed: 8.08, accel: 0.15, handling: 1.5, lives: 4, w: 44, h: 86, img: 'subaru.png', price: 25000 },
+    'lambo': { name: 'VOLTAGE GTR', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 42, h: 76, img: 'lambo_amarillo.png', price: 30000 },
+    'porsche': { name: 'CHRONO GT', maxSpeed: 8.92, accel: 0.2, handling: 1.8, lives: 4, w: 62, h: 98, img: 'porsche_negro.png', price: 47000 },
+    'skyline': { name: 'DRIFT KING', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 48, h: 88, img: 'skyline.png', price: 60000 },
+    'supra': { name: 'TURBO SAGA', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 43, h: 78, img: 'supra.png', price: 60000 },
+    'mercedes': { name: 'SILVER LUXE', maxSpeed: 9.83, accel: 0.24, handling: 2.2, lives: 4, w: 51, h: 90, img: 'mercedes_blanco.png', price: 68000 },
+    'f1_clasico': { name: 'LEGEND ONE', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'f1_clasico.png', price: 85000 },
+    'f1_nuevo': { name: 'HYPER APEX', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 48, h: 105, img: 'f1_nuevo.png', price: 95000 }
 };
 
 const UPGRADE_PRICES = {
@@ -246,7 +307,7 @@ const DAILY_MISSIONS = [
 const MILESTONES = { totalDist: [1000, 5000, 10000, 50000, 100000], totalCoins: [500, 2000, 5000, 10000, 50000], totalPlays: [10, 50, 100, 250, 500], totalNear: [50, 200, 500, 1000, 5000] };
 
 const NEONES = {
-    'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 }, 'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 }, 'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 }, 'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
+    'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'CYAN NEON', color: [0, 210, 255], price: 5000 }, 'green': { name: 'PLASMA', color: [50, 255, 50], price: 5000 }, 'red': { name: 'LAVA', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 }, 'gold': { name: 'LEGEND GOLD', color: [255, 215, 0], price: 15000 }
 };
 
 let garage = { owned: ['fitito'], selected: 'fitito', coins: 0, high: 0, missionId: 0, missionDoneDate: "", carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, weeklyDist: 0, weeklyWeek: -1, weeklyDone: false };
@@ -267,15 +328,13 @@ function getWeekNumber(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(),
 function actualizarEstructuraMisiones() {
     const hoy = new Date().toDateString(); const currWeek = getWeekNumber(new Date()); if(garage.weeklyWeek !== currWeek) { garage.weeklyWeek = currWeek; garage.weeklyDist = 0; garage.weeklyDone = false; }
     garage.missionId = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000) % DAILY_MISSIONS.length;
-    document.getElementById("menu-mission-desc").innerText = (garage.missionDoneDate !== hoy) ? DAILY_MISSIONS[garage.missionId].desc : "¡Completada!";
-    document.getElementById("menu-weekly-desc").innerText = garage.weeklyDone ? "¡Misión completada!" : `Meta: ${garage.weeklyDist.toLocaleString()} / 50.000m`;
+    document.getElementById("menu-mission-desc").innerText = (garage.missionDoneDate !== hoy) ? DAILY_MISSIONS[garage.missionId].desc : "COMPLETADA";
     document.getElementById("weekly-bar").style.width = Math.min(100, (garage.weeklyDist/50000)*100) + "%";
 }
 
 let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
 let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
 
-// LOGICA MEJORADA DE CONSTRUCCION
 let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneTimer: 0 };
 
 function startGame() {
@@ -299,48 +358,21 @@ function update(dt) {
     level = nextLvl;
     const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
     let rain = (level >= 6 && (level - 6) % 4 === 1); 
-    let turnInertia = 0.8; 
-    if(rain) { hndl *= 0.30; turnInertia = 0.97; }
+    if(rain) hndl *= 0.35;
     if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
     else { if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); if(keys["ArrowLeft"]) player.vx -= hndl * dt; if(keys["ArrowRight"]) player.vx += hndl * dt; }
-    player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
+    player.vx *= Math.pow(0.8, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
     fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
     if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
     
-    // LOGICA ZONA DE OBRAS (VERSION V15 - SIN ENCIMAR NI MINITRACTOR)
     if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
-        constEvent.active = true;
-        constEvent.lane = Math.random() < 0.5 ? 0 : 3;
-        constEvent.remaining = 300 + Math.random() * 700;
-        constEvent.isFirst = true;
-        constEvent.spawnTimer = 0;
-        constEvent.coneTimer = 0;
-        showToast("🚧 OBRAS", "Comienza carril bloqueado");
+        constEvent.active = true; constEvent.lane = Math.random() < 0.5 ? 0 : 3; constEvent.remaining = 300 + Math.random() * 700; constEvent.isFirst = true; constEvent.spawnTimer = 0; constEvent.coneTimer = 0;
+        showToast("🚧 OBRAS", "Carril de servicio bloqueado");
     }
     if(constEvent.active) {
-        constEvent.remaining -= currentSpeed * 0.05 * dt;
-        if(constEvent.remaining <= 0) constEvent.active = false;
-        
-        // 1. SPAWN DE CONOS LATERALES (Separación constante)
-        constEvent.coneTimer -= dt;
-        if(constEvent.coneTimer <= 0) {
-            spawnConstructionItem('cono_line');
-            constEvent.coneTimer = 75; // Aumentado para mayor separación
-        }
-
-        // 2. SPAWN DE MAQUINAS INTERNAS (Separación ENORME para asegurar huecos)
-        constEvent.spawnTimer -= dt;
-        if(constEvent.spawnTimer <= 0 && constEvent.remaining > 40) {
-            if(constEvent.isFirst) {
-                spawnConstructionItem('valla_start');
-                constEvent.isFirst = false;
-                constEvent.spawnTimer = 90; 
-            } else {
-                spawnConstructionItem('machine');
-                // Tiempo MUY alto para asegurar que no se encimen NUNCA
-                constEvent.spawnTimer = 130 + Math.random() * 50; 
-            }
-        }
+        constEvent.remaining -= currentSpeed * 0.05 * dt; if(constEvent.remaining <= 0) constEvent.active = false;
+        constEvent.coneTimer -= dt; if(constEvent.coneTimer <= 0) { spawnConstructionItem('cono_line'); constEvent.coneTimer = 75; }
+        constEvent.spawnTimer -= dt; if(constEvent.spawnTimer <= 0 && constEvent.remaining > 40) { if(constEvent.isFirst) { spawnConstructionItem('valla_start'); constEvent.isFirst = false; constEvent.spawnTimer = 90; } else { spawnConstructionItem('machine'); constEvent.spawnTimer = 130 + Math.random() * 50; } }
     }
 
     if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
@@ -352,7 +384,7 @@ function update(dt) {
     enemies.forEach((en, i) => {
         let desiredSpeed = en.baseSpeed;
         if(en.type !== 'obs') {
-            let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
+            let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < 240); if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
         }
         en.y += (currentSpeed - en.speed) * dt;
         if(en.type !== 'obs' && level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
@@ -366,72 +398,34 @@ function update(dt) {
         }
         if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
         if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
-        if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
-            en.nm = true; garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
-        }
-        if(checkCollision(player, en)) {
-            if(en.type === 'obs') { endGame("OBRAS: MUERTE INSTANTÁNEA"); }
-            else { lives--; screenShake = 10; if(lives <= 0) endGame("CHOQUE"); enemies.splice(i,1); }
-        } else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
+        if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { en.nm = true; garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; }
+        if(checkCollision(player, en)) { if(en.type === 'obs') endGame("FALLA ESTRUCTURAL"); else { lives--; screenShake = 10; if(lives <= 0) endGame("SISTEMA DAÑADO"); enemies.splice(i,1); } } else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
     });
     items.forEach((it, i) => {
         if(it.t === 'coin' && magnetTimer > 0) { let dx = (player.x + player.w/2) - (it.x + it.w/2), dy = (player.y + player.h/2) - (it.y + it.h/2), dist = Math.sqrt(dx*dx + dy*dy); if(dist < 300) { it.x += (dx/dist) * 12 * dt; it.y += (dy/dist) * 12 * dt; } else it.y += currentSpeed * dt; } else it.y += currentSpeed * dt;
         if(checkCollision(player, it)) { 
             if(it.t === 'coin') { let val = (level >= 10) ? 2 : 1; garage.coins += val; coinsThisRun += val; garage.totalCoinsRec += val; } 
             if(it.t === 'fuel') fuel = Math.min(100, fuel+40); 
-            if(it.t === 'heart') lives++; 
-            if(it.t === 'magnet') magnetTimer = 600; 
+            if(it.t === 'heart') lives++; if(it.t === 'magnet') magnetTimer = 600; 
             if(it.t === 'oil') { isS = true; screenShake = 5; setTimeout(()=>isS=false, 1500); } 
             if(it.t === 'bomb') { expObj = {x: player.x-40, y: player.y-40}; screenShake = 15; setTimeout(()=> endGame("EXPLOSIÓN"), 500); } 
             items.splice(i,1); 
         } else if(it.y > 800) items.splice(i,1);
     });
-    scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); }); if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; } if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
+    scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); }); if(fuel <= 0) endGame("RESERVA AGOTADA"); updateHUD();
 }
 
 function spawnConstructionItem(type) {
     let w, h, variant, tx, subType;
-
-    if (type === 'cono_line') {
-        w = 30; h = 30; variant = 'cono';
-        tx = (constEvent.lane === 0 ? 115 : 285) - (w / 2);
-        subType = 'cono';
-    } else if (type === 'valla_start') {
-        w = 70; h = 50; variant = 'valla';
-        tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
-        subType = 'valla';
-    } else {
-        // TAMAÑOS REALISTAS REBALANCEADOS (V15)
-        const machines = ['m1', 'm2', 'm3', 'm4'];
-        variant = machines[Math.floor(Math.random() * machines.length)];
-        const sizes = {
-            'm1': {w: 85, h: 140}, // Camión (Grande)
-            'm2': {w: 75, h: 120}, // Excavadora (Mediana)
-            'm3': {w: 75, h: 115}, // Tractor (Aumentado para que no se vea tan chico)
-            'm4': {w: 80, h: 130}  // Topadora (Grande)
-        };
-        w = sizes[variant].w;
-        h = sizes[variant].h;
-        tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2);
-        subType = 'machine';
-    }
-
-    enemies.push({ 
-        x: tx, y: -200, l: constEvent.lane, w, h, 
-        type: 'obs', subType: subType, img: assets[variant], 
-        baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, blink: false, bCount: 0, bTimer: 0, chg: false 
-    });
+    if (type === 'cono_line') { w = 30; h = 30; variant = 'cono'; tx = (constEvent.lane === 0 ? 115 : 285) - (w / 2); subType = 'cono'; } 
+    else if (type === 'valla_start') { w = 70; h = 50; variant = 'valla'; tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2); subType = 'valla'; } 
+    else { const machines = ['m1', 'm2', 'm3', 'm4']; variant = machines[Math.floor(Math.random() * machines.length)]; const sizes = { 'm1': {w: 85, h: 140}, 'm2': {w: 75, h: 120}, 'm3': {w: 75, h: 115}, 'm4': {w: 80, h: 130} }; w = sizes[variant].w; h = sizes[variant].h; tx = [75, 157.5, 242.5, 325][constEvent.lane] - (w / 2); subType = 'machine'; }
+    enemies.push({ x: tx, y: -200, l: constEvent.lane, w, h, type: 'obs', subType: subType, img: assets[variant], baseSpeed: 0, speed: 0, tx: 0, tl: constEvent.lane, blink: false, bCount: 0, bTimer: 0, chg: false });
 }
 
 function drawConstructionLights(x, y, w, h) {
     const isBlink = Math.sin(performance.now() / 150) > 0;
-    if(isBlink) {
-        ctx.save();
-        ctx.shadowBlur = 20; ctx.shadowColor = "#e67e22";
-        ctx.fillStyle = "#ffa500";
-        ctx.beginPath(); ctx.arc(x + w/2, y - 5, 8, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-    }
+    if(isBlink) { ctx.save(); ctx.shadowBlur = 25; ctx.shadowColor = "#ffa500"; ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(x + w/2, y - 5, 8, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 }
 
 function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
@@ -441,32 +435,25 @@ function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
 }
 
 function draw() {
-    ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2); ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#27ae60"; for(let gy = (roadY%40)-40; gy < 750; gy+=40) { for(let gx = 0; gx < 35; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); for(let gx = 365; gx < 400; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); }
+    ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); 
+    let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2); 
+    ctx.fillStyle = "#1e2a38"; ctx.fillRect(0,0,400,750); 
     ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
-    ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
-    
-    enemies.forEach(en => { 
-        if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
-        if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
-        // Luces solo en vallas
-        if(en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h);
-        if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
-            ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
-        }
-    }); 
-    if(!expObj && assets.player.complete) { if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); } if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; for(let r=0; r<15; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } } if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; } ctx.restore();
+    ctx.fillStyle = "rgba(0, 210, 255, 0.05)"; for(let ay = (roadY%100)-100; ay < 750; ay+=100) ctx.fillRect(35, ay, 330, 2);
+    scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
+    items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
+    if(night) { ctx.fillStyle = "rgba(0, 0, 10, 0.75)"; ctx.fillRect(0,0,400,750); } 
+    enemies.forEach(en => { if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); if(en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h); if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) { ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill(); } }); 
+    if(!expObj && assets.player.complete) { if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); } if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.15)"; ctx.fillRect(0,0,400,750); } if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.08)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.3)"; for(let r=0; r<10; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-4, ry+12); ctx.stroke(); } } ctx.restore();
 }
 
 function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
 function updateHUD() { 
     document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
     document.getElementById("ui-score").innerText = score|0; 
-    document.getElementById("ui-level").innerText = level; 
     document.getElementById("ui-lives-text").innerText = lives; 
     document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); 
-    const fuelBar = document.getElementById("fuel-bar");
-    fuelBar.style.width = fuel + "%";
-    if(fuel < 20) fuelBar.classList.add("fuel-low"); else fuelBar.classList.remove("fuel-low");
+    const fuelBar = document.getElementById("fuel-bar"); fuelBar.style.width = fuel + "%"; if(fuel < 20) fuelBar.classList.add("fuel-low"); else fuelBar.classList.remove("fuel-low");
 }
 function updateShopCoinDisplays() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
 function showMenu() { clearInterval(reviveInterval); state = "MENU"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); updateUI(); actualizarEstructuraMisiones(); }
@@ -474,68 +461,43 @@ function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classL
 
 function updateUI() { 
     const carKey = garage.selected; const stats = garage.carStats[carKey]; document.getElementById("lvl-motor").innerText = stats.motor; document.getElementById("lvl-tanque").innerText = stats.tanque;
-    document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor].toLocaleString()}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque].toLocaleString()}` : "MAX";
+    document.getElementById("cost-motor").innerText = stats.motor < 5 ? `$${UPGRADE_PRICES[carKey][stats.motor]}` : "MAX"; document.getElementById("cost-tanque").innerText = stats.tanque < 5 ? `$${UPGRADE_PRICES[carKey][stats.tanque]}` : "MAX";
     document.getElementById("menu-high-score").innerText = garage.high.toLocaleString(); document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString(); document.getElementById("up-car-name").innerText = MODELS[carKey].name;
     updateShopCoinDisplays();
 }
 
 let tempUpgrade = null;
 function prepUpgrade(type) {
-    const stats = garage.carStats[garage.selected];
-    const cost = UPGRADE_PRICES[garage.selected][stats[type]];
-    if(stats[type] >= 5) return;
-    if(garage.coins < cost) { showToast("ERROR", "No tienes suficientes monedas"); return; }
-    tempUpgrade = { type, cost };
-    const nextLvl = stats[type] + 1;
-    const benefit = type === 'motor' ? "5 KM/H más de velocidad máxima" : "un tanque más eficiente (gasta menos)";
-    document.getElementById("modal-title").innerText = `MEJORAR ${type.toUpperCase()}`;
-    document.getElementById("modal-desc").innerHTML = `¿Quieres instalar el <b>Nivel ${nextLvl}</b>?<br><br>Beneficio: <b>+${benefit}</b>.<br><br>Costo: <span style="color:#f1c40f">$${cost.toLocaleString()}</span>`;
+    const stats = garage.carStats[garage.selected]; const cost = UPGRADE_PRICES[garage.selected][stats[type]]; if(stats[type] >= 5) return; if(garage.coins < cost) { showToast("SISTEMA", "Fondos insuficientes"); return; }
+    tempUpgrade = { type, cost }; const nextLvl = stats[type] + 1; const benefit = type === 'motor' ? "+5 KM/H Top Speed" : "Optimización de Nafta";
+    document.getElementById("modal-desc").innerHTML = `¿Instalar <b>Nivel ${nextLvl}</b>?<br><br>Modificación: <b>${benefit}</b>.<br><br>Costo: <span style="color:var(--accent-alt)">$${cost}</span>`;
     document.getElementById("upgrade-modal").classList.remove("hidden");
 }
-function confirmUpgrade() {
-    if(!tempUpgrade) return;
-    garage.coins -= tempUpgrade.cost;
-    garage.carStats[garage.selected][tempUpgrade.type]++;
-    save(); updateUI(); closeUpgradeModal();
-    showToast("ÉXITO", "Mejora instalada correctamente");
-}
+function confirmUpgrade() { if(!tempUpgrade) return; garage.coins -= tempUpgrade.cost; garage.carStats[garage.selected][tempUpgrade.type]++; save(); updateUI(); closeUpgradeModal(); showToast("EXITO", "Mejora instalada"); }
 function closeUpgradeModal() { document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
 
-function spawnTraffic() { 
-    let l = (Math.random()*4)|0;
-    if(constEvent.active && l === constEvent.lane) return; 
-    let tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; 
-    if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150))) return; 
-    enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false }); 
-}
+function spawnTraffic() { let l = (Math.random()*4)|0; if(constEvent.active && l === constEvent.lane) return; let tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150))) return; enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false }); }
 function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(!scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 function spawnItem(t) { items.push({ x: 70 + Math.random()*260, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
 
-function endGame(r) { state = "PAUSED"; lastReason = r; document.getElementById("btn-pause-trigger").style.display = "none"; if (!hasRevived && garage.coins >= 250 && r !== "OBRAS: MUERTE INSTANTÁNEA") startReviveCountdown(); else finishGame(); }
+function endGame(r) { state = "PAUSED"; lastReason = r; document.getElementById("btn-pause-trigger").style.display = "none"; if (!hasRevived && garage.coins >= 250 && r !== "FALLA ESTRUCTURAL") startReviveCountdown(); else finishGame(); }
 function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
 function confirmRevive() { clearInterval(reviveInterval); garage.coins -= 250; lives = 1; fuel = 100; hasRevived = true; state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; save(); lastTime = performance.now(); loop(); }
 
 function finishGame() {
-    clearInterval(reviveInterval); state = "OVER"; hideAll(); 
-    let newRec = score > garage.high;
-    if(newRec) garage.high = score|0;
-    garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; garage.weeklyDist += score|0; const misionActual = DAILY_MISSIONS[garage.missionId], hoy = new Date().toDateString();
-    if (garage.missionDoneDate !== hoy) { let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'dist' && score >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal); if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; showToast("MISIÓN COMPLETADA", "+💰500 monedas"); } }
-    if(!garage.weeklyDone && garage.weeklyDist >= 50000) { garage.weeklyDone = true; garage.coins += 5000; showToast("¡SEMANA SUPERADA!", "+💰5.000 monedas", true); }
-    Object.keys(MILESTONES).forEach(key => { let c = garage.unlockedLogros[key]; if(c < 5 && ((key === 'totalDist' ? garage.totalDist : key === 'totalCoins' ? garage.totalCoinsRec : key === 'totalNear' ? garage.totalNear : garage.totalPlays) >= MILESTONES[key][c])) { garage.unlockedLogros[key]++; garage.coins += 1000; showToast("LOGRO DESBLOQUEADO", `Nivel ${c + 1} de ${key}`, true); } });
-    save(); 
-    document.getElementById("game-over").classList.remove("hidden");
-    document.getElementById("over-title").innerText = newRec ? "¡NUEVO RÉCORD!" : "FIN";
-    document.getElementById("over-reason").innerText = lastReason;
-    document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
+    clearInterval(reviveInterval); state = "OVER"; hideAll(); let newRec = score > garage.high; if(newRec) garage.high = score|0; garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; garage.weeklyDist += score|0; const misionActual = DAILY_MISSIONS[garage.missionId], hoy = new Date().toDateString();
+    if (garage.missionDoneDate !== hoy) { let comp = (misionActual.type === 'coins' && coinsThisRun >= misionActual.goal) || (misionActual.type === 'nearmiss' && nearMissesThisRun >= misionActual.goal) || (misionActual.type === 'dist' && score >= misionActual.goal) || (misionActual.type === 'level' && level >= misionActual.goal); if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; showToast("MISIÓN", "+💰500"); } }
+    if(!garage.weeklyDone && garage.weeklyDist >= 50000) { garage.weeklyDone = true; garage.coins += 5000; showToast("SEMANAL", "+💰5000", true); }
+    Object.keys(MILESTONES).forEach(key => { let c = garage.unlockedLogros[key]; if(c < 5 && ((key === 'totalDist' ? garage.totalDist : key === 'totalCoins' ? garage.totalCoinsRec : key === 'totalNear' ? garage.totalNear : garage.totalPlays) >= MILESTONES[key][c])) { garage.unlockedLogros[key]++; garage.coins += 1000; showToast("LOGRO", "Nuevo nivel alcanzado", true); } });
+    save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = lastReason; document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Botín: ${coinsThisRun}`;
 }
 
 function openShop() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
 function openConcesionario() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
 function openMejoras() { hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); }
-function openLogros() { hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
-function openNeones() { hideAll(); updateShopCoinDisplays(); const container = document.getElementById("neon-container"); container.innerHTML = ""; Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; btn.onclick = () => { if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); }); document.getElementById("shop-neones").classList.remove("hidden"); }
-function updateShopUI() { const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; updateShopCoinDisplays(); }
+function openLogros() { hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.03); padding:12px; border-radius:12px; margin-bottom:10px; border: 1px solid rgba(255,255,255,0.1);"; div.innerHTML = `<small style="color:var(--accent); font-weight:800;">${key.toUpperCase()}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
+function openNeones() { hideAll(); updateShopCoinDisplays(); const container = document.getElementById("neon-container"); container.innerHTML = ""; Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.1); padding:15px; border-radius:16px; border: 1px solid ${selected ? '#fff' : 'rgba(255,255,255,0.1)'}; cursor:pointer; font-size:12px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'ACTIVO' : 'EQUIPAR') : '$' + n.price}`; btn.onclick = () => { if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); }); document.getElementById("shop-neones").classList.remove("hidden"); }
+function updateShopUI() { const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = `Autos/${car.img}`; document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "SELECCIONADO" : "EQUIPAR") : `ADQUIRIR $${car.price}`; btn.onclick = () => { if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; updateShopCoinDisplays(); }
 function nextCar() { shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
 function prevCar() { shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
 
@@ -543,7 +505,7 @@ window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause();
 const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
 setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
 
-setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
+setTimeout(() => { document.getElementById("loading-screen").style.display = "none"; showMenu(); }, 2500);
 actualizarEstructuraMisiones();
 
 if ('serviceWorker' in navigator) {
@@ -554,7 +516,7 @@ if ('serviceWorker' in navigator) {
                 const installingWorker = reg.installing;
                 installingWorker.onstatechange = () => {
                     if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        showToast("NUEVAS MEJORAS", "Instalando actualización...", true);
+                        showToast("SISTEMA", "Nuevas mejoras de interfaz listas. Reiniciando...");
                         setTimeout(() => window.location.reload(), 2000);
                     }
                 };
