@@ -1,10 +1,11 @@
-const CACHE_NAME = 'racing-arcade-v10.2'; // Versión actualizada a v7
+const CACHE_NAME = 'racing-arcade-v11.0-sound'; // Saltamos a la v11 por los sonidos
 
 const assetsToCache = [
   './',
   './index.html',
   './manifest.json',
   './sw.js',
+  // --- ITEMS ---
   './Items/fondo_carga.png',
   './Items/bidon_nafta.png',
   './Items/moneda_pixel.png',
@@ -19,6 +20,7 @@ const assetsToCache = [
   './Items/maquina_4.png',
   './Items/valla.png',
   './Items/cono.png',
+  // --- AUTOS ---
   './Autos/camion_cisterna.png',
   './Autos/auto_inicial.png',
   './Autos/furgoneta.png',
@@ -38,7 +40,19 @@ const assetsToCache = [
   './Autos/npc_taxi.png',
   './Autos/npc_rojo.png',
   './Autos/npc_gris.png',
-  './Entorno/arbol_1.png'
+  // --- ENTORNO ---
+  './Entorno/arbol_1.png',
+  // --- SONIDOS (NUEVO) ---
+  './sonidos/leeme.txt',
+  './sonidos/click.m4a',
+  './sonidos/coin.m4a',
+  './sonidos/crash.m4a',
+  './sonidos/explosion.mp3',
+  './sonidos/game_over.mp3',
+  './sonidos/motor.m4a',
+  './sonidos/music_menu.m4a',
+  './sonidos/music_race.m4a',
+  './sonidos/oil.m4a'
 ];
 
 self.addEventListener('install', event => {
