@@ -1,11 +1,10 @@
-const CACHE_NAME = 'racing-arcade-v22-stable'; // Versión 22: Resurrección
+const CACHE_NAME = 'racing-arcade-v15.6-rescue'; // Versión 20 de rescate
 
 const assetsToCache = [
   './',
   './index.html',
   './manifest.json',
-  './sw.js',
-  // --- ITEMS ---
+  // Items
   './Items/fondo_carga.png',
   './Items/bidon_nafta.png',
   './Items/moneda_pixel.png',
@@ -20,7 +19,7 @@ const assetsToCache = [
   './Items/maquina_4.png',
   './Items/valla.png',
   './Items/cono.png',
-  // --- AUTOS ---
+  // Autos
   './Autos/camion_cisterna.png',
   './Autos/auto_inicial.png',
   './Autos/furgoneta.png',
@@ -40,9 +39,9 @@ const assetsToCache = [
   './Autos/npc_taxi.png',
   './Autos/npc_rojo.png',
   './Autos/npc_gris.png',
-  // --- ENTORNO ---
+  // Entorno
   './Entorno/arbol_1.png',
-  // --- SONIDOS ---
+  // Sonidos
   './sonidos/leeme.txt',
   './sonidos/click.m4a',
   './sonidos/coin.m4a',
@@ -59,12 +58,12 @@ const assetsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting(); // Fuerza instalación inmediata
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return Promise.all(
         assetsToCache.map(url => {
-          return cache.add(url).catch(err => console.warn(`Error cache: ${url}`, err));
+          return cache.add(url).catch(err => console.log('Ignorando:', url));
         })
       );
     })
@@ -82,8 +81,11 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
+// ESTRATEGIA: NETWORK FIRST (Internet primero, Caché después)
+// Esto evita que te quedes pegado en versiones viejas.
 self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request)
+      .catch(() => caches.match(event.request))
   );
 });
