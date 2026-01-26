@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v12-final-mix'; // Subimos versión para forzar actualización
+const CACHE_NAME = 'racing-arcade-v13-near-heart'; // Versión nueva
 
 const assetsToCache = [
   './',
@@ -42,7 +42,7 @@ const assetsToCache = [
   './Autos/npc_gris.png',
   // --- ENTORNO ---
   './Entorno/arbol_1.png',
-  // --- SONIDOS (LISTA HÍBRIDA REAL) ---
+  // --- SONIDOS ---
   './sonidos/leeme.txt',
   './sonidos/click.m4a',
   './sonidos/coin.m4a',
@@ -52,7 +52,9 @@ const assetsToCache = [
   './sonidos/motor.m4a',
   './sonidos/music_menu.m4a',
   './sonidos/music_race.m4a',
-  './sonidos/oil.m4a'
+  './sonidos/oil.m4a',
+  './sonidos/near.mp3',   // NUEVO
+  './sonidos/heart.mp3'   // NUEVO
 ];
 
 self.addEventListener('install', event => {
