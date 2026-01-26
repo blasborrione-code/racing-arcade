@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">v14.0 (Sound Update)</span>
+            <span class="ver-tag">v15.0</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -291,7 +291,7 @@
         else if (name === 'coin') gainNode.gain.value = 0.2;   
         else if (name === 'near') gainNode.gain.value = 0.5; 
         else if (name === 'heart') gainNode.gain.value = 0.6;
-        else if (name === 'fuel') gainNode.gain.value = 0.4; // Volumen de nafta
+        else if (name === 'fuel') gainNode.gain.value = 0.4;
         else gainNode.gain.value = 0.8;                        
 
         source.connect(gainNode);
@@ -663,11 +663,12 @@
 
     function spawnItem(t) {
         let tx;
-        // CORRECCIÓN: Si es nafta, que aparezca EN el carril, no en el medio (anti-trampa)
+        // CORRECCIÓN FINAL: Si es nafta, que aparezca EN el carril, no en el medio (anti-trampa)
         if (t === 'fuel') {
              let lane = Math.floor(Math.random() * 4);
-             let centers = [75, 157.5, 242.5, 325];
-             tx = centers[lane] - 15; // Centrado (ancho 30 / 2 = 15)
+             // Coordenadas corregidas al milímetro
+             let centers = [76.25, 158.75, 241.25, 323.75];    
+             tx = centers[lane] - 15; // Centrado exacto
         } else {
              tx = 70 + Math.random()*260; // Los demás siguen random
         }
@@ -777,5 +778,6 @@
 </script>
 </body>
 </html>
+
 
 
