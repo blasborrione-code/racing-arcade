@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v15.7-rescue'; // Versión 20 de rescate
+const CACHE_NAME = 'racing-arcade-v15.8-rescue'; // Versión 20 de rescate
 
 const assetsToCache = [
   './',
