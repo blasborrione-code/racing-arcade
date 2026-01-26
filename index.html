@@ -861,7 +861,36 @@
 
     setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
     actualizarEstructuraMisiones();
+    // ---------------------------------------------------------
+    // CONTROL DE ACTUALIZACIONES (SERVICE WORKER)
+    // ---------------------------------------------------------
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').then(reg => {
+                
+                // Chequear si hay una actualización esperando
+                reg.onupdatefound = () => {
+                    const installingWorker = reg.installing;
+                    installingWorker.onstatechange = () => {
+                        if (installingWorker.state === 'installed') {
+                            if (navigator.serviceWorker.controller) {
+                                // AQUI OCURRE LA MAGIA: Avisamos y recargamos
+                                showToast("ACTUALIZACIÓN", "Instalando nueva versión...");
+                                setTimeout(() => window.location.reload(), 2000);
+                            }
+                        }
+                    };
+                };
+            }).catch(err => console.log('Error SW:', err));
+        });
+
+        // Seguridad extra: si el SW toma el control, recargar
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+        });
+    }
 </script>
 </body>
 </html>
+
 
