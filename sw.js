@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v11.0-sound'; // Saltamos a la v11 por los sonidos
+const CACHE_NAME = 'racing-arcade-v12-final-mix'; // Subimos versión para forzar actualización
 
 const assetsToCache = [
   './',
@@ -42,7 +42,7 @@ const assetsToCache = [
   './Autos/npc_gris.png',
   // --- ENTORNO ---
   './Entorno/arbol_1.png',
-  // --- SONIDOS (NUEVO) ---
+  // --- SONIDOS (LISTA HÍBRIDA REAL) ---
   './sonidos/leeme.txt',
   './sonidos/click.m4a',
   './sonidos/coin.m4a',
