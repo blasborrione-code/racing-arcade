@@ -241,10 +241,10 @@
         console.error("Error Firebase:", e);
     }
 
-    // --- SISTEMA DE AUDIO (MEZCLA M4A/MP3) ---
+    // --- SISTEMA DE AUDIO (MEZCLA COMPLETA) ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Lista exacta de tus archivos en GitHub
+    // Si tus archivos son .m4a en vez de .mp3, cambialo acá:
     const sonidos = {
         motor: { url: 'sonidos/motor.m4a', buffer: null, source: null },
         music_menu: { url: 'sonidos/music_menu.m4a', buffer: null, source: null },
@@ -254,7 +254,9 @@
         click: { url: 'sonidos/click.m4a', buffer: null },
         oil: { url: 'sonidos/oil.m4a', buffer: null },
         explosion: { url: 'sonidos/explosion.mp3', buffer: null },
-        game_over: { url: 'sonidos/game_over.mp3', buffer: null }
+        game_over: { url: 'sonidos/game_over.mp3', buffer: null },
+        near: { url: 'sonidos/near.mp3', buffer: null },    // <--- NUEVO
+        heart: { url: 'sonidos/heart.mp3', buffer: null }   // <--- NUEVO
     };
 
     async function cargarSonidos() {
@@ -282,11 +284,13 @@
         
         const gainNode = audioCtx.createGain();
         
-        // --- MEZCLA DE VOLUMEN AJUSTADA ---
-        if (name === 'motor') gainNode.gain.value = 0.6;       // Motor más presente
-        else if (name.includes('music')) gainNode.gain.value = 0.25; // Música suave
-        else if (name === 'coin') gainNode.gain.value = 0.2;   // Moneda bajita
-        else gainNode.gain.value = 0.8;                        // Choques fuertes
+        // --- MEZCLA DE VOLUMEN ---
+        if (name === 'motor') gainNode.gain.value = 0.6;       
+        else if (name.includes('music')) gainNode.gain.value = 0.25; 
+        else if (name === 'coin') gainNode.gain.value = 0.2;   
+        else if (name === 'near') gainNode.gain.value = 0.5; // Near miss intermedio
+        else if (name === 'heart') gainNode.gain.value = 0.6; // Heart bonito
+        else gainNode.gain.value = 0.8;                        
 
         source.connect(gainNode);
         gainNode.connect(audioCtx.destination);
@@ -306,13 +310,11 @@
 
     function actualizarMotor(velocidad) {
         if (sonidos.motor.source) {
-            // El motor se vuelve más agudo al acelerar
             let pitch = 0.8 + (velocidad / 25); 
             sonidos.motor.source.playbackRate.value = pitch;
         }
     }
     
-    // Iniciar Audio (Click obligatorio)
     window.addEventListener('click', () => {
         if (audioCtx.state === 'suspended') audioCtx.resume();
         cargarSonidos();
@@ -320,7 +322,6 @@
 
     // ------------------------------------
 
-    // FUNCIONES GLOBALES
     window.loginGoogle = async function() {
         playSound('click');
         if (!auth) return showToast("ERROR", "Fallo conexión Firebase");
@@ -516,7 +517,6 @@
         const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
         state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); 
         
-        // --- SONIDOS AL INICIO ---
         playSound('click'); 
         stopSound('music_menu');
         playSound('music_race', true); 
@@ -531,10 +531,10 @@
         playSound('click');
         if(state === "PAUSED") {
             document.getElementById("pause-screen").classList.remove("hidden"); 
-            stopSound('motor'); // Parar motor en pausa
+            stopSound('motor'); 
         } else { 
             document.getElementById("pause-screen").classList.add("hidden"); 
-            playSound('motor', true); // Volver a arrancar
+            playSound('motor', true); 
             lastTime = performance.now(); loop(); 
         } 
     }
@@ -556,7 +556,6 @@
         fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
         if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
         
-        // --- SONIDO MOTOR ---
         actualizarMotor(currentSpeed);
         
         if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
@@ -614,13 +613,15 @@
             if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
             if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
             if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
-                en.nm = true; garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
+                en.nm = true; 
+                playSound('near'); // <--- SONIDO NEAR MISS
+                garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
             }
             if(checkCollision(player, en)) {
                 if(en.type === 'obs') { 
                     endGame("OBRAS: MUERTE INSTANTÁNEA"); 
                 } else { 
-                    playSound('crash'); // --- SONIDO DE CHOQUE AL PERDER VIDA ---
+                    playSound('crash'); 
                     lives--; 
                     screenShake = 10; 
                     if(lives <= 0) endGame("CHOQUE"); 
@@ -636,7 +637,10 @@
                     let val = (level >= 10) ? 2 : 1; garage.coins += val; coinsThisRun += val; garage.totalCoinsRec += val; 
                 } 
                 if(it.t === 'fuel') fuel = Math.min(100, fuel+40); 
-                if(it.t === 'heart') lives++; 
+                if(it.t === 'heart') {
+                    playSound('heart'); // <--- SONIDO CORAZÓN
+                    lives++; 
+                }
                 if(it.t === 'magnet') magnetTimer = 600; 
                 if(it.t === 'oil') { 
                     playSound('oil');
@@ -734,7 +738,6 @@
         document.getElementById("btn-pause-trigger").style.display = "none"; 
         document.getElementById("menu").classList.remove("hidden"); 
         
-        // --- AUDIO MENÚ ---
         stopSound('music_race');
         stopSound('motor');
         playSound('music_menu', true); 
@@ -856,3 +859,4 @@
 </script>
 </body>
 </html>
+
