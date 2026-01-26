@@ -737,42 +737,13 @@
     }
 
     // ---------------------------------------------------------
-    // CONTROL DE ACTUALIZACIONES AUTOMÁTICO (VERSIÓN AGRESIVA)
+    // CONTROL DE ACTUALIZACIONES SEGURO (SIN BUCLE)
     // ---------------------------------------------------------
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').then(reg => {
-                
-                // CASO 1: Si al entrar ya hay una actualización "esperando" en la puerta
-                if (reg.waiting) {
-                    showToast("ACTUALIZACIÓN", "Cargando nueva versión...");
-                    setTimeout(() => window.location.reload(), 1500);
-                    return;
-                }
-
-                // CASO 2: Si detectamos una actualización nueva mientras estás jugando
-                reg.onupdatefound = () => {
-                    const installingWorker = reg.installing;
-                    installingWorker.onstatechange = () => {
-                        if (installingWorker.state === 'installed') {
-                            if (navigator.serviceWorker.controller) {
-                                // AQUI OCURRE LA MAGIA: Avisamos y recargamos
-                                showToast("ACTUALIZACIÓN", "Instalando nueva versión...");
-                                setTimeout(() => window.location.reload(), 2000);
-                            }
-                        }
-                    };
-                };
-            }).catch(err => console.log('Error SW:', err));
-        });
-
-        // CASO 3: Seguridad extra: si el SW toma el control, recargar
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (!refreshing) {
-                refreshing = true;
-                window.location.reload();
-            }
+                console.log('SW registrado', reg);
+            }).catch(err => console.error('Error SW:', err));
         });
     }
 </script>
