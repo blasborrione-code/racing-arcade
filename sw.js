@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v21-auto'; // Versión 21
+const CACHE_NAME = 'racing-arcade-v22-stable'; // Versión 22: Resurrección
 
 const assetsToCache = [
   './',
@@ -59,8 +59,7 @@ const assetsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  // El "skipWaiting" obliga a que la nueva versión se instale YA, sin esperar a que cierres la pestaña
-  self.skipWaiting();
+  self.skipWaiting(); // Fuerza instalación inmediata
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return Promise.all(
@@ -80,7 +79,7 @@ self.addEventListener('activate', event => {
       );
     })
   );
-  self.clients.claim(); // Toma el control de la página inmediatamente
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {
