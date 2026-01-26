@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v16.1-force-update'; // ¡VERSIÓN 16 PARA FORZAR!
+const CACHE_NAME = 'racing-arcade-v17-safe-mode'; // Versión 17 de emergencia
 
 const assetsToCache = [
   './',
@@ -59,7 +59,7 @@ const assetsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting(); // ESTO ES CLAVE: Obliga a instalarse de una, sin esperar
+  self.skipWaiting(); // Fuerza la instalación inmediata
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return Promise.all(
@@ -79,11 +79,11 @@ self.addEventListener('activate', event => {
       );
     })
   );
-  self.clients.claim(); // Toma el control inmediatamente
+  self.clients.claim(); // Toma control de la página inmediatamente
 });
 
 self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request)) // Intenta RED primero, luego caché (Mejor para desarrollo)
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
