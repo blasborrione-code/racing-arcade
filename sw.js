@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v14.1-fuel'; // Versión actualizada
+const CACHE_NAME = 'racing-arcade-v14.2-fix'; // Subimos a v15 para aplicar los arreglos
 
 const assetsToCache = [
   './',
@@ -55,7 +55,7 @@ const assetsToCache = [
   './sonidos/oil.m4a',
   './sonidos/near.mp3',
   './sonidos/heart.mp3',
-  './sonidos/fuel.m4a'    // NUEVO
+  './sonidos/fuel.m4a'
 ];
 
 self.addEventListener('install', event => {
