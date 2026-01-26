@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">v15.0</span>
+            <span class="ver-tag">v15.0 (Sound Update)</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -241,7 +241,7 @@
         console.error("Error Firebase:", e);
     }
 
-    // --- SISTEMA DE AUDIO ---
+    // --- SISTEMA DE AUDIO (MEZCLA COMPLETA) ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
     // Lista de sonidos (Híbrida m4a/mp3)
@@ -737,18 +737,52 @@
     }
 
     // ---------------------------------------------------------
-    // CONTROL DE ACTUALIZACIONES: MODO SEGURO (SIN BUCLE)
+    // CONTROL DE ACTUALIZACIONES AUTOMÁTICO (SMART & SAFE)
     // ---------------------------------------------------------
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').then(reg => {
-                console.log('Service Worker registrado correctamente (Modo Seguro)');
+                
+                // Función para forzar la actualización de forma segura
+                const forceUpdate = (worker) => {
+                    showToast("ACTUALIZACIÓN", "Instalando nueva versión...");
+                    // Le decimos al SW que tome el control
+                    worker.postMessage({ type: 'SKIP_WAITING' });
+                };
+
+                // Si ya hay uno esperando al cargar
+                if (reg.waiting) {
+                    forceUpdate(reg.waiting);
+                    return;
+                }
+
+                // Si aparece uno nuevo mientras jugamos
+                reg.onupdatefound = () => {
+                    const newWorker = reg.installing;
+                    newWorker.onstatechange = () => {
+                        if (newWorker.state === 'installed') {
+                            if (navigator.serviceWorker.controller) {
+                                forceUpdate(newWorker);
+                            }
+                        }
+                    };
+                };
             }).catch(err => console.log('Error SW:', err));
+        });
+
+        // Solo recargamos cuando la nueva versión YA tomó el control
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+                refreshing = true;
+                window.location.reload();
+            }
         });
     }
 </script>
 </body>
 </html>
+
 
 
 
