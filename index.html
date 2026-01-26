@@ -241,7 +241,7 @@
         console.error("Error Firebase:", e);
     }
 
-    // --- SISTEMA DE AUDIO (MEZCLA COMPLETA) ---
+    // --- SISTEMA DE AUDIO ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
     // Lista de sonidos (Híbrida m4a/mp3)
@@ -737,13 +737,13 @@
     }
 
     // ---------------------------------------------------------
-    // CONTROL DE ACTUALIZACIONES SEGURO (SIN BUCLE)
+    // CONTROL DE ACTUALIZACIONES: MODO SEGURO (SIN BUCLE)
     // ---------------------------------------------------------
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').then(reg => {
-                console.log('SW registrado', reg);
-            }).catch(err => console.error('Error SW:', err));
+                console.log('Service Worker registrado correctamente (Modo Seguro)');
+            }).catch(err => console.log('Error SW:', err));
         });
     }
 </script>
