@@ -79,7 +79,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">v21.0 (Auto-Fix)</span>
+            <span class="ver-tag">v22.0 (Stable)</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -715,42 +715,121 @@
     }
 
     function draw() {
-        ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2); ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#27ae60"; for(let gy = (roadY%40)-40; gy < 750; gy+=40) { for(let gx = 0; gx < 35; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); for(let gx = 365; gx < 400; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); }
-        ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
-        ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
+        ctx.save(); 
+        if (screenShake > 0.1) {
+            ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
+        }
+        
+        let sunset = (level >= 6 && (level - 6) % 4 === 0);
+        let rain = (level >= 6 && (level - 6) % 4 === 1);
+        let night = (level >= 6 && (level - 6) % 4 === 2);
+
+        // Fondo
+        ctx.fillStyle = "#1e8449"; 
+        ctx.fillRect(0,0,400,750); 
+        ctx.fillStyle = "#27ae60"; 
+        
+        // Pasto pixel art
+        for(let gy = (roadY%40)-40; gy < 750; gy+=40) { 
+            for(let gx = 0; gx < 35; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); 
+            for(let gx = 365; gx < 400; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); 
+        }
+        
+        // Asfalto
+        ctx.fillStyle = "#2c3e50"; 
+        ctx.fillRect(35, 0, 330, 750); 
+        
+        // Líneas laterales
+        ctx.fillStyle = "#34495e"; 
+        for(let ay = (roadY%100)-100; ay < 750; ay+=50) { 
+            ctx.fillRect(100, ay, 2, 10); 
+            ctx.fillRect(300, ay+25, 2, 10); 
+        } 
+        
+        // Líneas centrales
+        ctx.fillStyle = "rgba(255,255,255,0.1)"; 
+        for(let i = -150; i < 900; i += 150) { 
+            ctx.fillRect(115, i + (roadY % 150), 2, 50); 
+            ctx.fillRect(200, i + (roadY % 150), 2, 50); 
+            ctx.fillRect(285, i + (roadY % 150), 2, 50); 
+        } 
+        
+        scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
+        items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
+        
+        if(night) { 
+            ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; 
+            ctx.fillRect(0,0,400,750); 
+        } 
         
         enemies.forEach(en => { 
             if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); 
             if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); 
             if(en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h);
             if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
-                ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#ffa500"; 
+                ctx.beginPath(); 
+                ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); 
+                ctx.fill();
             }
         }); 
-        if(!expObj && assets.player.complete) { if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); } if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; for(let r=0; r<15; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } } if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; } ctx.restore();
+        
+        if(!expObj && assets.player.complete) { 
+            if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); 
+            ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
+        } 
+        
+        if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
+        
+        if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } 
+        if(rain) { 
+            ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); 
+            ctx.strokeStyle = "rgba(255,255,255,0.4)"; 
+            for(let r=0; r<15; r++){ 
+                let rx=Math.random()*400, ry=Math.random()*750; 
+                ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); 
+            } 
+        } 
+        if(nmT) { 
+            ctx.fillStyle = "#f1c40f"; 
+            ctx.font = "bold 20px sans-serif"; 
+            ctx.textAlign = "center"; 
+            ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); 
+            ctx.textAlign = "left"; 
+        } 
+        ctx.restore();
     }
 
     // ---------------------------------------------------------
-    // CONTROL DE ACTUALIZACIONES AUTOMÁTICO (SMART & SAFE)
+    // ARREGLO FINAL DE PANTALLA DE CARGA Y ACTUALIZACIONES
     // ---------------------------------------------------------
+    
+    // 1. Borrar SW viejo si existe para evitar conflictos
+    if (window.navigator && navigator.serviceWorker) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+                // NO borramos indiscriminadamente, solo registramos encima
+            }
+        });
+    }
+
+    // 2. Registrar el nuevo SW V22
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').then(reg => {
+                console.log('Service Worker v22 registrado');
                 
-                // Función para forzar la actualización de forma segura
+                // --- DETECCIÓN SEGURA DE ACTUALIZACIÓN ---
                 const forceUpdate = (worker) => {
                     showToast("ACTUALIZACIÓN", "Instalando nueva versión...");
-                    // Le decimos al SW que tome el control
-                    worker.postMessage({ type: 'SKIP_WAITING' });
+                    // No forzamos recarga, dejamos que el SW tome control
                 };
 
-                // Si ya hay uno esperando al cargar
                 if (reg.waiting) {
                     forceUpdate(reg.waiting);
                     return; 
                 }
 
-                // Si aparece uno nuevo mientras jugamos
                 reg.onupdatefound = () => {
                     const newWorker = reg.installing;
                     newWorker.onstatechange = () => {
