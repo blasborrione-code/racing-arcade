@@ -214,13 +214,12 @@
 
 <script type="module">
     // ---------------------------------------------------------
-    // CONFIGURACIÓN DE FIREBASE (CON TUS DATOS REALES)
+    // CONFIGURACIÓN DE FIREBASE
     // ---------------------------------------------------------
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // ESTOS SON LOS DATOS QUE ME PASASTE
     const firebaseConfig = {
       apiKey: "AIzaSyDow-SMA0L_rp-i5wRa7Cm9kwqvv6Qku64",
       authDomain: "racing-arcade.firebaseapp.com",
@@ -242,10 +241,10 @@
         console.error("Error Firebase:", e);
     }
 
-    // --- SISTEMA DE AUDIO (NUEVO) ---
+    // --- SISTEMA DE AUDIO (MEZCLA M4A/MP3) ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Lista exacta de tus archivos en GitHub (Mezcla .m4a y .mp3)
+    // Lista exacta de tus archivos en GitHub
     const sonidos = {
         motor: { url: 'sonidos/motor.m4a', buffer: null, source: null },
         music_menu: { url: 'sonidos/music_menu.m4a', buffer: null, source: null },
@@ -273,7 +272,6 @@
     function playSound(name, loop = false) {
         if (!sonidos[name].buffer) return;
         
-        // Evitar superposición en sonidos loop
         if (loop && sonidos[name].source) {
             try { sonidos[name].source.stop(); } catch(e){}
         }
@@ -284,10 +282,11 @@
         
         const gainNode = audioCtx.createGain();
         
-        // Volúmenes ajustados
-        if (name === 'motor') gainNode.gain.value = 0.4; 
-        else if (name.includes('music')) gainNode.gain.value = 0.5;
-        else gainNode.gain.value = 0.8;
+        // --- MEZCLA DE VOLUMEN AJUSTADA ---
+        if (name === 'motor') gainNode.gain.value = 0.6;       // Motor más presente
+        else if (name.includes('music')) gainNode.gain.value = 0.25; // Música suave
+        else if (name === 'coin') gainNode.gain.value = 0.2;   // Moneda bajita
+        else gainNode.gain.value = 0.8;                        // Choques fuertes
 
         source.connect(gainNode);
         gainNode.connect(audioCtx.destination);
@@ -313,7 +312,7 @@
         }
     }
     
-    // Iniciar el sistema de audio al primer clic (Requerido por Chrome)
+    // Iniciar Audio (Click obligatorio)
     window.addEventListener('click', () => {
         if (audioCtx.state === 'suspended') audioCtx.resume();
         cargarSonidos();
@@ -321,7 +320,7 @@
 
     // ------------------------------------
 
-    // FUNCIONES GLOBALES PARA FIREBASE
+    // FUNCIONES GLOBALES
     window.loginGoogle = async function() {
         playSound('click');
         if (!auth) return showToast("ERROR", "Fallo conexión Firebase");
@@ -360,7 +359,7 @@
             });
             if(rank === 1) list.innerHTML = "Aún no hay récords.";
         } catch (e) {
-            list.innerHTML = "Error al cargar (¿Base de datos creada?).";
+            list.innerHTML = "Error al cargar.";
             console.error(e);
         }
     };
@@ -618,26 +617,33 @@
                 en.nm = true; garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
             }
             if(checkCollision(player, en)) {
-                if(en.type === 'obs') { endGame("OBRAS: MUERTE INSTANTÁNEA"); }
-                else { lives--; screenShake = 10; if(lives <= 0) endGame("CHOQUE"); enemies.splice(i,1); }
+                if(en.type === 'obs') { 
+                    endGame("OBRAS: MUERTE INSTANTÁNEA"); 
+                } else { 
+                    playSound('crash'); // --- SONIDO DE CHOQUE AL PERDER VIDA ---
+                    lives--; 
+                    screenShake = 10; 
+                    if(lives <= 0) endGame("CHOQUE"); 
+                    enemies.splice(i,1); 
+                }
             } else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
         });
         items.forEach((it, i) => {
             if(it.t === 'coin' && magnetTimer > 0) { let dx = (player.x + player.w/2) - (it.x + it.w/2), dy = (player.y + player.h/2) - (it.y + it.h/2), dist = Math.sqrt(dx*dx + dy*dy); if(dist < 300) { it.x += (dx/dist) * 12 * dt; it.y += (dy/dist) * 12 * dt; } else it.y += currentSpeed * dt; } else it.y += currentSpeed * dt;
             if(checkCollision(player, it)) { 
                 if(it.t === 'coin') { 
-                    playSound('coin'); // SONIDO MONEDA
+                    playSound('coin'); 
                     let val = (level >= 10) ? 2 : 1; garage.coins += val; coinsThisRun += val; garage.totalCoinsRec += val; 
                 } 
                 if(it.t === 'fuel') fuel = Math.min(100, fuel+40); 
                 if(it.t === 'heart') lives++; 
                 if(it.t === 'magnet') magnetTimer = 600; 
                 if(it.t === 'oil') { 
-                    playSound('oil'); // SONIDO ACEITE
+                    playSound('oil');
                     isS = true; screenShake = 5; setTimeout(()=>isS=false, 1500); 
                 } 
                 if(it.t === 'bomb') { 
-                    playSound('explosion'); // SONIDO BOMBA
+                    playSound('explosion'); 
                     expObj = {x: player.x-40, y: player.y-40}; screenShake = 15; setTimeout(()=> endGame("EXPLOSIÓN"), 500); 
                 } 
                 items.splice(i,1); 
@@ -731,7 +737,7 @@
         // --- AUDIO MENÚ ---
         stopSound('music_race');
         stopSound('motor');
-        playSound('music_menu', true); // Música de fondo en loop
+        playSound('music_menu', true); 
         
         updateUI(); 
         actualizarEstructuraMisiones(); 
