@@ -1,10 +1,11 @@
-const CACHE_NAME = 'racing-arcade-v20.1-rescue'; // Versión 20 de rescate
+const CACHE_NAME = 'racing-arcade-v21-auto'; // Versión 21
 
 const assetsToCache = [
   './',
   './index.html',
   './manifest.json',
-  // Items
+  './sw.js',
+  // --- ITEMS ---
   './Items/fondo_carga.png',
   './Items/bidon_nafta.png',
   './Items/moneda_pixel.png',
@@ -19,7 +20,7 @@ const assetsToCache = [
   './Items/maquina_4.png',
   './Items/valla.png',
   './Items/cono.png',
-  // Autos
+  // --- AUTOS ---
   './Autos/camion_cisterna.png',
   './Autos/auto_inicial.png',
   './Autos/furgoneta.png',
@@ -39,9 +40,9 @@ const assetsToCache = [
   './Autos/npc_taxi.png',
   './Autos/npc_rojo.png',
   './Autos/npc_gris.png',
-  // Entorno
+  // --- ENTORNO ---
   './Entorno/arbol_1.png',
-  // Sonidos
+  // --- SONIDOS ---
   './sonidos/leeme.txt',
   './sonidos/click.m4a',
   './sonidos/coin.m4a',
@@ -58,12 +59,13 @@ const assetsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  // El "skipWaiting" obliga a que la nueva versión se instale YA, sin esperar a que cierres la pestaña
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return Promise.all(
         assetsToCache.map(url => {
-          return cache.add(url).catch(err => console.log('Ignorando:', url));
+          return cache.add(url).catch(err => console.warn(`Error cache: ${url}`, err));
         })
       );
     })
@@ -78,14 +80,11 @@ self.addEventListener('activate', event => {
       );
     })
   );
-  self.clients.claim();
+  self.clients.claim(); // Toma el control de la página inmediatamente
 });
 
-// ESTRATEGIA: NETWORK FIRST (Internet primero, Caché después)
-// Esto evita que te quedes pegado en versiones viejas.
 self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request)
-      .catch(() => caches.match(event.request))
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
