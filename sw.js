@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v13-near-heart'; // Versión nueva
+const CACHE_NAME = 'racing-arcade-v14-fuel'; // Versión actualizada
 
 const assetsToCache = [
   './',
@@ -53,8 +53,9 @@ const assetsToCache = [
   './sonidos/music_menu.m4a',
   './sonidos/music_race.m4a',
   './sonidos/oil.m4a',
-  './sonidos/near.mp3',   // NUEVO
-  './sonidos/heart.mp3'   // NUEVO
+  './sonidos/near.mp3',
+  './sonidos/heart.mp3',
+  './sonidos/fuel.m4a'    // NUEVO
 ];
 
 self.addEventListener('install', event => {
