@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v17-safe-mode'; // Versión 17 de emergencia
+const CACHE_NAME = 'racing-arcade-v18-auto-fix'; // Versión 18
 
 const assetsToCache = [
   './',
@@ -59,12 +59,12 @@ const assetsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting(); // Fuerza la instalación inmediata
+  // No usamos skipWaiting aquí para evitar conflictos, lo hacemos por mensaje
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return Promise.all(
         assetsToCache.map(url => {
-          return cache.add(url).catch(err => console.warn(`No se pudo cachear: ${url}`, err));
+          return cache.add(url).catch(err => console.warn(`Error cache: ${url}`, err));
         })
       );
     })
@@ -79,11 +79,20 @@ self.addEventListener('activate', event => {
       );
     })
   );
-  self.clients.claim(); // Toma control de la página inmediatamente
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
   );
+});
+
+// ESTO ES LO NUEVO: Escucha la orden para actualizarse sin romper nada
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
