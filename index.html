@@ -244,7 +244,7 @@
     // --- SISTEMA DE AUDIO (MEZCLA COMPLETA) ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Si tus archivos son .m4a en vez de .mp3, cambialo acá:
+    // Lista de sonidos (Híbrida m4a/mp3)
     const sonidos = {
         motor: { url: 'sonidos/motor.m4a', buffer: null, source: null },
         music_menu: { url: 'sonidos/music_menu.m4a', buffer: null, source: null },
@@ -255,8 +255,9 @@
         oil: { url: 'sonidos/oil.m4a', buffer: null },
         explosion: { url: 'sonidos/explosion.mp3', buffer: null },
         game_over: { url: 'sonidos/game_over.mp3', buffer: null },
-        near: { url: 'sonidos/near.mp3', buffer: null },    // <--- NUEVO
-        heart: { url: 'sonidos/heart.mp3', buffer: null }   // <--- NUEVO
+        near: { url: 'sonidos/near.mp3', buffer: null },
+        heart: { url: 'sonidos/heart.mp3', buffer: null },
+        fuel: { url: 'sonidos/fuel.m4a', buffer: null }   // <--- NUEVO
     };
 
     async function cargarSonidos() {
@@ -288,8 +289,9 @@
         if (name === 'motor') gainNode.gain.value = 0.6;       
         else if (name.includes('music')) gainNode.gain.value = 0.25; 
         else if (name === 'coin') gainNode.gain.value = 0.2;   
-        else if (name === 'near') gainNode.gain.value = 0.5; // Near miss intermedio
-        else if (name === 'heart') gainNode.gain.value = 0.6; // Heart bonito
+        else if (name === 'near') gainNode.gain.value = 0.5; 
+        else if (name === 'heart') gainNode.gain.value = 0.6;
+        else if (name === 'fuel') gainNode.gain.value = 0.4; // Volumen de nafta
         else gainNode.gain.value = 0.8;                        
 
         source.connect(gainNode);
@@ -636,9 +638,12 @@
                     playSound('coin'); 
                     let val = (level >= 10) ? 2 : 1; garage.coins += val; coinsThisRun += val; garage.totalCoinsRec += val; 
                 } 
-                if(it.t === 'fuel') fuel = Math.min(100, fuel+40); 
+                if(it.t === 'fuel') {
+                    playSound('fuel'); // <--- SONIDO FUEL
+                    fuel = Math.min(100, fuel+40); 
+                }
                 if(it.t === 'heart') {
-                    playSound('heart'); // <--- SONIDO CORAZÓN
+                    playSound('heart'); 
                     lives++; 
                 }
                 if(it.t === 'magnet') magnetTimer = 600; 
