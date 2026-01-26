@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v16-force-update'; // ¡VERSIÓN 16 PARA FORZAR!
+const CACHE_NAME = 'racing-arcade-v16.1-force-update'; // ¡VERSIÓN 16 PARA FORZAR!
 
 const assetsToCache = [
   './',
