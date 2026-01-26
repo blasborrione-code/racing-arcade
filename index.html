@@ -862,21 +862,28 @@
     setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2500);
     actualizarEstructuraMisiones();
     // ---------------------------------------------------------
-    // CONTROL DE ACTUALIZACIONES (SERVICE WORKER)
+    // CONTROL DE ACTUALIZACIONES AUTOMÁTICO (VERSIÓN AGRESIVA)
     // ---------------------------------------------------------
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').then(reg => {
                 
-                // Chequear si hay una actualización esperando
+                // CASO 1: Si al entrar ya hay una actualización "esperando" en la puerta
+                if (reg.waiting) {
+                    showToast("ACTUALIZACIÓN", "Cargando nueva versión...");
+                    setTimeout(() => window.location.reload(), 1500);
+                    return;
+                }
+
+                // CASO 2: Si detectamos una actualización nueva mientras estás jugando
                 reg.onupdatefound = () => {
                     const installingWorker = reg.installing;
                     installingWorker.onstatechange = () => {
                         if (installingWorker.state === 'installed') {
                             if (navigator.serviceWorker.controller) {
-                                // AQUI OCURRE LA MAGIA: Avisamos y recargamos
+                                // Avisamos y recargamos
                                 showToast("ACTUALIZACIÓN", "Instalando nueva versión...");
-                                setTimeout(() => window.location.reload(), 2000);
+                                setTimeout(() => window.location.reload(), 1500);
                             }
                         }
                     };
@@ -884,13 +891,18 @@
             }).catch(err => console.log('Error SW:', err));
         });
 
-        // Seguridad extra: si el SW toma el control, recargar
+        // CASO 3: Seguridad extra (si el navegador cambia el SW por su cuenta)
+        let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-            window.location.reload();
+            if (!refreshing) {
+                refreshing = true;
+                window.location.reload();
+            }
         });
     }
 </script>
 </body>
 </html>
+
 
 
