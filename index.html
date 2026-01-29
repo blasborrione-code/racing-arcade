@@ -93,7 +93,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">v16.0 (Final)</span>
+            <span class="ver-tag">v17.0 (Sound Toggle)</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -126,6 +126,7 @@
         <div class="ui-card">
             <h1>PAUSA</h1>
             <button class="btn-green" onclick="togglePause()">CONTINUAR</button>
+            <button id="btn-sound" class="btn-orange" onclick="toggleSound()" style="background: #e67e22;">🔊 SONIDO: ON</button>
             <button class="btn-red" onclick="showMenu()">MENÚ</button>
         </div>
     </div>
@@ -263,8 +264,9 @@
         console.error("Error Firebase:", e);
     }
 
-    // --- SISTEMA DE AUDIO (MEZCLA COMPLETA) ---
+    // --- SISTEMA DE AUDIO MEJORADO (CON TOGGLE) ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let soundEnabled = true; // Variable que controla el sonido
     
     // Lista de sonidos (Híbrida m4a/mp3)
     const sonidos = {
@@ -294,7 +296,27 @@
         }
     }
 
+    // FUNCIÓN DEL BOTÓN DE SONIDO
+    window.toggleSound = function() {
+        soundEnabled = !soundEnabled;
+        const btn = document.getElementById("btn-sound");
+        
+        if(soundEnabled) {
+            btn.innerText = "🔊 SONIDO: ON";
+            btn.style.opacity = "1";
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if(state === "MENU") playSound('music_menu', true);
+        } else {
+            btn.innerText = "🔇 SONIDO: OFF";
+            btn.style.opacity = "0.5";
+            stopSound('music_menu');
+            stopSound('music_race');
+            stopSound('motor');
+        }
+    }
+
     function playSound(name, loop = false) {
+        if (!soundEnabled) return; // Si está apagado, no suena nada
         if (!sonidos[name].buffer) return;
         
         if (loop && sonidos[name].source) {
@@ -333,7 +355,8 @@
     }
 
     function actualizarMotor(velocidad) {
-        if (sonidos.motor.source) {
+        // Solo actualizamos si el sonido está habilitado y sonando
+        if (soundEnabled && sonidos.motor.source) {
             let pitch = 0.8 + (velocidad / 25); 
             sonidos.motor.source.playbackRate.value = pitch;
         }
@@ -597,7 +620,7 @@
 
     function update(dt) {
         // --- AUDIO FIX: Si la música no arrancó, forzarla ---
-        if(state === 'PLAYING' && sonidos.music_race.buffer && !sonidos.music_race.source) {
+        if(state === 'PLAYING' && soundEnabled && sonidos.music_race.buffer && !sonidos.music_race.source) {
             playSound('music_race', true);
         }
 
