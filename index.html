@@ -547,6 +547,11 @@
     }
 
     window.closeTutorial = function() {
+        // ACTIVAR AUDIO AQUÍ TAMBIÉN (Para el primer toque)
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        playSound('click'); 
+        playSound('music_menu', true);
+
         document.getElementById('tutorial-overlay').classList.add('hidden');
         localStorage.setItem('racing_tutorial_v1', 'true');
         startGameLogic(); 
@@ -564,6 +569,8 @@
         const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
         state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); 
         
+        // ACTIVAR AUDIO SI NO ESTABA ACTIVO
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         playSound('click'); 
         stopSound('music_menu');
         playSound('music_race', true); 
@@ -681,7 +688,9 @@
             if(checkCollision(player, it)) { 
                 if(it.t === 'coin') { 
                     playSound('coin'); 
-                    let val = (level >= 10) ? 2 : 1; garage.coins += val; coinsThisRun += val; garage.totalCoinsRec += val; 
+                    // MODIFICACIÓN: MONEDAS VALEN SEGÚN NIVEL
+                    let val = level; 
+                    garage.coins += val; coinsThisRun += val; garage.totalCoinsRec += val; 
                 } 
                 if(it.t === 'fuel') {
                     playSound('fuel'); // <--- SONIDO FUEL
