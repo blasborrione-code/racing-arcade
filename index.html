@@ -54,6 +54,20 @@
         .touch-btn { width: 70px; height: 70px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
         .shop-coin-tag { text-align: right; font-size: 14px; color: var(--accent); font-weight: 800; margin-bottom: 10px; margin-top: -10px; }
         .ver-tag { position: absolute; top: 15px; left: 20px; font-size: 10px; color: rgba(255,255,255,0.3); font-weight: 800; }
+
+        /* --- NUEVO: ESTILOS DEL TUTORIAL Y PRIVACIDAD --- */
+        #tutorial-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; pointer-events: auto; cursor: pointer;
+        }
+        .tut-hand { font-size: 40px; animation: bounce 1.5s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+
+        .legal-link {
+            color: #bdc3c7; font-size: 10px; text-decoration: underline; 
+            margin-top: 15px; cursor: pointer; display: block;
+        }
     </style>
 </head>
 <body>
@@ -91,6 +105,8 @@
             <button class="btn-orange" onclick="openRanking()" style="background: #9b59b6;">🏆 RÁNKING MUNDIAL</button>
             <button id="btn-login" class="btn-blue" style="background: #4285F4; margin-top: 10px;" onclick="loginGoogle()">☁️ CONECTAR CON GOOGLE</button>
             <p id="user-status" style="font-size: 10px; color: #bdc3c7; margin-top: 5px;">No conectado</p>
+            
+            <a class="legal-link" onclick="window.open('https://www.google.com', '_blank')">Política de Privacidad</a>
         </div>
     </div>
 
@@ -118,8 +134,8 @@
         <div class="ui-card">
             <h1 style="color:var(--accent);">¿CONTINUAR?</h1>
             <div id="timer-display">5</div>
-            <p style="font-size: 14px; color:#bdc3c7; margin-bottom: 20px;">Costo: 💰250 monedas</p>
-            <button class="btn-green" onclick="confirmRevive()">SÍ (PAGAR)</button>
+            <p style="font-size: 14px; color:#bdc3c7; margin-bottom: 20px;">VER ANUNCIO PARA REVIVIR</p>
+            <button class="btn-green" onclick="confirmRevive()">SÍ (VER VIDEO)</button>
             <button class="btn-red" onclick="finishGame()" style="background:transparent; border:1px solid #e74c3c; color:#e74c3c; margin-top:10px;">NO, FINALIZAR</button>
         </div>
     </div>
@@ -206,6 +222,18 @@
     <canvas id="gameCanvas"></canvas>
 </div>
 
+<div id="tutorial-overlay" class="hidden" onclick="closeTutorial()">
+    <div style="color:white;">
+        <div style="display:flex; justify-content:space-between; width: 300px; margin-bottom:40px;">
+            <div><div class="tut-hand">👈</div><br>IZQUIERDA</div>
+            <div><div class="tut-hand">👉</div><br>DERECHA</div>
+        </div>
+        <p style="font-size:18px; color:#f1c40f; font-weight:bold;">¡ESQUIVA EL TRÁFICO!</p>
+        <p>⛽ Agarra nafta para seguir</p>
+        <p style="margin-top:30px; font-size:12px; color:#bdc3c7;">(Toca la pantalla para empezar)</p>
+    </div>
+</div>
+
 <script type="module">
     // ---------------------------------------------------------
     // CONFIGURACIÓN DE FIREBASE
@@ -280,9 +308,9 @@
         const gainNode = audioCtx.createGain();
         
         // --- MEZCLA DE VOLUMEN ---
-        if (name === 'motor') gainNode.gain.value = 0.6;       
+        if (name === 'motor') gainNode.gain.value = 0.6;        
         else if (name.includes('music')) gainNode.gain.value = 0.25; 
-        else if (name === 'coin') gainNode.gain.value = 0.2;   
+        else if (name === 'coin') gainNode.gain.value = 0.2;    
         else if (name === 'near') gainNode.gain.value = 0.5; 
         else if (name === 'heart') gainNode.gain.value = 0.6;
         else if (name === 'fuel') gainNode.gain.value = 0.4;
@@ -509,7 +537,30 @@
 
     let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
 
+    // --- NUEVO: FUNCIONES DEL TUTORIAL (PASO 3A) ---
+    window.checkTutorial = function() {
+        if (!localStorage.getItem('racing_tutorial_v1')) {
+            document.getElementById('tutorial-overlay').classList.remove('hidden');
+            return true;
+        }
+        return false;
+    }
+
+    window.closeTutorial = function() {
+        document.getElementById('tutorial-overlay').classList.add('hidden');
+        localStorage.setItem('racing_tutorial_v1', 'true');
+        startGameLogic(); 
+    }
+
+    // --- MODIFICADO: STARTGAME CON CHEQUEO DE TUTORIAL (PASO 3B) ---
     window.startGame = function() {
+        requestFullScreen();
+        if (checkTutorial()) return; 
+        startGameLogic();
+    }
+
+    // Antigua StartGame renombrada
+    function startGameLogic() {
         const car = MODELS[garage.selected]; assets.player.src = `Autos/${car.img}`; player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
         state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; lastTime = performance.now(); 
         
@@ -642,7 +693,7 @@
                 }
                 if(it.t === 'magnet') magnetTimer = 600; 
                 if(it.t === 'oil') { 
-                    playSound('oil');
+                    playSound('oil'); 
                     isS = true; screenShake = 5; setTimeout(()=>isS=false, 1500); 
                 } 
                 if(it.t === 'bomb') { 
@@ -813,28 +864,40 @@
         playSound('crash');
         playSound('game_over');
 
-        if (!hasRevived && garage.coins >= 250 && r !== "OBRAS: MUERTE INSTANTÁNEA") startReviveCountdown(); else finishGame(); 
+        if (!hasRevived && garage.coins >= 0 && r !== "OBRAS: MUERTE INSTANTÁNEA") startReviveCountdown(); else finishGame(); 
     }
     function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
     
+    // --- MODIFICADO: FUNCIÓN DE REVIVIR CON SIMULACIÓN DE ANUNCIO (PASO 3C) ---
+    function showRewardAd(onReward) {
+        showToast("ANUNCIO", "Viendo anuncio publicitario...");
+        // Simulamos que el anuncio dura 2 segundos
+        setTimeout(() => {
+            onReward(); // Damos la recompensa
+        }, 2000);
+    }
+
     window.confirmRevive = function() { 
-        clearInterval(reviveInterval); 
-        garage.coins -= 250; 
-        lives = 1; 
-        fuel = 100; 
-        hasRevived = true; 
-        expObj = null; 
-        state = "PLAYING"; 
-        hideAll(); 
-        document.getElementById("btn-pause-trigger").style.display = "flex"; 
-        
-        // Reactivar audio
-        playSound('music_race', true);
-        playSound('motor', true);
-        
-        save(); 
-        lastTime = performance.now(); 
-        loop(); 
+        // Lógica comercial: Mostrar anuncio en vez de cobrar
+        showRewardAd(() => {
+            clearInterval(reviveInterval); 
+            // garage.coins -= 250;  <-- ANTES COBRABA, AHORA ES GRATIS POR VER EL AD
+            lives = 1; 
+            fuel = 100; 
+            hasRevived = true; 
+            expObj = null; 
+            state = "PLAYING"; 
+            hideAll(); 
+            document.getElementById("btn-pause-trigger").style.display = "flex"; 
+            
+            playSound('music_race', true);
+            playSound('motor', true);
+            
+            save(); 
+            lastTime = performance.now(); 
+            loop(); 
+            showToast("¡REVIVIDO!", "Gracias por ver el anuncio");
+        });
     }
 
     window.finishGame = function() {
