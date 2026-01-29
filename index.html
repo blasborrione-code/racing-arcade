@@ -93,7 +93,7 @@
 
     <div id="menu" class="overlay hidden">
         <div class="ui-card">
-            <span class="ver-tag">v15.0 (Sound Update)</span>
+            <span class="ver-tag">v16.0 (Final)</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
             <div class="mission-box"><small style="color:#f1c40f; font-weight:800;">DIARIA</small><p id="menu-mission-desc" style="margin:2px 0; font-size:12px;"></p></div>
@@ -596,6 +596,11 @@
     function loop(t) { if(state !== "PLAYING") return; let dt = (t - lastTime) / 16.66; if(isNaN(dt) || dt > 3) dt = 1; lastTime = t; update(dt); draw(); requestAnimationFrame(loop); }
 
     function update(dt) {
+        // --- AUDIO FIX: Si la música no arrancó, forzarla ---
+        if(state === 'PLAYING' && sonidos.music_race.buffer && !sonidos.music_race.source) {
+            playSound('music_race', true);
+        }
+
         const car = MODELS[garage.selected], stats = garage.carStats[garage.selected]; 
         let nextLvl = (score < 4000) ? Math.floor(score / 500) + 1 : 9 + Math.floor((score - 4000) / 1000);
         if(nextLvl > level) heartSpawnedInLevel = false;
@@ -996,7 +1001,7 @@
     setTimeout(() => {
         document.getElementById("loading-screen").classList.add("hidden");
         showMenu();
-    }, 2500);
+    }, 4000); // 4 segundos para asegurar carga de audio
 
     actualizarEstructuraMisiones();
 </script>
