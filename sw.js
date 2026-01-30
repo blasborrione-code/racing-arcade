@@ -1,11 +1,15 @@
-const CACHE_NAME = 'racing-arcade-v20';
+const CACHE_NAME = 'racing-arcade-v21'; // Subimos la versión
 const assets = [
   './',
   './index.html',
   './manifest.json',
   './Autos/car_compact_retro.png',
+  './Autos/car_muscle_pony.png',   // El nuevo Camaro
+  './Autos/car_rally_blue.png',    // El nuevo Subaru
   './Autos/car_sport_black.png',
   './Autos/car_super_yellow.png',
+  './Autos/car_tuner_night.png',   // El nuevo Skyline
+  './Autos/car_tuner_legend.png',  // El nuevo Supra
   './Autos/car_luxury_white.png',
   './Autos/car_formula_classic.png',
   './Autos/car_formula_modern.png',
@@ -13,10 +17,6 @@ const assets = [
   './Autos/furgoneta.png',
   './Autos/auto_rosa.png',
   './Autos/camioneta4x4.png',
-  './Autos/camaro_negro.png',
-  './Autos/subaru.png',
-  './Autos/skyline.png',
-  './Autos/supra.png',
   './Items/bidon_nafta.png',
   './Items/moneda_pixel.png',
   './Items/charco_aceite.png',
@@ -32,18 +32,15 @@ const assets = [
   './Entorno/arbol_1.png'
 ];
 
-// Instalación y cacheo
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      console.log('Cacheando archivos nuevos...');
       return cache.addAll(assets);
     })
   );
   self.skipWaiting();
 });
 
-// Limpieza de caches viejos
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -54,7 +51,6 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Estrategia de carga
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(response => {
