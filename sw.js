@@ -1,11 +1,22 @@
-const CACHE_NAME = 'racing-arcade-v17.2-rescue'; // Versión 20 de rescate
-
-const assetsToCache = [
+const CACHE_NAME = 'racing-arcade-v20';
+const assets = [
   './',
   './index.html',
   './manifest.json',
-  // Items
-  './Items/fondo_carga.png',
+  './Autos/car_compact_retro.png',
+  './Autos/car_sport_black.png',
+  './Autos/car_super_yellow.png',
+  './Autos/car_luxury_white.png',
+  './Autos/car_formula_classic.png',
+  './Autos/car_formula_modern.png',
+  './Autos/camion_cisterna.png',
+  './Autos/furgoneta.png',
+  './Autos/auto_rosa.png',
+  './Autos/camioneta4x4.png',
+  './Autos/camaro_negro.png',
+  './Autos/subaru.png',
+  './Autos/skyline.png',
+  './Autos/supra.png',
   './Items/bidon_nafta.png',
   './Items/moneda_pixel.png',
   './Items/charco_aceite.png',
@@ -13,63 +24,26 @@ const assetsToCache = [
   './Items/bomba.png',
   './Items/explosion.png',
   './Items/iman_pixel.png',
-  './Items/maquina_1.png',
-  './Items/maquina_2.png',
-  './Items/maquina_3.png',
-  './Items/maquina_4.png',
+  './Items/topadora.png',
+  './Items/pavimentadora.png',
   './Items/valla.png',
   './Items/cono.png',
-  // Autos
-  './Autos/camion_cisterna.png',
-  './Autos/auto_inicial.png',
-  './Autos/furgoneta.png',
-  './Autos/auto_rosa.png',
-  './Autos/camioneta4x4.png',
-  './Autos/camaro_negro.png',
-  './Autos/subaru.png',
-  './Autos/lambo_amarillo.png',
-  './Autos/porsche_negro.png',
-  './Autos/skyline.png',
-  './Autos/supra.png',
-  './Autos/mercedes_blanco.png',
-  './Autos/f1_clasico.png',
-  './Autos/f1_nuevo.png',
-  './Autos/npc_azul.png',
-  './Autos/npc_blanco.png',
-  './Autos/npc_taxi.png',
-  './Autos/npc_rojo.png',
-  './Autos/npc_gris.png',
-  // Entorno
-  './Entorno/arbol_1.png',
-  // Sonidos
-  './sonidos/leeme.txt',
-  './sonidos/click.m4a',
-  './sonidos/coin.m4a',
-  './sonidos/crash.m4a',
-  './sonidos/explosion.mp3',
-  './sonidos/game_over.mp3',
-  './sonidos/motor.m4a',
-  './sonidos/music_menu.m4a',
-  './sonidos/music_race.m4a',
-  './sonidos/oil.m4a',
-  './sonidos/near.mp3',
-  './sonidos/heart.mp3',
-  './sonidos/fuel.m4a'
+  './Items/fondo_carga.png',
+  './Entorno/arbol_1.png'
 ];
 
+// Instalación y cacheo
 self.addEventListener('install', event => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      return Promise.all(
-        assetsToCache.map(url => {
-          return cache.add(url).catch(err => console.log('Ignorando:', url));
-        })
-      );
+      console.log('Cacheando archivos nuevos...');
+      return cache.addAll(assets);
     })
   );
+  self.skipWaiting();
 });
 
+// Limpieza de caches viejos
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -78,14 +52,13 @@ self.addEventListener('activate', event => {
       );
     })
   );
-  self.clients.claim();
 });
 
-// ESTRATEGIA: NETWORK FIRST (Internet primero, Caché después)
-// Esto evita que te quedes pegado en versiones viejas.
+// Estrategia de carga
 self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request)
-      .catch(() => caches.match(event.request))
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
   );
 });
