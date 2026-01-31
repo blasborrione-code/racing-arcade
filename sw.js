@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-arcade-v21'; // Subimos la versión
+const CACHE_NAME = 'racing-arcade-v21.1'; // Subimos la versión
 const assets = [
   './',
   './index.html',
