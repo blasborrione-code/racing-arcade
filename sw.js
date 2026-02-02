@@ -1,9 +1,9 @@
-const CACHE_NAME = 'racing-game-v2.5';
+const CACHE_NAME = 'racing-game-v3'; // Subí a v2.6 para asegurar el cambio
 const urlsToCache = [
   'index.html',
   './',
 
-  // --- IMÁGENES BASE Y ACTUALIZADAS (SIN LA / INICIAL) ---
+  // --- IMÁGENES BASE Y ACTUALIZADAS ---
   'Autos/car_compact_retro.png',
   'Autos/furgoneta.png',
   'Autos/auto_rosa.png',
@@ -91,4 +91,11 @@ self.addEventListener('fetch', event => {
       return response || fetch(event.request);
     })
   );
+});
+
+// ESCUCHAR EL MENSAJE PARA FORZAR LA ACTUALIZACIÓN (AFUERA DEL FETCH)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
