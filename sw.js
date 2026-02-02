@@ -16,7 +16,7 @@ const urlsToCache = [
   '/Autos/car_luxury_white.png',
   '/Autos/car_formula_classic.png',
   '/Autos/car_formula_modern.png',
-  '/Autos/car_rally_blue_v2.png', // <--- TU NUEVO RALLY BLUE
+  '/Autos/car_rally_blue_v2.png', 
 
   // --- VARIACIONES DE COLORES (TU TALLER DE TUNING) ---
   // Compact Retro
