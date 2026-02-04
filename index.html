@@ -888,7 +888,7 @@
     updateUI(); 
     renderColorSelector(); 
 }
-    }
+
     window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
     window.openNeones = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const container = document.getElementById("neon-container"); container.innerHTML = ""; Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; btn.onclick = () => { playSound('click'); if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); }); document.getElementById("shop-neones").classList.remove("hidden"); }
     
@@ -1024,6 +1024,7 @@
 </script>
 </body>
 </html>
+
 
 
 
