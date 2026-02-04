@@ -420,10 +420,6 @@
         });
     }
 
-    async function loadCloudData(user) {
-    const docRef = doc(db, "racing_users", user.uid);
-    const docSnap = await getDoc(docRef);
-
    async function loadCloudData(user) {
     const docRef = doc(db, "racing_users", user.uid);
     const docSnap = await getDoc(docRef);
@@ -1046,6 +1042,7 @@ function forceUpdate(worker) {
 </script>
 </body>
 </html>
+
 
 
 
