@@ -187,6 +187,7 @@
         <div class="ui-card">
             <h1>MEJORAS</h1>
             <div class="shop-coin-tag">💰 <span class="shop-coin-display">0</span></div>
+            <img id="upgrade-car-preview" style="height:80px; object-fit:contain; margin-bottom:10px;">
             <p id="up-car-name" style="color:#f1c40f; font-size:14px;"></p>
             
             <div style="display:flex; gap:10px; margin:15px 0;">
@@ -788,9 +789,50 @@
         document.getElementById("upgrade-modal").classList.remove("hidden");
     }
     window.confirmUpgrade = function() {
-        if(!tempUpgrade) return; playSound('coin'); garage.coins -= tempUpgrade.cost; garage.carStats[garage.selected][tempUpgrade.type]++;
-        save(); updateUI(); closeUpgradeModal(); showToast("ÉXITO", "Mejora instalada correctamente");
+    if(!tempUpgrade) return;
+    
+    // 1. Verificación de fondos
+    if(garage.coins < tempUpgrade.cost) {
+        showToast("ERROR", "No tienes suficientes monedas");
+        closeUpgradeModal();
+        return;
     }
+
+    playSound('coin');
+    garage.coins -= tempUpgrade.cost;
+
+    // 2. Lógica según el tipo de compra
+    if(tempUpgrade.type === 'color') {
+        // Inicializamos la lista de colores si no existe para este auto
+        if (!garage.ownedColors[tempUpgrade.carKey]) {
+            garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
+        }
+        
+        // Agregamos el nuevo color a la colección
+        if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) {
+            garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
+        }
+        
+        // Lo dejamos equipado automáticamente
+        garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
+        
+    } else {
+        // Si no es color, es motor o tanque (lógica original)
+        garage.carStats[garage.selected][tempUpgrade.type]++;
+    }
+
+    // 3. Guardado y refresco de pantalla
+    save();
+    updateUI();
+    closeUpgradeModal();
+    
+    // Refrescamos los circulitos para que desaparezca la bolsa de 💰
+    if (typeof renderColorSelector === 'function') {
+        renderColorSelector();
+    }
+    
+    showToast("ÉXITO", "¡Compra realizada con éxito!");
+}
     window.closeUpgradeModal = function() { playSound('click'); document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
 
     function spawnTraffic() { 
@@ -833,12 +875,19 @@
     window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
     window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
     window.openMejoras = function() { 
-        playSound('click'); 
-        hideAll(); 
-        updateShopCoinDisplays(); 
-        document.getElementById("shop-upgrades").classList.remove("hidden"); 
-        updateUI(); 
-        renderColorSelector(); // <--- Esta línea es la clave
+    playSound('click'); 
+    hideAll(); 
+    updateShopCoinDisplays(); 
+    document.getElementById("shop-upgrades").classList.remove("hidden"); 
+
+    // --- LÓGICA DE VISTA PREVIA ---
+    // Buscamos qué auto tiene puesto Blas y cargamos su imagen actual
+    const carKey = garage.selected;
+    document.getElementById("upgrade-car-preview").src = getCarImg(carKey);
+
+    updateUI(); 
+    renderColorSelector(); 
+}
     }
     window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
     window.openNeones = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const container = document.getElementById("neon-container"); container.innerHTML = ""; Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; btn.onclick = () => { playSound('click'); if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); }); document.getElementById("shop-neones").classList.remove("hidden"); }
@@ -881,16 +930,61 @@
 
     // Dibujar los circulitos de colores en el menú de mejoras
     window.renderColorSelector = function() {
-        const carKey = garage.selected;
-        const car = MODELS[carKey];
-        const container = document.getElementById("color-selector-container");
-        if (!container) return;
-        container.innerHTML = "";
+    const carKey = garage.selected;
+    const car = MODELS[carKey];
+    const container = document.getElementById("color-selector-container");
+    if (!container) return;
+    container.innerHTML = "";
 
-        if(!car.colors || car.colors.length <= 1) {
-            container.innerHTML = "<small style='color:rgba(255,255,255,0.3)'>Sin personalización disponible</small>";
-            return;
-        }
+    if(!car.colors || car.colors.length <= 1) {
+        container.innerHTML = "<small style='color:rgba(255,255,255,0.3)'>Sin personalización disponible</small>";
+        return;
+    }
+
+    car.colors.forEach((col) => {
+        if (!garage.ownedColors[carKey]) garage.ownedColors[carKey] = [car.colors[0]];
+        const isOwned = garage.ownedColors[carKey].includes(col);
+        const isSelected = (garage.selectedColors[carKey] || car.colors[0]) === col;
+        
+        const dot = document.createElement("div");
+        const colorMap = { 'rojo': '#e74c3c', 'azul': '#3498db', 'verde': '#2ecc71', 'amarillo': '#f1c40f', 'negro': '#111', 'blanco': '#fff', 'rosa': '#ff69b4', 'violeta': '#9b59b6', 'gris': '#95a5a6', 'plata': '#bdc3c7', 'naranja': '#e67e22', 'celeste': '#87ceeb' };
+        
+        dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${colorMap[col] || col}; border: 2px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'}; cursor:pointer; position:relative;`;
+        
+        if(!isOwned) dot.innerHTML = "<span style='position:absolute; bottom:-5px; right:-5px; font-size:8px;'>💰</span>";
+
+        dot.onclick = () => {
+            playSound('click');
+            
+            // 1. PRIMERO: Actualizamos la foto para que el jugador vea cómo queda el color
+            const previewImg = (col === car.colors[0]) ? `Autos/${car.img}` : `Autos/car_${carKey}_${col}.png`;
+            const previewElement = document.getElementById("upgrade-car-preview");
+            if(previewElement) previewElement.src = previewImg;
+
+            // 2. SEGUNDO: Vemos si lo tiene o tiene que comprarlo
+            if(isOwned) {
+                garage.selectedColors[carKey] = col;
+                save();
+                renderColorSelector();
+                showToast("PINTURA", "Color equipado");
+            } else {
+                // Preparamos la compra en el modal pero NO ejecutamos el descuento todavía
+                const cost = 1500;
+                tempUpgrade = { 
+                    type: 'color', 
+                    color: col, 
+                    carKey: carKey, 
+                    cost: cost 
+                };
+                
+                document.getElementById("modal-title").innerText = "PINTAR AUTO";
+                document.getElementById("modal-desc").innerHTML = `¿Quieres comprar este color para tu <b>${car.name}</b>?<br><br>Costo: <span style="color:#f1c40f">$${cost.toLocaleString()}</span>`;
+                document.getElementById("upgrade-modal").classList.remove("hidden");
+            }
+        };
+        container.appendChild(dot);
+    });
+}
 
         car.colors.forEach((col) => {
             if (!garage.ownedColors[carKey]) garage.ownedColors[carKey] = [car.colors[0]];
@@ -930,6 +1024,7 @@
 </script>
 </body>
 </html>
+
 
 
 
