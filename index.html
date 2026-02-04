@@ -421,22 +421,44 @@
     }
 
     async function loadCloudData(user) {
-        const docRef = doc(db, "racing_users", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const cloudData = docSnap.data();
-            if (cloudData.totalDist > garage.totalDist) {
-                garage = { ...garage, ...cloudData };
-                saveLocal();
-                showToast("NUBE", "Datos descargados");
-                updateUI();
-            } else {
-                saveToCloud();
-            }
-        } else {
+    const docRef = doc(db, "racing_users", user.uid);
+    const docSnap = await getDoc(docRef);
+
+   async function loadCloudData(user) {
+    const docRef = doc(db, "racing_users", user.uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        let cloudData = docSnap.data();
+
+        // --- FILTRO DE SEGURIDAD LEGAL ---
+        // Si el auto de la nube NO existe en nuestro objeto MODELS actual,
+        // lo reseteamos al auto inicial para evitar errores o rastros legales.
+        if (!MODELS[cloudData.selected]) {
+            console.warn("Auto no reconocido, reseteando a Compacto por seguridad.");
+            cloudData.selected = 'compact_retro';
+        }
+
+        // Limpiamos la lista de autos comprados: solo dejamos los que existen en MODELS
+        if (cloudData.owned) {
+            cloudData.owned = cloudData.owned.filter(carId => MODELS[carId]);
+            // Nos aseguramos que siempre tenga el compacto
+            if (!cloudData.owned.includes('compact_retro')) cloudData.owned.push('compact_retro');
+        }
+
+        // --- SINCRONIZACIÓN SEGURA ---
+        if (cloudData.totalDist > garage.totalDist || (cloudData.coins || 0) > garage.coins) {
+            garage = { ...garage, ...cloudData };
+            saveLocal();
+            updateUI();
+            showToast("NUBE", "Sincronización legal completada");
+        } else if (garage.totalDist > (cloudData.totalDist || 0)) {
             saveToCloud();
         }
+    } else {
+        saveToCloud();
     }
+}
 
     async function saveToCloud() {
         if (!currentUser || !db) return;
@@ -1024,6 +1046,7 @@ function forceUpdate(worker) {
 </script>
 </body>
 </html>
+
 
 
 
