@@ -900,21 +900,43 @@
     const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
     setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
 
-    if (window.navigator && navigator.serviceWorker) { navigator.serviceWorker.getRegistrations().then(function(registrations) { for(let registration of registrations) { registration.unregister(); } }); }
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').then(reg => {
-                const forceUpdate = (worker) => { showToast("ACTUALIZACIÓN", "Instalando nueva versión..."); worker.postMessage({ type: 'SKIP_WAITING' }); };
-                if (reg.waiting) { forceUpdate(reg.waiting); return; }
-                reg.onupdatefound = () => {
-                    const newWorker = reg.installing;
-                    newWorker.onstatechange = () => { if (newWorker.state === 'installed' && navigator.serviceWorker.controller) forceUpdate(newWorker); };
+   // --- SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA PROFESIONAL ---
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            // 1. Si el navegador encuentra un SW nuevo y ya lo descargó
+            if (reg.waiting) {
+                forceUpdate(reg.waiting);
+            }
+
+            // 2. Si lo encuentra mientras el usuario está jugando
+            reg.onupdatefound = () => {
+                const newWorker = reg.installing;
+                newWorker.onstatechange = () => {
+                    // Cuando termine de instalarse, le damos el empujón
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        forceUpdate(newWorker);
+                    }
                 };
-            }).catch(err => console.log('Error SW:', err));
-        });
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => { if (!refreshing) { refreshing = true; window.location.reload(); } });
-    }
+            };
+        }).catch(err => console.log('Error al registrar SW:', err));
+    });
+
+    // 3. El "Refresh" automático: Cuando el nuevo SW se activa, recarga la página
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+        }
+    });
+}
+
+// Función auxiliar para avisar al usuario y activar el cambio
+function forceUpdate(worker) {
+    showToast("ACTUALIZACIÓN", "Instalando mejoras... el juego se reiniciará.");
+    worker.postMessage({ type: 'SKIP_WAITING' });
+}
 
     setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 4000);
     actualizarEstructuraMisiones();
@@ -996,6 +1018,7 @@
 </script>
 </body>
 </html>
+
 
 
 
