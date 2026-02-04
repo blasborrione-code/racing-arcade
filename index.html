@@ -928,7 +928,6 @@
         return `Autos/car_${carId}_${color}.png`;
     }
 
-    // Dibujar los circulitos de colores en el menú de mejoras
     window.renderColorSelector = function() {
     const carKey = garage.selected;
     const car = MODELS[carKey];
@@ -936,39 +935,48 @@
     if (!container) return;
     container.innerHTML = "";
 
+    // Si el auto no tiene colores extras, avisamos
     if(!car.colors || car.colors.length <= 1) {
         container.innerHTML = "<small style='color:rgba(255,255,255,0.3)'>Sin personalización disponible</small>";
         return;
     }
 
     car.colors.forEach((col) => {
+        // Aseguramos que el color base siempre sea "comprado"
         if (!garage.ownedColors[carKey]) garage.ownedColors[carKey] = [car.colors[0]];
+        
         const isOwned = garage.ownedColors[carKey].includes(col);
         const isSelected = (garage.selectedColors[carKey] || car.colors[0]) === col;
         
         const dot = document.createElement("div");
-        const colorMap = { 'rojo': '#e74c3c', 'azul': '#3498db', 'verde': '#2ecc71', 'amarillo': '#f1c40f', 'negro': '#111', 'blanco': '#fff', 'rosa': '#ff69b4', 'violeta': '#9b59b6', 'gris': '#95a5a6', 'plata': '#bdc3c7', 'naranja': '#e67e22', 'celeste': '#87ceeb' };
+        const colorMap = { 
+            'rojo': '#e74c3c', 'azul': '#3498db', 'verde': '#2ecc71', 
+            'amarillo': '#f1c40f', 'negro': '#111', 'blanco': '#fff', 
+            'rosa': '#ff69b4', 'violeta': '#9b59b6', 'gris': '#95a5a6', 
+            'plata': '#bdc3c7', 'naranja': '#e67e22', 'celeste': '#87ceeb' 
+        };
         
         dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${colorMap[col] || col}; border: 2px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'}; cursor:pointer; position:relative;`;
         
+        // Si no lo tiene, ponemos el ícono de la bolsa de dinero
         if(!isOwned) dot.innerHTML = "<span style='position:absolute; bottom:-5px; right:-5px; font-size:8px;'>💰</span>";
 
         dot.onclick = () => {
             playSound('click');
             
-            // 1. PRIMERO: Actualizamos la foto para que el jugador vea cómo queda el color
+            // 1. VISTA PREVIA: Actualizamos la imagen para ver cómo queda
             const previewImg = (col === car.colors[0]) ? `Autos/${car.img}` : `Autos/car_${carKey}_${col}.png`;
             const previewElement = document.getElementById("upgrade-car-preview");
             if(previewElement) previewElement.src = previewImg;
 
-            // 2. SEGUNDO: Vemos si lo tiene o tiene que comprarlo
             if(isOwned) {
+                // Si ya es dueño, se equipa directo
                 garage.selectedColors[carKey] = col;
                 save();
                 renderColorSelector();
                 showToast("PINTURA", "Color equipado");
             } else {
-                // Preparamos la compra en el modal pero NO ejecutamos el descuento todavía
+                // Si NO lo tiene, abrimos el modal de confirmación (SIN COBRAR TODAVÍA)
                 const cost = 1500;
                 tempUpgrade = { 
                     type: 'color', 
@@ -984,45 +992,11 @@
         };
         container.appendChild(dot);
     });
-}
-
-        car.colors.forEach((col) => {
-            if (!garage.ownedColors[carKey]) garage.ownedColors[carKey] = [car.colors[0]];
-            const isOwned = garage.ownedColors[carKey].includes(col);
-            const isSelected = (garage.selectedColors[carKey] || car.colors[0]) === col;
-            
-            const dot = document.createElement("div");
-            // Mapeo de tus colores a códigos CSS
-            const colorMap = { 'rojo': '#e74c3c', 'azul': '#3498db', 'verde': '#2ecc71', 'amarillo': '#f1c40f', 'negro': '#111', 'blanco': '#fff', 'rosa': '#ff69b4', 'violeta': '#9b59b6', 'gris': '#95a5a6', 'plata': '#bdc3c7', 'naranja': '#e67e22', 'celeste': '#87ceeb' };
-            
-            dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${colorMap[col] || col}; border: 2px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'}; cursor:pointer; position:relative;`;
-            
-            if(!isOwned) dot.innerHTML = "<span style='position:absolute; bottom:-5px; right:-5px; font-size:8px;'>💰</span>";
-
-            dot.onclick = () => {
-                playSound('click');
-                if(isOwned) {
-                    garage.selectedColors[carKey] = col;
-                    save();
-                    renderColorSelector();
-                    showToast("PINTURA", "Color aplicado");
-                } else if(garage.coins >= 1500) {
-                    garage.coins -= 1500;
-                    garage.ownedColors[carKey].push(col);
-                    garage.selectedColors[carKey] = col;
-                    save();
-                    renderColorSelector();
-                    updateShopCoinDisplays();
-                    showToast("COMPRA", "¡Auto pintado! -1500💰");
-                } else {
-                    showToast("ERROR", "Faltan monedas (Cuesta 1.500)");
-                }
-            };
-            container.appendChild(dot);
-        });
+};
 </script>
 </body>
 </html>
+
 
 
 
