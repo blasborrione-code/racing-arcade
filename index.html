@@ -634,10 +634,16 @@
         level = nextLvl;
         const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
         let rain = (level >= 6 && (level - 6) % 4 === 1); 
-        let turnInertia = 0.8; 
+        let turnInertia = 0.85; 
         if(rain) { hndl *= 0.30; turnInertia = 0.97; }
         if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
-        else { if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); if(keys["ArrowLeft"]) player.vx -= hndl * dt; if(keys["ArrowRight"]) player.vx += hndl * dt; }
+        else { if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); // --- NUEVA LÓGICA DE MANEJO ADAPTATIVO ---
+        let sensitivity = 1 / (1 + (currentSpeed / 15)); 
+        let adaptiveHandling = hndl * sensitivity;
+
+        if(keys["ArrowLeft"]) player.vx -= adaptiveHandling * dt; 
+        if(keys["ArrowRight"]) player.vx += adaptiveHandling * dt; 
+     }
         player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
         fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
         if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
@@ -1018,6 +1024,7 @@ function forceUpdate(worker) {
 </script>
 </body>
 </html>
+
 
 
 
