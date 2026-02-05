@@ -739,8 +739,20 @@
             if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
             if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
             if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
-                en.nm = true; playSound('near'); garage.coins += 10; nearMissesThisRun++; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
-            }
+    en.nm = true; 
+    playSound('near'); 
+
+    // --- VIBRACIÓN DE "CERCA" ---
+    if (navigator.vibrate) {
+        navigator.vibrate([10, 30, 10]); 
+    }
+
+    garage.coins += 10; 
+    nearMissesThisRun++; 
+    fuel = Math.min(100, fuel + 7.5); 
+    nmT = {y: player.y, t: 40}; 
+    screenShake = 1.5; 
+}
             if(checkCollision(player, en)) {
                 if(en.type === 'obs') endGame("OBRAS: MUERTE INSTANTÁNEA");
                 else { playSound('crash'); lives--; screenShake = 10; if(lives <= 0) endGame("CHOQUE"); enemies.splice(i,1); }
@@ -1159,6 +1171,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
