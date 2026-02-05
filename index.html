@@ -898,10 +898,29 @@
     function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(!scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 
     function endGame(r) { 
-        state = "PAUSED"; lastReason = r; document.getElementById("btn-pause-trigger").style.display = "none"; 
-        stopSound('motor'); stopSound('music_race'); playSound('crash'); playSound('game_over');
-        if (!hasRevived && garage.coins >= 0 && r !== "OBRAS: MUERTE INSTANTÁNEA") startReviveCountdown(); else finishGame(); 
+    state = "PAUSED"; 
+    lastReason = r; 
+    document.getElementById("btn-pause-trigger").style.display = "none"; 
+    
+    // Frenamos sonidos y activamos los de choque
+    stopSound('motor'); 
+    stopSound('music_race'); 
+    playSound('crash'); 
+    playSound('game_over');
+
+    // --- AGREGAR ESTO AQUÍ ---
+    // Patrón: Golpe (100ms), Pausa (50ms), Sacudida final (150ms)
+    if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 150]); 
     }
+    // -------------------------
+
+    if (!hasRevived && garage.coins >= 0 && r !== "OBRAS: MUERTE INSTANTÁNEA") {
+        startReviveCountdown(); 
+    } else {
+        finishGame(); 
+    }
+}
     function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
     function showRewardAd(onReward) { showToast("ANUNCIO", "Viendo anuncio publicitario..."); setTimeout(() => { onReward(); }, 2000); }
 
@@ -1129,6 +1148,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
