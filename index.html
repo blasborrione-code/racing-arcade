@@ -1039,9 +1039,49 @@ function forceUpdate(worker) {
         container.appendChild(dot);
     });
 };
+    // --- PUENTE DE SEGURIDAD (Conectamos los botones por dentro) ---
+
+// 1. Botón para EMPEZAR A CORRER
+const btnCorrer = document.querySelector(".btn-green[onclick*='startGame']");
+if (btnCorrer) {
+    btnCorrer.onclick = null; // Borramos el onclick viejo
+    btnCorrer.addEventListener("click", () => {
+        requestFullScreen();
+        startGame();
+    });
+}
+
+// 2. Botón para abrir el GARAJE
+const btnGaraje = document.querySelector(".btn-blue[onclick*='openShop']");
+if (btnGaraje) {
+    btnGaraje.onclick = null;
+    btnGaraje.addEventListener("click", openShop);
+}
+
+// 3. Botón de LOGIN (Google)
+const btnLogin = document.getElementById("btn-login");
+if (btnLogin) {
+    btnLogin.onclick = null;
+    btnLogin.addEventListener("click", loginGoogle);
+}
+
+// 4. Botón de PAUSA
+const btnPausa = document.getElementById("btn-pause-trigger");
+if (btnPausa) {
+    btnPausa.onclick = null;
+    btnPausa.addEventListener("click", togglePause);
+}
+
+// 5. Botón de RÁNKING
+const btnRank = document.querySelector(".btn-orange[onclick*='openRanking']");
+if (btnRank) {
+    btnRank.onclick = null;
+    btnRank.addEventListener("click", openRanking);
+}
 </script>
 </body>
 </html>
+
 
 
 
