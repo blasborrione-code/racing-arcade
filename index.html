@@ -754,7 +754,18 @@
                 if(it.t === 'heart') { playSound('heart'); lives++; }
                 if(it.t === 'magnet') magnetTimer = 600; 
                 if(it.t === 'oil') { playSound('oil'); isS = true; screenShake = 5; setTimeout(()=>isS=false, 1500); } 
-                if(it.t === 'bomb') { playSound('explosion'); expObj = {x: player.x-40, y: player.y-40}; screenShake = 15; setTimeout(()=> endGame("EXPLOSIÓN"), 500); } 
+                if(it.t === 'bomb') { 
+    playSound('explosion'); 
+    expObj = {x: player.x-40, y: player.y-40}; 
+    screenShake = 15; 
+    
+    // Vibración potente de 400ms para la explosión
+    if (navigator.vibrate) {
+        navigator.vibrate(400); 
+    }
+    
+    setTimeout(()=> endGame("EXPLOSIÓN"), 500); 
+} 
                 items.splice(i,1); 
             } else if(it.y > 800) items.splice(i,1);
         });
@@ -1148,6 +1159,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
