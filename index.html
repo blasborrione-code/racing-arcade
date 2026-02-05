@@ -951,7 +951,25 @@
     window.prevCar = function() { playSound('click'); shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
 
     window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause(); keys[e.code] = true; }); window.addEventListener("keyup", e => keys[e.code] = false);
-    const setupT = (id, k) => { const b = document.getElementById(id); b.addEventListener("touchstart", (e) => { e.preventDefault(); keys[k] = true; }); b.addEventListener("touchend", (e) => { e.preventDefault(); keys[k] = false; }); };
+    const setupT = (id, k) => { 
+    const b = document.getElementById(id); 
+    if (!b) return; 
+
+    b.addEventListener("touchstart", (e) => { 
+        e.preventDefault(); 
+        keys[k] = true; 
+        
+        // Efecto hípico de 20ms (toque sutil)
+        if (navigator.vibrate) {
+            navigator.vibrate(20); 
+        }
+    }); 
+
+    b.addEventListener("touchend", (e) => { 
+        e.preventDefault(); 
+        keys[k] = false; 
+    }); 
+};
     setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
 
    // --- SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA PROFESIONAL ---
@@ -1111,6 +1129,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
