@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-game-v2.14'; // Subí a v2.6 para asegurar el cambio
+const CACHE_NAME = 'racing-game-v2.15'; // Subí a v2.6 para asegurar el cambio
 const urlsToCache = [
   'index.html',
   './',
