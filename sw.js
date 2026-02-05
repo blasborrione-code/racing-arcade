@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-game-v2.21'; // Subí a v2.6 para asegurar el cambio
+const CACHE_NAME = 'racing-game-v2.22';
 const urlsToCache = [
   'index.html',
   './',
@@ -63,7 +63,9 @@ const urlsToCache = [
   'Autos/car_formula_modern_verde.png'
 ];
 
+// 1. INSTALACIÓN
 self.addEventListener('install', event => {
+  self.skipWaiting(); // Fuerza al SW nuevo a no esperar
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(urlsToCache);
@@ -71,6 +73,7 @@ self.addEventListener('install', event => {
   );
 });
 
+// 2. ACTIVACIÓN
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -81,10 +84,11 @@ self.addEventListener('activate', event => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim()) // Toma el control de la página inmediatamente
   );
 });
 
+// 3. FETCH
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(response => {
@@ -93,7 +97,7 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// ESCUCHAR EL MENSAJE PARA FORZAR LA ACTUALIZACIÓN (AFUERA DEL FETCH)
+// 4. MENSAJES
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
