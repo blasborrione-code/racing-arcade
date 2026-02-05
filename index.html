@@ -837,9 +837,28 @@
 
     function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
     function updateHUD() { 
-        document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-level").innerText = level; document.getElementById("ui-lives-text").innerText = lives; document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); 
-        const fuelBar = document.getElementById("fuel-bar"); fuelBar.style.width = fuel + "%"; if(fuel < 20) fuelBar.classList.add("fuel-low"); else fuelBar.classList.remove("fuel-low");
+    document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
+    document.getElementById("ui-score").innerText = score|0; 
+    document.getElementById("ui-level").innerText = level; 
+    document.getElementById("ui-lives-text").innerText = lives; 
+    document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); 
+    
+    const fuelBar = document.getElementById("fuel-bar"); 
+    fuelBar.style.width = fuel + "%"; 
+    
+    if(fuel < 20) {
+        fuelBar.classList.add("fuel-low");
+        
+        // --- ALERTA VIBRATORIA ---
+        // Si tiene menos de 15% de nafta, el celu vibra un poquito 
+        // una vez cada segundo para avisar el peligro.
+        if(fuel < 15 && Math.floor(performance.now() / 1000) % 2 === 0) {
+            if (navigator.vibrate) navigator.vibrate(40);
+        }
+    } else {
+        fuelBar.classList.remove("fuel-low");
     }
+}
 
     window.updateShopCoinDisplays = function() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
     window.showMenu = function() { 
@@ -1171,6 +1190,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
