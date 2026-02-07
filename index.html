@@ -1169,21 +1169,33 @@ window.prevCar = function() { playSound('click'); shopIndex = (shopIndex - 1 + O
 };
     setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
 
-// --- REGISTRO DE SERVICE WORKER CON AUTO-REFRESH ---
+// --- REGISTRO DE SERVICE WORKER "FLASH" ---
 if ('serviceWorker' in navigator) {
+    let refreshing = false;
+
+    // 1. Detecta cuando el nuevo SW toma el control y recarga al instante
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+    });
+
+    // 2. Registra el Service Worker
     navigator.serviceWorker.register('sw.js').then(reg => {
+        // Si hay una actualización esperando, le avisamos que no espere
+        if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+        
         reg.onupdatefound = () => {
-            const installingWorker = reg.installing;
-            installingWorker.onstatechange = () => {
-                // Si la nueva versión se terminó de instalar y ya hay una vieja corriendo
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    console.log("Nueva versión detectada. Actualizando juego...");
-                    // El "F5" mágico
-                    window.location.reload();
+            const newWorker = reg.installing;
+            newWorker.onstatechange = () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
                 }
             };
         };
-    }).catch(err => console.error('Error al registrar el Service Worker:', err));
+    }).catch(err => console.error('Error de registro:', err));
 }
 
     setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 4000);
@@ -1305,6 +1317,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
