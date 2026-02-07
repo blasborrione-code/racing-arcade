@@ -856,17 +856,24 @@
         scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
         items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
         if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
-       enemies.forEach(en => {
-    ctx.save(); // 1. Guardamos el estado actual (todo derecho)
+      enemies.forEach(en => {
+    ctx.save(); // 1. "Congelamos" el estado para que cada objeto sea independiente
 
     if (en.hit) {
-        // 2. Si el objeto está volando: lo centramos, giramos y dibujamos
+        // --- EFECTO FÍSICO 3D (Vuelo + Giro + Alejamiento) ---
+        // Nos movemos al centro del objeto para que rote bien
         ctx.translate(en.x + en.w / 2, en.y + en.h / 2);
         ctx.rotate(en.rotation);
-        // Dibujamos desplazado a la mitad de su tamaño para que rote sobre su centro
+
+        // Calculamos el factor de escala: 
+        // A medida que 'y' aumenta (baja en pantalla), el factor baja de 1 hacia 0.1
+        let scaleFactor = Math.max(0.1, 1 - (en.y - 550) * 0.003); 
+        ctx.scale(scaleFactor, scaleFactor);
+
+        // Dibujamos centrado (usando la mitad del ancho/alto en negativo)
         ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h);
     } else {
-        // 3. Si NO fue chocado: dibujo normal con todas tus luces y efectos
+        // --- DIBUJO NORMAL (Cuando no ha sido chocado) ---
         if (en.type !== 'obs' && (sunset || rain || night)) {
             drawProHeadlights(en.x, en.y, en.w, en.h, false, night);
         }
@@ -888,8 +895,8 @@
         }
     }
 
-    ctx.restore(); // 4. Restauramos el estado (volvemos a poner el papel derecho)
-}); 
+    ctx.restore(); // 4. "Descongelamos" y volvemos a poner el papel derecho
+});
         if(!expObj && assets.player.complete) { if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); } 
         if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
         if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } 
@@ -1298,6 +1305,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
