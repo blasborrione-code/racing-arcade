@@ -887,6 +887,7 @@
    window.confirmUpgrade = function() {
     if(!tempUpgrade) return;
     
+    // 1. Verificación de fondos
     if(garage.coins < tempUpgrade.cost) {
         showToast("ERROR", "No tienes suficientes monedas");
         closeUpgradeModal();
@@ -896,23 +897,31 @@
     playSound('coin');
     garage.coins -= tempUpgrade.cost;
 
+    // 2. El "Cajero": Decide qué entregarte según lo que compraste
     if(tempUpgrade.type === 'color') {
         if (!garage.ownedColors[tempUpgrade.carKey]) garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
         if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
         garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
         
     } else if (tempUpgrade.type === 'neon') {
-        // --- LÓGICA NUEVA PARA NEONES ---
-        if (!garage.neonOwned.includes(tempUpgrade.key)) {
-            garage.neonOwned.push(tempUpgrade.key);
-        }
+        if (!garage.neonOwned.includes(tempUpgrade.key)) garage.neonOwned.push(tempUpgrade.key);
         garage.selectedNeon = tempUpgrade.key;
-        openNeones(); // Refresca la lista para que diga "EQUIPADO"
+        openNeones(); 
+        
+    } else if (tempUpgrade.type === 'car') {
+        // --- ESTO ES LO QUE TE FALTABA PARA LOS AUTOS ---
+        if (!garage.owned.includes(tempUpgrade.key)) {
+            garage.owned.push(tempUpgrade.key);
+        }
+        garage.selected = tempUpgrade.key;
+        updateShopUI(); // Para que el botón cambie a "EQUIPADO"
         
     } else {
+        // Mejoras de Motor o Tanque
         garage.carStats[garage.selected][tempUpgrade.type]++;
     }
 
+    // 3. Finalización: Guardar y cerrar
     save();
     updateUI();
     closeUpgradeModal();
@@ -1029,9 +1038,45 @@
     document.getElementById("shop-neones").classList.remove("hidden"); 
 }
     
-    function updateShopUI() { const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = getCarImg(key); document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; btn.onclick = () => { playSound('click'); if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { playSound('coin'); garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; updateShopCoinDisplays(); }
-    window.nextCar = function() { playSound('click'); shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
-    window.prevCar = function() { playSound('click'); shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
+   function updateShopUI() { 
+    const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; 
+    document.getElementById("shop-car-img").src = getCarImg(key); 
+    document.getElementById("shop-car-name").innerText = car.name; 
+    document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; 
+    document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; 
+    
+    const btn = document.getElementById("shop-car-btn"); 
+    btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; 
+    
+    btn.onclick = () => { 
+        playSound('click'); 
+        if(garage.owned.includes(key)) { 
+            garage.selected = key; 
+            save(); 
+            updateShopUI(); 
+        } else {
+            if(garage.coins < car.price) {
+                showToast("ERROR", "No tienes suficientes monedas");
+                return;
+            }
+            // Aquí preparamos el "paquete" para el cartel de confirmación
+            tempUpgrade = { 
+                type: 'car', 
+                key: key, 
+                cost: car.price, 
+                name: car.name 
+            }; 
+            
+            document.getElementById("modal-title").innerText = "NUEVO VEHÍCULO"; 
+            document.getElementById("modal-desc").innerHTML = `¿Quieres comprar el <b>${car.name}</b> por <span style="color:#f1c40f">$${car.price.toLocaleString()}</span>?<br><br>¡Se añadirá a tu colección permanentemente!`; 
+            document.getElementById("upgrade-modal").classList.remove("hidden"); 
+        }
+    }; 
+    updateShopCoinDisplays(); 
+}
+
+window.nextCar = function() { playSound('click'); shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
+window.prevCar = function() { playSound('click'); shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
 
     window.addEventListener("keydown", e => { if(e.code === "Escape") togglePause(); keys[e.code] = true; }); window.addEventListener("keyup", e => keys[e.code] = false);
     const setupT = (id, k) => { 
@@ -1191,6 +1236,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
