@@ -856,7 +856,40 @@
         scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
         items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
         if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
-        enemies.forEach(en => { if(en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night); if(en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h); if(en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h); if(en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) { ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill(); } }); 
+       enemies.forEach(en => {
+    ctx.save(); // 1. Guardamos el estado actual (todo derecho)
+
+    if (en.hit) {
+        // 2. Si el objeto está volando: lo centramos, giramos y dibujamos
+        ctx.translate(en.x + en.w / 2, en.y + en.h / 2);
+        ctx.rotate(en.rotation);
+        // Dibujamos desplazado a la mitad de su tamaño para que rote sobre su centro
+        ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h);
+    } else {
+        // 3. Si NO fue chocado: dibujo normal con todas tus luces y efectos
+        if (en.type !== 'obs' && (sunset || rain || night)) {
+            drawProHeadlights(en.x, en.y, en.w, en.h, false, night);
+        }
+        
+        if (en.img.complete) {
+            ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
+        }
+        
+        if (en.subType === 'valla') {
+            drawConstructionLights(en.x, en.y, en.w, en.h);
+        }
+        
+        // Luces de giro de los NPCs
+        if (en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
+            ctx.fillStyle = "#ffa500";
+            ctx.beginPath();
+            ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    ctx.restore(); // 4. Restauramos el estado (volvemos a poner el papel derecho)
+}); 
         if(!expObj && assets.player.complete) { if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); } 
         if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
         if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } 
@@ -1265,6 +1298,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
