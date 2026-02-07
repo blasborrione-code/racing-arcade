@@ -884,10 +884,9 @@
         document.getElementById("modal-desc").innerHTML = `¿Quieres instalar el <b>Nivel ${nextLvl}</b>?<br><br>Beneficio: <b>+${benefit}</b>.<br><br>Costo: <span style="color:#f1c40f">$${cost.toLocaleString()}</span>`;
         document.getElementById("upgrade-modal").classList.remove("hidden");
     }
-    window.confirmUpgrade = function() {
+   window.confirmUpgrade = function() {
     if(!tempUpgrade) return;
     
-    // 1. Verificación de fondos
     if(garage.coins < tempUpgrade.cost) {
         showToast("ERROR", "No tienes suficientes monedas");
         closeUpgradeModal();
@@ -897,37 +896,30 @@
     playSound('coin');
     garage.coins -= tempUpgrade.cost;
 
-    // 2. Lógica según el tipo de compra
     if(tempUpgrade.type === 'color') {
-        // Inicializamos la lista de colores si no existe para este auto
-        if (!garage.ownedColors[tempUpgrade.carKey]) {
-            garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
-        }
-        
-        // Agregamos el nuevo color a la colección
-        if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) {
-            garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
-        }
-        
-        // Lo dejamos equipado automáticamente
+        if (!garage.ownedColors[tempUpgrade.carKey]) garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
+        if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
         garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
         
+    } else if (tempUpgrade.type === 'neon') {
+        // --- LÓGICA NUEVA PARA NEONES ---
+        if (!garage.neonOwned.includes(tempUpgrade.key)) {
+            garage.neonOwned.push(tempUpgrade.key);
+        }
+        garage.selectedNeon = tempUpgrade.key;
+        openNeones(); // Refresca la lista para que diga "EQUIPADO"
+        
     } else {
-        // Si no es color, es motor o tanque (lógica original)
         garage.carStats[garage.selected][tempUpgrade.type]++;
     }
 
-    // 3. Guardado y refresco de pantalla
     save();
     updateUI();
     closeUpgradeModal();
     
-    // Refrescamos los circulitos para que desaparezca la bolsa de 💰
-    if (typeof renderColorSelector === 'function') {
-        renderColorSelector();
-    }
+    if (typeof renderColorSelector === 'function') renderColorSelector();
     
-    showToast("ÉXITO", "¡Compra realizada con éxito!");
+    showToast("ÉXITO", "¡Compra realizada!");
 }
     window.closeUpgradeModal = function() { playSound('click'); document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
 
@@ -1005,7 +997,37 @@
 }
 
     window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
-    window.openNeones = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const container = document.getElementById("neon-container"); container.innerHTML = ""; Object.keys(NEONES).forEach(k => { const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; btn.onclick = () => { playSound('click'); if(owned) { garage.selectedNeon = k; } else if(garage.coins >= n.price) { garage.coins -= n.price; garage.neonOwned.push(k); garage.selectedNeon = k; } save(); openNeones(); }; container.appendChild(btn); }); document.getElementById("shop-neones").classList.remove("hidden"); }
+    window.openNeones = function() { 
+    playSound('click'); hideAll(); updateShopCoinDisplays(); 
+    const container = document.getElementById("neon-container"); 
+    container.innerHTML = ""; 
+    Object.keys(NEONES).forEach(k => { 
+        const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); 
+        btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; 
+        btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; 
+        
+        btn.onclick = () => { 
+            playSound('click'); 
+            if(owned) { 
+                garage.selectedNeon = k; 
+                save(); 
+                openNeones(); 
+            } else { 
+                // Si no es dueño, preparamos el cartel de confirmación
+                if(garage.coins < n.price) {
+                    showToast("ERROR", "No tienes suficientes monedas");
+                    return;
+                }
+                tempUpgrade = { type: 'neon', key: k, cost: n.price, name: n.name }; 
+                document.getElementById("modal-title").innerText = "COMPRAR LUZ"; 
+                document.getElementById("modal-desc").innerHTML = `¿Quieres instalar el neón <b>${n.name}</b>?<br><br>Costo: <span style="color:#f1c40f">$${n.price.toLocaleString()}</span>`; 
+                document.getElementById("upgrade-modal").classList.remove("hidden"); 
+            }
+        }; 
+        container.appendChild(btn); 
+    }); 
+    document.getElementById("shop-neones").classList.remove("hidden"); 
+}
     
     function updateShopUI() { const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; document.getElementById("shop-car-img").src = getCarImg(key); document.getElementById("shop-car-name").innerText = car.name; document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; const btn = document.getElementById("shop-car-btn"); btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; btn.onclick = () => { playSound('click'); if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else if(garage.coins >= car.price) { playSound('coin'); garage.coins -= car.price; garage.owned.push(key); garage.selected = key; save(); updateShopUI(); } }; updateShopCoinDisplays(); }
     window.nextCar = function() { playSound('click'); shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
@@ -1169,6 +1191,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
