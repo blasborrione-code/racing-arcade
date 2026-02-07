@@ -753,27 +753,31 @@
     nmT = {y: player.y, t: 40}; 
     screenShake = 1.5; 
 }
-            if(checkCollision(player, en)) {
-    if(en.type === 'obs') {
-        // --- NUEVA LÓGICA DE OBSTÁCULOS ---
-        if(en.subType === 'cono' || en.subType === 'valla') {
-            // Conos y vallas ahora solo sacan una vida y te frenan
+            if (checkCollision(player, en) && !en.hit) { // El !en.hit evita que te saque 100 vidas juntas
+    if (en.type === 'obs') {
+        if (en.subType === 'cono' || en.subType === 'valla') {
             playSound('crash');
             lives--;
             screenShake = 6;
-            currentSpeed *= 0.6; // Frenazo del 40%
-            enemies.splice(i, 1); // Lo borramos para que no te pegue dos veces
-            if(lives <= 0) endGame("CHOQUE EN OBRA");
+            currentSpeed *= 0.6; 
+            
+            // --- EFECTO FÍSICO ---
+            en.hit = true; 
+            // Si el auto está a la derecha del centro del cono, el cono vuela a la izquierda, y viceversa
+            en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; 
+            en.vRot = 0.15; // Qué tan rápido gira
+            en.rotation = 0; // Ángulo inicial
+            
+            if (lives <= 0) endGame("CHOQUE EN OBRA");
         } else {
-            // Máquinas pesadas (topadora/pavimentadora) siguen siendo muerte instantánea
             endGame("OBRAS: MUERTE INSTANTÁNEA");
         }
     } else {
-        // Choque contra autos normales
+        // Autos normales: estos sí los borramos de una para no complicar el tráfico
         playSound('crash');
         lives--;
         screenShake = 10;
-        if(lives <= 0) endGame("CHOQUE");
+        if (lives <= 0) endGame("CHOQUE");
         enemies.splice(i, 1);
     }
 }
@@ -1257,6 +1261,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
