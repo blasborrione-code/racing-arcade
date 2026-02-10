@@ -303,13 +303,18 @@ canvas {
 </div>
 
 <script type="module">
-    // ---------------------------------------------------------
-    // CONFIGURACIÓN DE FIREBASE
-    // ---------------------------------------------------------
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
+   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { 
+    getAuth, 
+    signInWithRedirect, 
+    getRedirectResult, 
+    GoogleAuthProvider, 
+    onAuthStateChanged, 
+    signOut 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { 
+    getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     const firebaseConfig = {
       apiKey: "AIzaSyDow-SMA0L_rp-i5wRa7Cm9kwqvv6Qku64",
       authDomain: "racing-arcade.firebaseapp.com",
@@ -319,16 +324,27 @@ canvas {
       appId: "1:152595295248:web:81bf78341546dcb35e2e95"
     };
 
-    let app, auth, db;
-    let currentUser = null;
+   let app, auth, db;
+let currentUser = null;
 
-    try {
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-    } catch (e) {
-        console.error("Error Firebase:", e);
-    }
+try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+
+    // AGREGÁ ESTO ACÁ: El "recibidor" del login
+    getRedirectResult(auth)
+        .then((result) => {
+            if (result?.user) {
+                showToast("NUBE", "Sesión sincronizada");
+            }
+        }).catch((error) => {
+            console.error("Error al volver de Google:", error);
+        });
+
+} catch (e) {
+    console.error("Error Firebase:", e);
+}
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let soundEnabled = true;
@@ -421,17 +437,36 @@ canvas {
         cargarSonidos();
     }, { once: true });
 
-    window.loginGoogle = async function() {
-        playSound('click');
-        if (!auth) return showToast("ERROR", "Fallo conexión Firebase");
-        const provider = new GoogleAuthProvider();
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (error) {
-            showToast("ERROR LOGIN", error.message);
-        }
-    };
+  window.loginGoogle = async function() {
+    playSound('click');
+    if (!auth) return showToast("ERROR", "Fallo conexión Firebase");
+    
+    const provider = new GoogleAuthProvider();
+    // Esto asegura que siempre te pregunte qué cuenta usar
+    provider.setCustomParameters({ prompt: 'select_account' });
 
+    try {
+        // CAMBIO CLAVE: Usamos Redirect para que no se bloquee en PC
+        await signInWithRedirect(auth, provider);
+    } catch (error) {
+        console.error("Error en login:", error);
+        showToast("ERROR LOGIN", "Reintentando...");
+    }
+};
+    
+    const provider = new GoogleAuthProvider();
+    
+    // Opcional: Esto ayuda a que siempre pida elegir la cuenta
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    try {
+        // Cambiamos Popup por Redirect
+        await signInWithRedirect(auth, provider);
+    } catch (error) {
+        console.error("Error en login:", error);
+        showToast("ERROR LOGIN", "Intenta de nuevo");
+    }
+};
     window.openRanking = async function() {
         playSound('click');
         hideAll();
@@ -1348,6 +1383,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
