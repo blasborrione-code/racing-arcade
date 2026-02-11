@@ -334,27 +334,7 @@ try {
     auth = getAuth(app);
     db = getFirestore(app);
 
-   // --- EL RECIBIDOR ROBUSTO ---
-    getRedirectResult(auth)
-        .then((result) => {
-            if (result?.user) {
-                // 1. Guardamos al usuario en la variable global
-                currentUser = result.user; 
-                
-                // 2. Avisamos que entró
-                showToast("NUBE", "¡Hola, " + currentUser.displayName.split(' ')[0] + "!"); 
-                
-                // 3. MANDATORIO: Cargamos sus datos de Firebase (monedas, autos, etc.)
-                loadCloudData(currentUser); 
-                
-                // 4. Refrescamos el menú para que aparezca su nombre
-                if(typeof updateUI === "function") updateUI(); 
-            }
-        }).catch((error) => {
-            console.error("Error al volver de Google:", error);
-            showToast("ERROR", "No se pudo recuperar la sesión");
-        });
-
+  
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let soundEnabled = true;
     
@@ -1391,6 +1371,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
