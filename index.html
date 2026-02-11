@@ -332,19 +332,26 @@ try {
     auth = getAuth(app);
     db = getFirestore(app);
 
-    // AGREGÁ ESTO ACÁ: El "recibidor" del login
+   // --- EL RECIBIDOR ROBUSTO ---
     getRedirectResult(auth)
         .then((result) => {
             if (result?.user) {
-                showToast("NUBE", "Sesión sincronizada");
+                // 1. Guardamos al usuario en la variable global
+                currentUser = result.user; 
+                
+                // 2. Avisamos que entró
+                showToast("NUBE", "¡Hola, " + currentUser.displayName.split(' ')[0] + "!"); 
+                
+                // 3. MANDATORIO: Cargamos sus datos de Firebase (monedas, autos, etc.)
+                loadCloudData(currentUser); 
+                
+                // 4. Refrescamos el menú para que aparezca su nombre
+                if(typeof updateUI === "function") updateUI(); 
             }
         }).catch((error) => {
             console.error("Error al volver de Google:", error);
+            showToast("ERROR", "No se pudo recuperar la sesión");
         });
-
-} catch (e) {
-    console.error("Error Firebase:", e);
-}
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let soundEnabled = true;
@@ -1233,27 +1240,30 @@ window.prevCar = function() { playSound('click'); shopIndex = (shopIndex - 1 + O
 };
     setupT("t-left", "ArrowLeft"); setupT("t-right", "ArrowRight"); setupT("t-up", "GAS"); setupT("t-brake", "ArrowDown");
 
-// --- REGISTRO DE SERVICE WORKER "FLASH" ---
+// --- REGISTRO DE SERVICE WORKER "ESTILO FORTNITE" ---
 if ('serviceWorker' in navigator) {
     let refreshing = false;
 
-    // 1. Detecta cuando el nuevo SW toma el control y recarga al instante
+    // 1. Cuando el nuevo SW toma el control, reiniciamos la web al instante
     navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
         refreshing = true;
-        window.location.reload();
+        window.location.reload(); 
     });
 
-    // 2. Registra el Service Worker
     navigator.serviceWorker.register('sw.js').then(reg => {
-        // Si hay una actualización esperando, le avisamos que no espere
+        // 2. LA CLAVE: Le pedimos al navegador que busque actualizaciones YA
+        reg.update(); 
+
+        // 3. Si hay algo esperando, le pedimos que no espere y se active
         if (reg.waiting) {
             reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
-        
+
         reg.onupdatefound = () => {
             const newWorker = reg.installing;
             newWorker.onstatechange = () => {
+                // 4. En cuanto se instale la nueva versión, le damos la orden de mando
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                     newWorker.postMessage({ type: 'SKIP_WAITING' });
                 }
@@ -1381,4 +1391,5 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
