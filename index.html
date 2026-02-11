@@ -1388,8 +1388,12 @@ if (btnRank) {
     btnRank.onclick = null;
     btnRank.addEventListener("click", openRanking);
 }
+    } catch (e) {
+        console.error("Error crítico en el motor del juego:", e);
+    }
 </script>
 </body>
 </html>
+
 
 
