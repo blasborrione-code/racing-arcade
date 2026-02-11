@@ -489,25 +489,30 @@ window.openRanking = async function() {
     }
 };
 
-    if (auth) {
+   if (auth) {
         onAuthStateChanged(auth, async (user) => {
             const btn = document.getElementById("btn-login");
             const status = document.getElementById("user-status");
             if (user) {
                 currentUser = user;
-                btn.innerText = "DESCONECTAR";
-                btn.onclick = () => { playSound('click'); signOut(auth); };
-                status.innerText = "Piloto: " + user.displayName;
-                status.style.color = "#2ecc71";
+                if(btn) btn.innerText = "DESCONECTAR";
+                if(btn) btn.onclick = () => { playSound('click'); signOut(auth); };
+                if(status) {
+                    status.innerText = "Piloto: " + user.displayName;
+                    status.style.color = "#2ecc71";
+                }
                 await loadCloudData(user);
             } else {
                 currentUser = null;
-                btn.innerText = "☁️ CONECTAR CON GOOGLE";
-                btn.onclick = window.loginGoogle;
-                status.innerText = "Juego Local (Sin guardar en nube)";
-                status.style.color = "#bdc3c7";
+                if(btn) btn.innerText = "☁️ CONECTAR CON GOOGLE";
+                if(btn) btn.onclick = window.loginGoogle;
+                if(status) {
+                    status.innerText = "Juego Local (Sin guardar en nube)";
+                    status.style.color = "#bdc3c7";
+                }
             }
         });
+    } 
 
    async function loadCloudData(user) {
     const docRef = doc(db, "racing_users", user.uid);
@@ -1376,3 +1381,4 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
