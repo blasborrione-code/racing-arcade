@@ -437,63 +437,57 @@ try {
         cargarSonidos();
     }, { once: true });
 
-  window.loginGoogle = async function() {
+ window.loginGoogle = async function() {
     playSound('click');
     if (!auth) return showToast("ERROR", "Fallo conexión Firebase");
     
     const provider = new GoogleAuthProvider();
-    // Esto asegura que siempre te pregunte qué cuenta usar
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
-        // CAMBIO CLAVE: Usamos Redirect para que no se bloquee en PC
+        // Usamos Redirect para evitar bloqueos en PC y móviles
         await signInWithRedirect(auth, provider);
     } catch (error) {
         console.error("Error en login:", error);
         showToast("ERROR LOGIN", "Reintentando...");
     }
 };
-    
-    const provider = new GoogleAuthProvider();
-    
-    // Opcional: Esto ayuda a que siempre pida elegir la cuenta
-    provider.setCustomParameters({ prompt: 'select_account' });
 
+window.openRanking = async function() {
+    playSound('click');
+    hideAll();
+    document.getElementById("leaderboard-screen").classList.remove("hidden");
+    document.getElementById("my-cloud-high").innerText = garage.high;
+    const list = document.getElementById("leaderboard-list");
+    list.innerHTML = "Cargando...";
+    
+    if (!db) { 
+        list.innerHTML = "Error de conexión"; 
+        return; 
+    }
+    
     try {
-        // Cambiamos Popup por Redirect
-        await signInWithRedirect(auth, provider);
-    } catch (error) {
-        console.error("Error en login:", error);
-        showToast("ERROR LOGIN", "Intenta de nuevo");
+        const q = query(collection(db, "racing_users"), orderBy("high", "desc"), limit(10));
+        const querySnapshot = await getDocs(q);
+        list.innerHTML = "";
+        let rank = 1;
+        
+        querySnapshot.forEach((doc) => {
+            const d = doc.data();
+            const isMe = currentUser && doc.id === currentUser.uid;
+            const row = document.createElement("div");
+            row.style.cssText = `display:flex; justify-content:space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: ${isMe ? '#f1c40f' : 'white'};`;
+            row.innerHTML = `<span>#${rank} ${d.name || "Anónimo"}</span> <b>${d.high}m</b>`;
+            list.appendChild(row);
+            rank++;
+        });
+        
+        if(rank === 1) list.innerHTML = "Aún no hay récords.";
+    } catch (e) {
+        console.error("Error cargando ranking:", e);
+        list.innerHTML = "Error al cargar.";
     }
 };
-    window.openRanking = async function() {
-        playSound('click');
-        hideAll();
-        document.getElementById("leaderboard-screen").classList.remove("hidden");
-        document.getElementById("my-cloud-high").innerText = garage.high;
-        const list = document.getElementById("leaderboard-list");
-        list.innerHTML = "Cargando...";
-        if (!db) { list.innerHTML = "Error de conexión"; return; }
-        try {
-            const q = query(collection(db, "racing_users"), orderBy("high", "desc"), limit(10));
-            const querySnapshot = await getDocs(q);
-            list.innerHTML = "";
-            let rank = 1;
-            querySnapshot.forEach((doc) => {
-                const d = doc.data();
-                const isMe = currentUser && doc.id === currentUser.uid;
-                const row = document.createElement("div");
-                row.style.cssText = `display:flex; justify-content:space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: ${isMe ? '#f1c40f' : 'white'};`;
-                row.innerHTML = `<span>#${rank} ${d.name || "Anónimo"}</span> <b>${d.high}m</b>`;
-                list.appendChild(row);
-                rank++;
-            });
-            if(rank === 1) list.innerHTML = "Aún no hay récords.";
-        } catch (e) {
-            list.innerHTML = "Error al cargar.";
-        }
-    };
 
     if (auth) {
         onAuthStateChanged(auth, async (user) => {
@@ -1382,6 +1376,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
