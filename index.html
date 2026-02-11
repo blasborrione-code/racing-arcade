@@ -450,24 +450,10 @@ window.loginGoogle = async function() {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-
     try {
-        if (isMobile) {
-            await signInWithRedirect(auth, provider);
-        } else {
-            // PC: Llamamos al popup directamente
-            const result = await signInWithPopup(auth, provider);
-            if (result?.user) {
-                currentUser = result.user;
-                showToast("NUBE", "¡Conectado!");
-            }
-        }
+        await signInWithRedirect(auth, provider);
     } catch (error) {
-        if (error.code === 'auth/popup-blocked') {
-            alert("⚠️ El navegador bloqueó la ventana. Por favor, permití los popups en la barra de direcciones (arriba a la derecha).");
-        }
-        console.error("Error en login:", error);
+        console.error("Error login:", error);
     }
 };
 window.openRanking = async function() {
@@ -507,51 +493,28 @@ window.openRanking = async function() {
 };
 
    if (auth) {
-    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    // Capturamos el regreso de Google
+    getRedirectResult(auth).catch(e => console.error("Error redirect:", e));
 
-    // 1. CAPTURADOR: Solo buscamos rastro de redirección si es un celular
-    if (isMobile) {
-        getRedirectResult(auth)
-            .then((result) => {
-                if (result?.user) {
-                    currentUser = result.user;
-                    loadCloudData(currentUser);
-                }
-            }).catch(e => console.error("Error en redirección móvil:", e));
-    }
-
-    // 2. OBSERVADOR: Es el que manda para actualizar los textos del menú
     onAuthStateChanged(auth, async (user) => {
         const btn = document.getElementById("btn-login");
         const status = document.getElementById("user-status");
-        
         if (user) {
             currentUser = user;
             if(btn) btn.innerText = "DESCONECTAR";
-            if(btn) btn.onclick = () => { playSound('click'); signOut(auth); };
-            if(status) {
-                status.innerText = "Piloto: " + user.displayName;
-                status.style.color = "#2ecc71";
-            }
+            if(status) status.innerText = "Piloto: " + user.displayName;
             await loadCloudData(user);
         } else {
             currentUser = null;
             if(btn) btn.innerText = "☁️ CONECTAR CON GOOGLE";
-            if(btn) btn.onclick = window.loginGoogle;
-            if(status) {
-                status.innerText = "Juego Local (Sin guardar)";
-                status.style.color = "#bdc3c7";
-            }
+            if(status) status.innerText = "Juego Local";
         }
-
-        // 3. QUITAPANTALLA: Se oculta cuando Firebase confirma el estado
-        setTimeout(() => { 
-            const loading = document.getElementById("loading-screen");
-            if(loading && !loading.classList.contains("hidden")) {
-                loading.classList.add("hidden"); 
-                showMenu(); 
-            }
-        }, 1000); 
+        // Cerramos la carga
+        setTimeout(() => {
+            const ls = document.getElementById("loading-screen");
+            if(ls) ls.classList.add("hidden");
+            showMenu();
+        }, 1200);
     });
 }
 
@@ -1428,6 +1391,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
