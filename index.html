@@ -39,15 +39,20 @@
 }
 
 canvas { 
-    max-width: 100vw; 
-    max-height: 100vh; 
-    width: auto;
-    height: auto;
-    aspect-ratio: 400 / 750; /* La clave para que no se aplaste */
+    /* Forzamos a que ocupe todo el ancho y alto disponible */
+    width: 100vw; 
+    height: 100dvh; 
+
+    /* LA MAGIA: Esto reemplaza al aspect-ratio. 
+       Llena la pantalla y recorta los sobrantes sin deformar el auto */
+    object-fit: cover; 
+
     display: block; 
     image-rendering: pixelated; 
     margin: auto;
-    box-shadow: 0 0 50px rgba(0,0,0,0.5); /* Le da un toque de profundidad en PC */
+    
+    /* Mantenemos tu sombra de PC */
+    box-shadow: 0 0 50px rgba(0,0,0,0.5); 
 }
         
         #toast-container { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; width: 280px; }
@@ -895,10 +900,35 @@ window.openRanking = async function() {
     }
 
     function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
-        const lightLength = isPlayer ? 230 : 140, lightWidth = isPlayer ? 65 : 45, lightY = y + 15; let c = isPlayer ? (NEONES[garage.selectedNeon].color) : [255, 250, 200];
-        if(isNight) ctx.globalCompositeOperation = 'lighter'; 
-        let grad = ctx.createLinearGradient(x + w/2, lightY, x + w/2, lightY - lightLength); grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`); grad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`); ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(x + 10, lightY); ctx.lineTo(x - lightWidth, lightY - lightLength); ctx.lineTo(x + w + lightWidth, lightY - lightLength); ctx.lineTo(x + w - 10, lightY); ctx.fill(); if(isNight) ctx.globalCompositeOperation = 'source-over';
-    }
+    if (!isNight) return;
+    
+    // Detectamos si es un celular
+    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+    
+    // OPTIMIZACIÓN CLAVE: En celular, solo dibujamos las luces del jugador.
+    // Los NPCs (tráfico) no tendrán luces en móvil para que el juego vuele.
+    if (isMobile && !isPlayer) return; 
+
+    const lightLength = isPlayer ? 220 : 120;
+    const c = isPlayer ? (NEONES[garage.selectedNeon].color) : [255, 250, 200];
+    
+    ctx.save();
+    // Bajamos un poco la opacidad global para que sea más suave
+    ctx.globalAlpha = 0.4;
+    ctx.globalCompositeOperation = 'lighter';
+    
+    let grad = ctx.createLinearGradient(x + w/2, y + 15, x + w/2, y + 15 - lightLength);
+    grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.5)`);
+    grad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`);
+    
+    ctx.fillStyle = grad;
+    
+    // En lugar de dibujar líneas una por una, usamos un rectángulo simple.
+    // Es muchísimo más rápido para el procesador del celular.
+    ctx.fillRect(x - 20, y + 15 - lightLength, w + 40, lightLength);
+    
+    ctx.restore();
+}
 
     function draw() {
         ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); 
@@ -1378,6 +1408,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
