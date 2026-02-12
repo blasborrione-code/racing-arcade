@@ -7,7 +7,7 @@
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
-    <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: gap: https://ssl.gstatic.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src *; img-src * data: content:; script-src * 'self' 'unsafe-inline' 'unsafe-eval';">
+   <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: gap: https://ssl.gstatic.com https://apis.google.com https://*.firebaseapp.com; style-src 'self' 'unsafe-inline'; media-src *; img-src * data: content:; script-src * 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com;">
 
     <style>
         :root {
@@ -472,30 +472,52 @@ window.openRanking = async function() {
     }
 };
 
-   if (auth) {
-    // Capturamos el regreso de Google
-    getRedirectResult(auth).catch(e => console.error("Error redirect:", e));
-
-    onAuthStateChanged(auth, async (user) => {
-        const btn = document.getElementById("btn-login");
-        const status = document.getElementById("user-status");
-        if (user) {
-            currentUser = user;
-            if(btn) btn.innerText = "DESCONECTAR";
-            if(status) status.innerText = "Piloto: " + user.displayName;
-            await loadCloudData(user);
-        } else {
-            currentUser = null;
-            if(btn) btn.innerText = "☁️ CONECTAR CON GOOGLE";
-            if(status) status.innerText = "Juego Local";
+  if (auth) {
+    const iniciarSistemaAuth = async () => {
+        try {
+            // Primero atrapamos el resultado del redirect
+            const result = await getRedirectResult(auth);
+            if (result?.user) {
+                currentUser = result.user;
+                await loadCloudData(currentUser);
+                showToast("NUBE", "¡Hola, " + currentUser.displayName.split(' ')[0] + "!");
+            }
+        } catch (e) {
+            console.error("Error en redirección:", e);
         }
-        // Cerramos la carga
-        setTimeout(() => {
-            const ls = document.getElementById("loading-screen");
-            if(ls) ls.classList.add("hidden");
-            showMenu();
-        }, 1200);
-    });
+
+        // Luego activamos el observador para actualizar el menú
+        onAuthStateChanged(auth, async (user) => {
+            const btn = document.getElementById("btn-login");
+            const status = document.getElementById("user-status");
+
+            if (user) {
+                currentUser = user;
+                if(btn) btn.innerText = "DESCONECTAR";
+                if(status) {
+                    status.innerText = "Piloto: " + user.displayName;
+                    status.style.color = "#2ecc71";
+                }
+                await loadCloudData(user);
+            } else {
+                currentUser = null;
+                if(btn) btn.innerText = "☁️ CONECTAR CON GOOGLE";
+                if(status) {
+                    status.innerText = "Juego Local";
+                    status.style.color = "#bdc3c7";
+                }
+            }
+
+            // SOLO cuando Firebase responde, quitamos la pantalla de carga
+            setTimeout(() => {
+                const ls = document.getElementById("loading-screen");
+                if(ls) ls.classList.add("hidden");
+                showMenu();
+            }, 1000);
+        });
+    };
+
+    iniciarSistemaAuth();
 }
 
    async function loadCloudData(user) {
@@ -1371,6 +1393,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
