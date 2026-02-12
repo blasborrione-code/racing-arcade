@@ -471,43 +471,30 @@ window.openRanking = async function() {
     }
 };
 
-  if (auth) {
-    const iniciarSistemaAuth = async () => {
+ if (auth) {
+    const checkAuth = async () => {
+        console.log("Iniciando verificación de Auth...");
         try {
-            // Primero atrapamos el resultado del redirect
             const result = await getRedirectResult(auth);
             if (result?.user) {
+                console.log("¡Usuario detectado por redirect!", result.user.displayName);
                 currentUser = result.user;
                 await loadCloudData(currentUser);
-                showToast("NUBE", "¡Hola, " + currentUser.displayName.split(' ')[0] + "!");
             }
         } catch (e) {
-            console.error("Error en redirección:", e);
+            console.error("Error en el redirect de Firebase:", e);
         }
 
-        // Luego activamos el observador para actualizar el menú
         onAuthStateChanged(auth, async (user) => {
-            const btn = document.getElementById("btn-login");
+            console.log("Estado de Auth cambiado:", user ? "Conectado" : "Desconectado");
             const status = document.getElementById("user-status");
-
             if (user) {
                 currentUser = user;
-                if(btn) btn.innerText = "DESCONECTAR";
-                if(status) {
-                    status.innerText = "Piloto: " + user.displayName;
-                    status.style.color = "#2ecc71";
-                }
+                if(status) status.innerText = "Piloto: " + user.displayName;
                 await loadCloudData(user);
-            } else {
-                currentUser = null;
-                if(btn) btn.innerText = "☁️ CONECTAR CON GOOGLE";
-                if(status) {
-                    status.innerText = "Juego Local";
-                    status.style.color = "#bdc3c7";
-                }
             }
-
-            // SOLO cuando Firebase responde, quitamos la pantalla de carga
+            
+            // Ocultamos la carga solo cuando Firebase responde sí o no
             setTimeout(() => {
                 const ls = document.getElementById("loading-screen");
                 if(ls) ls.classList.add("hidden");
@@ -515,8 +502,7 @@ window.openRanking = async function() {
             }, 1000);
         });
     };
-
-    iniciarSistemaAuth();
+    checkAuth();
 }
 
    async function loadCloudData(user) {
@@ -1392,6 +1378,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
