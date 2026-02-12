@@ -940,32 +940,62 @@ window.openRanking = async function() {
     }
 
     function drawProHeadlights(x, y, w, h, isPlayer, isNight, sunset, rain) {
-    // 1. Se prenden si es noche, atardecer O lluvia
+    // Se activan en noche, atardecer o lluvia
     if (!isNight && !sunset && !rain) return;
 
-    // 2. Configuración de diseño original
-    const lightLength = isPlayer ? 230 : 140;
-    const lightWidth = isPlayer ? 65 : 45; 
-    const lightY = y + 15;
-    let c = isPlayer ? (NEONES[garage.selectedNeon].color) : [255, 250, 200];
+    // Configuración de realismo
+    const length = isPlayer ? 260 : 160; // Largo del haz
+    const spread = isPlayer ? 50 : 35;   // Qué tan ancho se abre el cono
+    const lightY = y + 5; // La luz sale apenas debajo del borde superior del auto
+    
+    // Calculamos la posición exacta de las dos ópticas (izquierda y derecha)
+    // Están mas o menos al 20% y 80% del ancho del auto.
+    const leftLightX = x + w * 0.2;
+    const rightLightX = x + w * 0.8;
+
+    let c = isPlayer ? (NEONES[garage.selectedNeon].color) : [255, 250, 220];
+    // Hacemos que las luces de los NPCs sean un poco más cálidas/amarillas
+    if (!isPlayer) c = [255, 240, 200]; 
 
     ctx.save();
+    // LA CLAVE DEL REALISMO: 'lighter' hace que donde los haces se cruzan, brille más.
     ctx.globalCompositeOperation = 'lighter';
 
-    let grad = ctx.createLinearGradient(x + w/2, lightY, x + w/2, lightY - lightLength);
-    // Volvemos a la opacidad 0.6 para que brillen con fuerza
-    grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`);
-    grad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`);
+    // --- Función interna para dibujar UN solo faro ---
+    function drawSingleBeam(srcX, srcY) {
+        // El gradiente es clave: muy brillante en la óptica, transparente al final
+        let grad = ctx.createLinearGradient(srcX, srcY, srcX, srcY - length);
+        grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.7)`);   // Núcleo brillante
+        grad.addColorStop(0.3, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.3)`); // Medio suave
+        grad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`);     // Final transparente
 
-    ctx.fillStyle = grad;
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        // Empieza en la óptica
+        ctx.moveTo(srcX, srcY); 
+        // Se abre en forma de cono hacia adelante
+        ctx.lineTo(srcX - spread, srcY - length); 
+        // Parte frontal ancha del cono
+        ctx.lineTo(srcX + spread, srcY - length); 
+        // Cierra el cono volviendo a la óptica
+        ctx.closePath(); 
+        ctx.fill();
 
-    // 3. Dibujo de la forma de "Haz de luz" (Trapecio realista)
-    ctx.beginPath();
-    ctx.moveTo(x + 10, lightY);
-    ctx.lineTo(x - lightWidth, lightY - lightLength);
-    ctx.lineTo(x + w + lightWidth, lightY - lightLength);
-    ctx.lineTo(x + w - 10, lightY);
-    ctx.fill();
+        // --- "Foco" de la óptica ---
+        // Dibujamos un pequeño círculo brillante justo donde sale la luz para simular la bombilla
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.8)`;
+        // Si es el jugador, el foco es blanco brillante, si no, del color de la luz
+        ctx.fillStyle = isPlayer ? 'rgba(255,255,255,0.9)' : `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.8)`;
+        ctx.arc(srcX, srcY, 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    // --------------------------------------------------
+
+    // Dibujamos el haz izquierdo
+    drawSingleBeam(leftLightX, lightY);
+    // Dibujamos el haz derecho
+    drawSingleBeam(rightLightX, lightY);
 
     ctx.restore();
 }
@@ -1485,6 +1515,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
