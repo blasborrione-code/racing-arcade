@@ -433,11 +433,23 @@ try {
 window.loginGoogle = async function() {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
+    
     try {
-        await signInWithRedirect(auth, provider);
+        // Cambiamos Redirect por Popup
+        const result = await signInWithPopup(auth, provider);
+        if (result.user) {
+            currentUser = result.user;
+            console.log("¡Login exitoso con Popup!", currentUser.displayName);
+            await loadCloudData(currentUser);
+            updateUI();
+            showToast("NUBE", "Conectado como " + currentUser.displayName);
+        }
     } catch (error) {
-        console.error("Error login:", error);
+        console.error("Error en el Popup:", error);
+        // Si el popup se bloquea, avisamos al usuario
+        if (error.code === 'auth/popup-blocked') {
+            alert("Por favor, permite las ventanas emergentes para iniciar sesión.");
+        }
     }
 };
 window.openRanking = async function() {
@@ -1408,6 +1420,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
