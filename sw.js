@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-game-v5.1'; 
+const CACHE_NAME = 'racing-game-v5.2'; 
 const urlsToCache = [
   'index.html',
   './',
@@ -51,35 +51,27 @@ const urlsToCache = [
   'Autos/car_formula_modern_verde.png'
 ];
 
-// 1. INSTALACIÓN
-self.addEventListener('install', event => {
+self.addEventListener('install', e => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-  );
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache)));
 });
 
-// 2. ACTIVACIÓN (Limpieza de versiones viejas)
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) return caches.delete(cacheName);
-        })
-      );
-    }).then(() => self.clients.claim())
-  );
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => {
+    if (k !== CACHE_NAME) return caches.delete(k);
+  }))).then(() => self.clients.claim()));
 });
 
-// 3. FETCH (LÓGICA CRÍTICA PARA EL LOGIN)
+// ESTO ES LO QUE ARREGLA EL CELULAR
 self.addEventListener('fetch', event => {
-  // A. Ignoramos por completo Google y Firebase Auth (No deben cachearse)
-  if (event.request.url.includes('/__/auth/') || event.request.url.includes('google.com')) {
+  // 1. Ignoramos por completo cualquier cosa de Auth o Google
+  if (event.request.url.includes('/__/auth/') || 
+      event.request.url.includes('google.com') || 
+      event.request.url.includes('identitytoolkit')) {
     return; 
   }
 
-  // B. NETWORK FIRST para el HTML (Asegura que el login nuevo se ejecute)
+  // 2. Para el HTML principal, siempre buscamos en internet primero
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
@@ -87,15 +79,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // C. CACHE FIRST para imágenes y sonidos
   event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
+    caches.match(event.request).then(response => response || fetch(event.request))
   );
-});
-
-// 4. ACTUALIZACIÓN FORZADA
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
