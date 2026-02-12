@@ -502,16 +502,44 @@ window.openRanking = async function() {
             console.error("Error en el redirect de Firebase:", e);
         }
 
+       // --- OBSERVADOR DE ESTADO DE CUENTA (CONECTAR / DESCONECTAR) ---
         onAuthStateChanged(auth, async (user) => {
             console.log("Estado de Auth cambiado:", user ? "Conectado" : "Desconectado");
             const status = document.getElementById("user-status");
+            const btn = document.getElementById("btn-login");
+
             if (user) {
+                // --- USUARIO CONECTADO ---
                 currentUser = user;
                 if(status) status.innerText = "Piloto: " + user.displayName;
+                
+                // Configuramos el botón para DESCONECTAR
+                if(btn) {
+                    btn.innerText = "✖️ DESCONECTAR CUENTA";
+                    btn.style.background = "#c0392b"; // Rojo Racing
+                    btn.onclick = async () => {
+                        try {
+                            await signOut(auth);
+                            // Al cerrar sesión, onAuthStateChanged se activará solo y volverá al estado "Juego Local"
+                        } catch (e) { console.error("Error al salir:", e); }
+                    };
+                }
+                
                 await loadCloudData(user);
+            } else {
+                // --- USUARIO DESCONECTADO (O JUEGO LOCAL) ---
+                currentUser = null;
+                if(status) status.innerText = "Juego Local";
+                
+                // Configuramos el botón para CONECTAR
+                if(btn) {
+                    btn.innerText = "☁️ CONECTAR CON GOOGLE";
+                    btn.style.background = "#4285F4"; // Azul Google
+                    btn.onclick = loginGoogle; // Llama a la función del Popup que armamos antes
+                }
             }
             
-            // Ocultamos la carga solo cuando Firebase responde sí o no
+            // Ocultamos la carga solo cuando Firebase responde
             setTimeout(() => {
                 const ls = document.getElementById("loading-screen");
                 if(ls) ls.classList.add("hidden");
@@ -911,34 +939,34 @@ window.openRanking = async function() {
         ctx.restore();
     }
 
-    function drawProHeadlights(x, y, w, h, isPlayer, isNight) {
-    if (!isNight) return;
-    
-    // Detectamos si es un celular
-    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    
-    // OPTIMIZACIÓN CLAVE: En celular, solo dibujamos las luces del jugador.
-    // Los NPCs (tráfico) no tendrán luces en móvil para que el juego vuele.
-    if (isMobile && !isPlayer) return; 
+    function drawProHeadlights(x, y, w, h, isPlayer, isNight, sunset, rain) {
+    // 1. Se prenden si es noche, atardecer O lluvia
+    if (!isNight && !sunset && !rain) return;
 
-    const lightLength = isPlayer ? 220 : 120;
-    const c = isPlayer ? (NEONES[garage.selectedNeon].color) : [255, 250, 200];
-    
+    // 2. Configuración de diseño original
+    const lightLength = isPlayer ? 230 : 140;
+    const lightWidth = isPlayer ? 65 : 45; 
+    const lightY = y + 15;
+    let c = isPlayer ? (NEONES[garage.selectedNeon].color) : [255, 250, 200];
+
     ctx.save();
-    // Bajamos un poco la opacidad global para que sea más suave
-    ctx.globalAlpha = 0.4;
     ctx.globalCompositeOperation = 'lighter';
-    
-    let grad = ctx.createLinearGradient(x + w/2, y + 15, x + w/2, y + 15 - lightLength);
-    grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.5)`);
+
+    let grad = ctx.createLinearGradient(x + w/2, lightY, x + w/2, lightY - lightLength);
+    // Volvemos a la opacidad 0.6 para que brillen con fuerza
+    grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`);
     grad.addColorStop(1, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0)`);
-    
+
     ctx.fillStyle = grad;
-    
-    // En lugar de dibujar líneas una por una, usamos un rectángulo simple.
-    // Es muchísimo más rápido para el procesador del celular.
-    ctx.fillRect(x - 20, y + 15 - lightLength, w + 40, lightLength);
-    
+
+    // 3. Dibujo de la forma de "Haz de luz" (Trapecio realista)
+    ctx.beginPath();
+    ctx.moveTo(x + 10, lightY);
+    ctx.lineTo(x - lightWidth, lightY - lightLength);
+    ctx.lineTo(x + w + lightWidth, lightY - lightLength);
+    ctx.lineTo(x + w - 10, lightY);
+    ctx.fill();
+
     ctx.restore();
 }
 
@@ -971,9 +999,10 @@ window.openRanking = async function() {
         ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h);
     } else {
         // --- DIBUJO NORMAL (Cuando no ha sido chocado) ---
-        if (en.type !== 'obs' && (sunset || rain || night)) {
-            drawProHeadlights(en.x, en.y, en.w, en.h, false, night);
-        }
+      if (en.type !== 'obs' && (sunset || rain || night)) {
+    // Agregamos 'sunset' y 'rain' al final para que la función sepa el clima
+    drawProHeadlights(en.x, en.y, en.w, en.h, false, night, sunset, rain);
+}
         
         if (en.img.complete) {
             ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
@@ -994,11 +1023,47 @@ window.openRanking = async function() {
 
     ctx.restore(); // 4. "Descongelamos" y volvemos a poner el papel derecho
 });
-        if(!expObj && assets.player.complete) { if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night); ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); } 
+       // --- DIBUJADO DEL JUGADOR Y EFECTOS DE CLIMA ---
+        if(!expObj && assets.player.complete) { 
+            // CORRECCIÓN: Ahora pasamos night, sunset y rain para que las luces funcionen siempre
+            if(sunset || rain || night) {
+                drawProHeadlights(player.x, player.y, player.w, player.h, true, night, sunset, rain);
+            }
+            ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
+        } 
+
         if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
-        if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } 
-        if(rain) { ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); ctx.strokeStyle = "rgba(255,255,255,0.4)"; for(let r=0; r<15; r++){ let rx=Math.random()*400, ry=Math.random()*750; ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); } } 
-        if(nmT) { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; } ctx.restore();
+
+        // Filtro de Atardecer
+        if(sunset) { 
+            ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; 
+            ctx.fillRect(0,0,400,750); 
+        } 
+
+        // Efecto de Lluvia
+        if(rain) { 
+            ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; 
+            ctx.fillRect(0,0,400,750); 
+            ctx.strokeStyle = "rgba(255,255,255,0.4)"; 
+            for(let r=0; r<15; r++){ 
+                let rx=Math.random()*400, ry=Math.random()*750; 
+                ctx.beginPath(); 
+                ctx.moveTo(rx,ry); 
+                ctx.lineTo(rx-5, ry+15); 
+                ctx.stroke(); 
+            } 
+        } 
+
+        // Cartel de "¡CERCA!"
+        if(nmT) { 
+            ctx.fillStyle = "#f1c40f"; 
+            ctx.font = "bold 20px sans-serif"; 
+            ctx.textAlign = "center"; 
+            ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); 
+            ctx.textAlign = "left"; 
+        } 
+
+        ctx.restore();
     }
 
     function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
@@ -1420,6 +1485,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
