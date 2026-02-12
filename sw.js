@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-game-v4.1'; 
+const CACHE_NAME = 'racing-game-v5.0'; 
 const urlsToCache = [
   'index.html',
   './',
@@ -53,13 +53,13 @@ const urlsToCache = [
 
 // 1. INSTALACIÓN
 self.addEventListener('install', event => {
-  self.skipWaiting(); 
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   );
 });
 
-// 2. ACTIVACIÓN
+// 2. ACTIVACIÓN (Limpieza de versiones viejas)
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -72,13 +72,22 @@ self.addEventListener('activate', event => {
   );
 });
 
-// 3. FETCH (EL ARREGLO PARA EL LOGIN)
+// 3. FETCH (LÓGICA CRÍTICA PARA EL LOGIN)
 self.addEventListener('fetch', event => {
-  // Ignoramos peticiones de Auth para que Google maneje la sesión libremente
+  // A. Ignoramos por completo Google y Firebase Auth (No deben cachearse)
   if (event.request.url.includes('/__/auth/') || event.request.url.includes('google.com')) {
     return; 
   }
 
+  // B. NETWORK FIRST para el HTML (Asegura que el login nuevo se ejecute)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // C. CACHE FIRST para imágenes y sonidos
   event.respondWith(
     caches.match(event.request).then(response => {
       return response || fetch(event.request);
@@ -86,7 +95,7 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// 4. MENSAJES
+// 4. ACTUALIZACIÓN FORZADA
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
