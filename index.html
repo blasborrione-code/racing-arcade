@@ -707,6 +707,7 @@ window.openRanking = async function() {
 
     let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
     let player = { x: 0, y: 0, vx: 0, w: 0, h: 0, coneHits: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
+    let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
 
     window.checkTutorial = function() {
         if (!localStorage.getItem('racing_tutorial_v1')) {
@@ -732,23 +733,28 @@ window.openRanking = async function() {
     }
 
  function startGameLogic() {
+        // Primero intentamos la pantalla completa para que el navegador no se queje
+        requestFullScreen();
+
         const car = MODELS[garage.selected]; 
-        // --- CAMBIO CLAVE AQUÍ ---
         assets.player.src = getCarImg(garage.selected); 
         
-        // --- NO TE OLVIDES DE ESTO (EL RESET) ---
-        // Agregamos coneHits: 0 para que el contador de golpes empiece limpio
+        // Reset del jugador y el contador de tus 4 conos (TOC safe)
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
         
         score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; 
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; 
-        magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
+        magnetTimer = 0; 
+        
+        // Reset de eventos de obra
+        constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
         
         state = "PLAYING"; 
         hideAll(); 
         document.getElementById("btn-pause-trigger").style.display = "flex"; 
         lastTime = performance.now(); 
+        
         if (audioCtx.state === 'suspended') audioCtx.resume();
         playSound('click'); 
         stopSound('music_menu');
@@ -1576,6 +1582,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
