@@ -1,7 +1,8 @@
-const CACHE_NAME = 'racing-game-v55.8'; 
+const CACHE_NAME = 'racing-game-v55.9'; 
 const urlsToCache = [
   'index.html',
   './',
+  'Autos/police_car.png', // <--- NUEVO AUTO DE POLICÍA AGREGADO
   'Autos/car_compact_retro.png',
   'Autos/furgoneta.png',
   'Autos/auto_rosa.png',
@@ -62,16 +63,14 @@ self.addEventListener('activate', e => {
   }))).then(() => self.clients.claim()));
 });
 
-// ESTO ES LO QUE ARREGLA EL CELULAR
+// Lógica de Fetch para manejo de Cache y Red
 self.addEventListener('fetch', event => {
-  // 1. Ignoramos por completo cualquier cosa de Auth o Google
   if (event.request.url.includes('/__/auth/') || 
       event.request.url.includes('google.com') || 
       event.request.url.includes('identitytoolkit')) {
     return; 
   }
 
-  // 2. Para el HTML principal, siempre buscamos en internet primero
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
