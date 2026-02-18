@@ -613,7 +613,8 @@ window.openRanking = async function() {
     const assets = { 
         player: new Image(), fuel: new Image(), coin: new Image(), truck: new Image(), oil: new Image(), 
         heart: new Image(), bomb: new Image(), exp: new Image(), magnet: new Image(), npcs: [],
-        topadora: new Image(), pavimentadora: new Image(), valla: new Image(), cono: new Image()
+        topadora: new Image(), pavimentadora: new Image(), valla: new Image(), cono: new Image(),
+        police: new Image()
     };
     assets.fuel.src = 'Items/bidon_nafta.png'; assets.coin.src = 'Items/moneda_pixel.png'; assets.truck.src = 'Autos/camion_cisterna.png'; 
     assets.oil.src = 'Items/charco_aceite.png'; assets.heart.src = 'Items/heart_pixel.png'; assets.bomb.src = 'Items/bomba.png'; assets.exp.src = 'Items/explosion.png';
@@ -621,6 +622,7 @@ window.openRanking = async function() {
     assets.topadora.src = 'Items/topadora.png'; 
     assets.pavimentadora.src = 'Items/pavimentadora.png';
     assets.valla.src = 'Items/valla.png'; assets.cono.src = 'Items/cono.png';
+    assets.police.src = 'Autos/police_car.png';
 
     ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
     const sceneryAssets = { arboles: [new Image()] }; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
@@ -708,6 +710,9 @@ window.openRanking = async function() {
     let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
     let player = { x: 0, y: 0, vx: 0, w: 0, h: 0, coneHits: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
     let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
+    let heat = 0, evasionTimer = 0, arrestProgress = 0, zoomLevel = 1;
+    const POLICE_FINES = { 1: 150, 2: 350, 3: 750, 4: 1500 };
+
 
     window.checkTutorial = function() {
         if (!localStorage.getItem('racing_tutorial_v1')) {
@@ -778,38 +783,100 @@ window.openRanking = async function() {
     }
 
     function loop(t) { if(state !== "PLAYING") return; let dt = (t - lastTime) / 16.66; if(isNaN(dt) || dt > 3) dt = 1; lastTime = t; update(dt); draw(); requestAnimationFrame(loop); }
+// --- 1. CEREBRO DE LA POLICÍA (updateHeat) ---
+    window.updateHeat = function(action) {
+        if (action === 'cono') heat = Math.min(4, heat + 0.25);
+        if (action === 'npc_hit') heat = Math.min(4, heat + 1);
+        
+        // Si hay lío, el tiempo para que se olviden de vos vuelve a empezar (10 seg)
+        if (heat >= 1) evasionTimer = 600; 
+    };
 
+    // --- 2. MOTOR DEL JUEGO (update) ---
     function update(dt) {
         if(state === 'PLAYING' && soundEnabled && sonidos.music_race.buffer && !sonidos.music_race.source) {
             playSound('music_race', true);
         }
+
+        // Lógica de Evasión (enfriamiento de estrellas)
+        if (evasionTimer > 0) {
+            evasionTimer -= dt;
+        } else if (heat > 0) {
+            heat -= 0.002 * dt; 
+            if (heat < 0) heat = 0;
+        }
+
+        // Lógica de Arresto (Detección de patrulla cerca)
+        let beingArrested = false;
+        if (heat >= 1 && currentSpeed < 1.5) { 
+            let nearbyPolice = enemies.find(en => 
+                en.type === 'police' && 
+                Math.abs(en.x - player.x) < 80 && 
+                Math.abs(en.y - player.y) < 100
+            );
+
+            if (nearbyPolice) {
+                beingArrested = true;
+                arrestProgress += 0.5 * dt; 
+                if (arrestProgress >= 100) arrestPlayer(); 
+            }
+        }
+        if (!beingArrested) arrestProgress = Math.max(0, arrestProgress - dt);
+
+        // Cálculos de Nivel y Estadísticas
         const car = MODELS[garage.selected], stats = garage.carStats[garage.selected]; 
         let nextLvl = (score < 4000) ? Math.floor(score / 500) + 1 : 9 + Math.floor((score - 4000) / 1000);
         if(nextLvl > level) heartSpawnedInLevel = false;
         level = nextLvl;
-        const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
+        
+        const mSpd = car.maxSpeed + (stats.motor * 0.4); 
+        let hndl = car.handling; 
         let rain = (level >= 6 && (level - 6) % 4 === 1); 
         let turnInertia = 0.85; 
         if(rain) { hndl *= 0.30; turnInertia = 0.97; }
-        if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
-        else { if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); // --- NUEVA LÓGICA DE MANEJO ADAPTATIVO ---
-        let sensitivity = 1 / (1 + (currentSpeed / 15)); 
-        let adaptiveHandling = hndl * sensitivity;
 
-        if(keys["ArrowLeft"]) player.vx -= adaptiveHandling * dt; 
-        if(keys["ArrowRight"]) player.vx += adaptiveHandling * dt; 
-     }
-        player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
+        // Control de Velocidad y Manejo
+        if(isS) { 
+            currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); 
+            player.vx = 0; 
+        } else { 
+            if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); 
+            else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); 
+            else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); 
+
+            let sensitivity = 1 / (1 + (currentSpeed / 15)); 
+            let adaptiveHandling = hndl * sensitivity;
+            if(keys["ArrowLeft"]) player.vx -= adaptiveHandling * dt; 
+            if(keys["ArrowRight"]) player.vx += adaptiveHandling * dt; 
+        }
+
+        // Actualización de Posición
+        player.vx *= Math.pow(turnInertia, dt); 
+        player.x += player.vx * dt; 
+        if(player.x < 35) player.x = 35; 
+        if(player.x > 365 - player.w) player.x = 365 - player.w; 
+        
+        roadY += currentSpeed * dt; 
+        score += currentSpeed * 0.05 * dt; 
         fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
-        if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
+        
+        if(screenShake > 0.1) screenShake *= 0.85; 
+        
+        if(magnetTimer > 0) { 
+            magnetTimer -= dt; 
+            document.getElementById("ui-coin-label").classList.add("magnet-active"); 
+        } else {
+            document.getElementById("ui-coin-label").classList.remove("magnet-active");
+        }
+        
         actualizarMotor(currentSpeed);
+
+        // Obras en la calle
         if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
             constEvent.active = true;
             constEvent.lane = Math.random() < 0.5 ? 0 : 3; 
             constEvent.remaining = 400 + Math.random() * 800; 
-            constEvent.isFirst = true; 
-            constEvent.spawnTimer = 0;
-            constEvent.coneDist = 0;
+            constEvent.isFirst = true; constEvent.spawnTimer = 0; constEvent.coneDist = 0;
             showToast("🚧 OBRAS", "Carril bloqueado adelante");
         }
         if(constEvent.active) {
@@ -819,17 +886,74 @@ window.openRanking = async function() {
             if(constEvent.coneDist >= 45) { spawnConstructionItem('cono_line'); constEvent.coneDist = 0; }
             constEvent.spawnTimer -= dt;
             if(constEvent.spawnTimer <= 0 && constEvent.remaining > 50) {
-                if(constEvent.isFirst) { spawnConstructionItem('valla_start'); constEvent.isFirst = false; constEvent.spawnTimer = 70; 
-                } else { spawnConstructionItem('machine'); constEvent.spawnTimer = 140 + Math.random() * 60; }
+                if(constEvent.isFirst) { 
+                    spawnConstructionItem('valla_start'); constEvent.isFirst = false; constEvent.spawnTimer = 70; 
+                } else { 
+                    spawnConstructionItem('machine'); constEvent.spawnTimer = 140 + Math.random() * 60; 
+                }
             }
         }
-        if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
-        if(Math.random() < 0.007 * dt) spawnItem('fuel'); if(Math.random() < 0.0008 * dt) spawnItem('magnet'); 
-        if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
-        if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil'); if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
 
-        enemies.forEach((en, i) => {
+        // Spawn de Tráfico y Policía
+        if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); 
+
+        if (heat >= 1 && Math.random() < 0.01 * dt && !enemies.some(e => e.type === 'police')) {
+            let pLane = Math.floor(Math.random() * 4);
+            enemies.push({
+                x: [75, 157.5, 242.5, 325][pLane] - 24, y: -120, w: 48, h: 95, type: 'police', 
+                l: pLane, tl: pLane, speed: currentSpeed + 2, baseSpeed: currentSpeed + 2,
+                img: assets.police, hit: false, rotation: 0, nm: false,
+                bTimer: 0, bCount: 0, blink: false 
+            });
+        }
+
+        // Spawn de Ítems
+        if(Math.random() < 0.02 * dt) spawnScenery(); 
+        if(Math.random() < 0.006 * dt) spawnItem('coin');  
+        if(Math.random() < 0.007 * dt) spawnItem('fuel'); 
+        if(Math.random() < 0.0008 * dt) spawnItem('magnet');  
+        if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { 
+            spawnItem('heart'); heartSpawnedInLevel = true; 
+        }
+        if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil'); 
+        if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
+    }
+
+    // --- 3. COMISARÍA (arrestPlayer) ---
+    window.arrestPlayer = function() {
+        state = "GAMEOVER";
+        let stars = Math.floor(heat);
+        let fine = POLICE_FINES[stars] || 0;
+        let finalFine = Math.min(garage.coins, fine);
+        garage.coins -= finalFine;
+        saveData(); 
+        stopSound('motor'); stopSound('music_race'); playSound('crash'); 
+        endGame("ARRESTADO", `Multa de $${finalFine} por ${stars} estrellas.`);
+    };
+
+       enemies.forEach((en, i) => {
             let desiredSpeed = en.baseSpeed;
+           // --- IA POLICIAL: PERSECUCIÓN ACTIVA ---
+            if (en.type === 'police' && !en.hit) {
+                // 1. Detectamos en qué carril está el jugador actualmente
+                // Dividimos la posición X por el ancho aproximado del carril (100)
+                let playerLane = Math.floor((player.x + player.w/2) / 100);
+                if(playerLane < 0) playerLane = 0;
+                if(playerLane > 3) playerLane = 3;
+
+                // 2. Si la patrulla no está en tu carril, inicia la maniobra de cambio
+                if (en.l !== playerLane && !en.chg && !en.blink) {
+                    en.tl = playerLane;
+                    en.blink = true; 
+                    en.bTimer = 0; 
+                    en.bCount = 0;
+                    en.tx = [75, 157.5, 242.5, 325][en.tl] - (en.w / 2);
+                }
+
+                // 3. Velocidad: La patrulla siempre intenta ir más rápido que el jugador
+                // para alcanzarlo desde atrás o encerrarlo desde adelante
+                desiredSpeed = currentSpeed + 1.8; 
+            }
             if(en.type !== 'obs') {
                 let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); 
                 let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); 
@@ -878,28 +1002,29 @@ window.openRanking = async function() {
                 if (en.type === 'obs') {
                     if (en.subType === 'cono') {
                         // REGLA DE LOS 4 CONOS (PARA TU TOC)
-                        en.hit = true; // El cono sale volando
-                        player.coneHits++; // Sumamos al contador
+                        en.hit = true; 
+                        player.coneHits++; 
                         
+                        // 1. DISPARADOR DE VANDALISMO
+                        updateHeat('cono'); // <--- ¡AQUÍ! Llamamos a la policía
+
                         playSound('crash');
                         screenShake = 3;
                         currentSpeed *= 0.85; 
 
                         if (player.coneHits >= 4) {
-                            lives--; // ¡Recién acá perdés vida!
-                            player.coneHits = 0; // Volvemos a cero
+                            lives--; 
+                            player.coneHits = 0; 
                             showToast("DAÑO", "¡4 conos! -1 Vida");
                             if (navigator.vibrate) navigator.vibrate(100);
                         }
 
-                        // Física del objeto volador
                         en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; 
                         en.vRot = 0.15; 
                         en.rotation = 0;
                         if (lives <= 0) endGame("CHOQUE EN OBRA");
 
                     } else if (en.subType === 'valla') {
-                        // Las vallas te sacan una vida de una
                         en.hit = true;
                         lives--;
                         playSound('crash');
@@ -910,13 +1035,16 @@ window.openRanking = async function() {
                         if (lives <= 0) endGame("CHOQUE CON VALLA");
 
                     } else {
-                        // Máquinas pesadas son muerte segura
                         endGame("OBRAS: MUERTE INSTANTÁNEA");
                     }
                 } else {
                     // Choque con otros autos (NPCs)
                     playSound('crash');
                     lives--;
+                    
+                    // 2. DISPARADOR DE CHOQUE CIVIL
+                    updateHeat('npc_hit'); // <--- ¡Y AQUÍ!
+
                     screenShake = 10;
                     if (lives <= 0) endGame("CHOQUE");
                     enemies.splice(i, 1);
@@ -1051,99 +1179,149 @@ window.openRanking = async function() {
 }
 
     function draw() {
-        ctx.save(); if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); 
-        let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2); 
-        ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#27ae60"; 
-        for(let gy = (roadY%40)-40; gy < 750; gy+=40) { for(let gx = 0; gx < 35; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); for(let gx = 365; gx < 400; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); }
-        ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
-        ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } 
-        ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } 
-        scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
-        items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
-        if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
-      enemies.forEach(en => {
-    ctx.save(); // 1. "Congelamos" el estado para que cada objeto sea independiente
+    ctx.save(); 
+    if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); 
 
-    if (en.hit) {
-        // --- EFECTO FÍSICO 3D (Vuelo + Giro + Alejamiento) ---
-        // Nos movemos al centro del objeto para que rote bien
-        ctx.translate(en.x + en.w / 2, en.y + en.h / 2);
-        ctx.rotate(en.rotation);
+    let sunset = (level >= 6 && (level - 6) % 4 === 0), 
+        rain = (level >= 6 && (level - 6) % 4 === 1), 
+        night = (level >= 6 && (level - 6) % 4 === 2); 
 
-        // Calculamos el factor de escala: 
-        // A medida que 'y' aumenta (baja en pantalla), el factor baja de 1 hacia 0.1
-        let scaleFactor = Math.max(0.1, 1 - (en.y - 550) * 0.003); 
-        ctx.scale(scaleFactor, scaleFactor);
+    // --- FONDO Y CARRETERA ---
+    ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); ctx.fillStyle = "#27ae60"; 
+    for(let gy = (roadY%40)-40; gy < 750; gy+=40) { 
+        for(let gx = 0; gx < 35; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); 
+        for(let gx = 365; gx < 400; gx+=10) if((gx+gy)%20===0) ctx.fillRect(gx, gy, 4, 4); 
+    }
+    ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
+    ctx.fillStyle = "#34495e"; 
+    for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } 
+    ctx.fillStyle = "rgba(255,255,255,0.1)"; 
+    for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } 
 
-        // Dibujamos centrado (usando la mitad del ancho/alto en negativo)
-        ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h);
-    } else {
-        // --- DIBUJO NORMAL (Cuando no ha sido chocado) ---
-      if (en.type !== 'obs' && (sunset || rain || night)) {
-    // Agregamos 'sunset' y 'rain' al final para que la función sepa el clima
-    drawProHeadlights(en.x, en.y, en.w, en.h, false, night, sunset, rain);
-}
-        
-        if (en.img.complete) {
-            ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
+    // --- ESCENARIO E ITEMS ---
+    scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
+    items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
+
+    if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
+
+    // --- ENEMIGOS Y OBSTÁCULOS ---
+    enemies.forEach(en => {
+        ctx.save();
+        if (en.hit) {
+            ctx.translate(en.x + en.w / 2, en.y + en.h / 2);
+            ctx.rotate(en.rotation);
+            let scaleFactor = Math.max(0.1, 1 - (en.y - 550) * 0.003); 
+            ctx.scale(scaleFactor, scaleFactor);
+            ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h);
+        } else {
+            if (en.type !== 'obs' && (sunset || rain || night)) {
+                drawProHeadlights(en.x, en.y, en.w, en.h, false, night, sunset, rain);
+            }
+            
+            if (en.img.complete) {
+                ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
+
+                if (en.type === 'police') {
+                    const t = performance.now();
+                    const isRed = Math.floor(t / 150) % 2 === 0;
+                    ctx.save();
+                    ctx.shadowBlur = 15;
+                    ctx.fillStyle = isRed ? "red" : "blue";
+                    ctx.shadowColor = ctx.fillStyle;
+                    ctx.beginPath(); ctx.arc(en.x + 15, en.y + 20, 7, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = isRed ? "blue" : "red";
+                    ctx.shadowColor = ctx.fillStyle;
+                    ctx.beginPath(); ctx.arc(en.x + en.w - 15, en.y + 20, 7, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            if (en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h);
+            
+            if (en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
+                ctx.fillStyle = "#ffa500";
+                ctx.beginPath();
+                ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
-        
-        if (en.subType === 'valla') {
-            drawConstructionLights(en.x, en.y, en.w, en.h);
+        ctx.restore();
+    });
+
+    // --- JUGADOR ---
+    if(!expObj && assets.player.complete) { 
+        if(sunset || rain || night) {
+            drawProHeadlights(player.x, player.y, player.w, player.h, true, night, sunset, rain);
         }
-        
-        // Luces de giro de los NPCs
-        if (en.type !== 'obs' && en.blink && Math.floor(en.bCount % 2) === 0) {
-            ctx.fillStyle = "#ffa500";
-            ctx.beginPath();
-            ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
+    } 
+
+    if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
+
+    // --- FILTROS AMBIENTALES ---
+    if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } 
+    if(rain) { 
+        ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; ctx.fillRect(0,0,400,750); 
+        ctx.strokeStyle = "rgba(255,255,255,0.4)"; 
+        for(let r=0; r<15; r++){ 
+            let rx=Math.random()*400, ry=Math.random()*750; 
+            ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-5, ry+15); ctx.stroke(); 
+        } 
+    } 
+
+    // --- INTERFAZ (UI) ---
+    if(nmT) { 
+        ctx.fillStyle = "#f1c40f"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center"; 
+        ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); ctx.textAlign = "left"; 
+    } 
+
+    // --- BARRA DE ARRESTO (NUEVO) ---
+    if (arrestProgress > 5) {
+        ctx.save();
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(100, 250, 200, 25); 
+        ctx.fillStyle = "#ff4757";
+        let barWidth = (arrestProgress / 100) * 190;
+        ctx.fillRect(105, 255, barWidth, 15);
+        ctx.fillStyle = "white";
+        ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
+        ctx.fillText("¡TE ESTÁN ARRESTANDO!", 200, 243);
+        ctx.restore();
     }
 
-    ctx.restore(); // 4. "Descongelamos" y volvemos a poner el papel derecho
-});
-       // --- DIBUJADO DEL JUGADOR Y EFECTOS DE CLIMA ---
-        if(!expObj && assets.player.complete) { 
-            // CORRECCIÓN: Ahora pasamos night, sunset y rain para que las luces funcionen siempre
-            if(sunset || rain || night) {
-                drawProHeadlights(player.x, player.y, player.w, player.h, true, night, sunset, rain);
-            }
-            ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
-        } 
-
-        if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
-
-        // Filtro de Atardecer
-        if(sunset) { 
-            ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; 
-            ctx.fillRect(0,0,400,750); 
-        } 
-
-        // Efecto de Lluvia
-        if(rain) { 
-            ctx.fillStyle = "rgba(0, 100, 255, 0.1)"; 
-            ctx.fillRect(0,0,400,750); 
-            ctx.strokeStyle = "rgba(255,255,255,0.4)"; 
-            for(let r=0; r<15; r++){ 
-                let rx=Math.random()*400, ry=Math.random()*750; 
-                ctx.beginPath(); 
-                ctx.moveTo(rx,ry); 
-                ctx.lineTo(rx-5, ry+15); 
-                ctx.stroke(); 
-            } 
-        } 
-
-        // Cartel de "¡CERCA!"
-        if(nmT) { 
-            ctx.fillStyle = "#f1c40f"; 
-            ctx.font = "bold 20px sans-serif"; 
-            ctx.textAlign = "center"; 
-            ctx.fillText("¡CERCA!", player.x + player.w/2, nmT.y - 20); 
-            ctx.textAlign = "left"; 
-        } 
-
+    // --- ESTRELLAS (PASO 4.2) ---
+    if (heat >= 1) {
+        ctx.save();
+        ctx.font = "bold 28px Arial"; ctx.textAlign = "right";
+        if (evasionTimer > 0 && Math.floor(performance.now() / 250) % 2 === 0) ctx.globalAlpha = 0.3;
+        let starsString = "";
+        for(let i=0; i < Math.floor(heat); i++) starsString += "⭐";
+        ctx.shadowColor = "black"; ctx.shadowBlur = 5; ctx.fillStyle = "#f1c40f"; 
+        ctx.fillText(starsString, 385, 120); 
         ctx.restore();
+    }
+
+    // --- TINTE AMBIENTAL DE PERSECUCIÓN (PASO 4.3) ---
+    if (heat >= 3) {
+        const isBlue = Math.floor(performance.now() / 500) % 2 === 0;
+        ctx.fillStyle = isBlue ? "rgba(0, 0, 255, 0.08)" : "rgba(255, 0, 0, 0.08)";
+        ctx.fillRect(0, 0, 400, 750);
+    }
+
+    ctx.restore(); 
+}
+            let starsString = "";
+            let numStars = Math.floor(heat);
+            for(let i=0; i < numStars; i++) starsString += "⭐";
+            
+            ctx.shadowColor = "black";
+            ctx.shadowBlur = 5;
+            ctx.fillStyle = "#f1c40f"; 
+            ctx.fillText(starsString, 385, 120); 
+            ctx.restore();
+        }
+
+        ctx.restore(); // Cierra el primer save() del screenShake
     }
 
     function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
@@ -1582,6 +1760,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
