@@ -706,8 +706,7 @@ window.openRanking = async function() {
     }
 
     let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
-    let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
-    let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
+    let player = { x: 0, y: 0, vx: 0, w: 0, h: 0, coneHits: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
 
     window.checkTutorial = function() {
         if (!localStorage.getItem('racing_tutorial_v1')) {
@@ -732,13 +731,15 @@ window.openRanking = async function() {
         startGameLogic();
     }
 
-   function startGameLogic() {
+ function startGameLogic() {
         const car = MODELS[garage.selected]; 
         // --- CAMBIO CLAVE AQUÍ ---
         assets.player.src = getCarImg(garage.selected); 
         
         // --- NO TE OLVIDES DE ESTO (EL RESET) ---
-        player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; 
+        // Agregamos coneHits: 0 para que el contador de golpes empiece limpio
+        player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
+        
         score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; 
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; 
@@ -824,13 +825,24 @@ window.openRanking = async function() {
         enemies.forEach((en, i) => {
             let desiredSpeed = en.baseSpeed;
             if(en.type !== 'obs') {
-                let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); } en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
+                let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); 
+                let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < (en.h > 90 ? 300 : 240)); 
+                if (ahead) { 
+                    if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; 
+                    else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); 
+                } 
+                en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
             }
+            
             en.y += (currentSpeed - en.speed) * dt;
+
+            // Física de objetos volando después del choque
             if (en.hit) {
-    en.x += en.vx * dt;       // Se mueve a la izquierda o derecha
-    en.rotation += en.vRot * dt; // Va girando mientras vuela
-}
+                en.x += en.vx * dt;
+                en.rotation += en.vRot * dt;
+            }
+
+            // --- LÓGICA DE MANIOBRAS DE NPCs ---
             if(en.type !== 'obs' && level >= 3 && !en.chg && !en.blink && Math.random() < 0.002 * dt) { 
                 let nextLane = en.l + (Math.random() < 0.5 ? -1 : 1); 
                 if(nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) { 
@@ -842,50 +854,69 @@ window.openRanking = async function() {
             }
             if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
             if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
+
+            // --- NEAR MISS (PUNTOS POR PASAR FINITO) ---
             if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
-    en.nm = true; 
-    playSound('near'); 
+                en.nm = true; 
+                playSound('near'); 
+                if (navigator.vibrate) navigator.vibrate([10, 30, 10]); 
+                garage.coins += 10; 
+                nearMissesThisRun++; 
+                fuel = Math.min(100, fuel + 7.5); 
+                nmT = {y: player.y, t: 40}; 
+                screenShake = 1.5; 
+            }
 
-    // --- VIBRACIÓN DE "CERCA" ---
-    if (navigator.vibrate) {
-        navigator.vibrate([10, 30, 10]); 
-    }
+            // --- MOTOR DE COLISIONES (CONOS, VALLAS Y AUTOS) ---
+            if (checkCollision(player, en) && !en.hit) {
+                if (en.type === 'obs') {
+                    if (en.subType === 'cono') {
+                        // REGLA DE LOS 4 CONOS (PARA TU TOC)
+                        en.hit = true; // El cono sale volando
+                        player.coneHits++; // Sumamos al contador
+                        
+                        playSound('crash');
+                        screenShake = 3;
+                        currentSpeed *= 0.85; 
 
-    garage.coins += 10; 
-    nearMissesThisRun++; 
-    fuel = Math.min(100, fuel + 7.5); 
-    nmT = {y: player.y, t: 40}; 
-    screenShake = 1.5; 
-}
-            if (checkCollision(player, en) && !en.hit) { // El !en.hit evita que te saque 100 vidas juntas
-    if (en.type === 'obs') {
-        if (en.subType === 'cono' || en.subType === 'valla') {
-            playSound('crash');
-            lives--;
-            screenShake = 6;
-            currentSpeed *= 0.6; 
-            
-            // --- EFECTO FÍSICO ---
-            en.hit = true; 
-            // Si el auto está a la derecha del centro del cono, el cono vuela a la izquierda, y viceversa
-            en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; 
-            en.vRot = 0.15; // Qué tan rápido gira
-            en.rotation = 0; // Ángulo inicial
-            
-            if (lives <= 0) endGame("CHOQUE EN OBRA");
-        } else {
-            endGame("OBRAS: MUERTE INSTANTÁNEA");
-        }
-    } else {
-        // Autos normales: estos sí los borramos de una para no complicar el tráfico
-        playSound('crash');
-        lives--;
-        screenShake = 10;
-        if (lives <= 0) endGame("CHOQUE");
-        enemies.splice(i, 1);
-    }
-}
-        else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
+                        if (player.coneHits >= 4) {
+                            lives--; // ¡Recién acá perdés vida!
+                            player.coneHits = 0; // Volvemos a cero
+                            showToast("DAÑO", "¡4 conos! -1 Vida");
+                            if (navigator.vibrate) navigator.vibrate(100);
+                        }
+
+                        // Física del objeto volador
+                        en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; 
+                        en.vRot = 0.15; 
+                        en.rotation = 0;
+                        if (lives <= 0) endGame("CHOQUE EN OBRA");
+
+                    } else if (en.subType === 'valla') {
+                        // Las vallas te sacan una vida de una
+                        en.hit = true;
+                        lives--;
+                        playSound('crash');
+                        screenShake = 8;
+                        currentSpeed *= 0.5;
+                        en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -12 : 12;
+                        en.vRot = 0.2;
+                        if (lives <= 0) endGame("CHOQUE CON VALLA");
+
+                    } else {
+                        // Máquinas pesadas son muerte segura
+                        endGame("OBRAS: MUERTE INSTANTÁNEA");
+                    }
+                } else {
+                    // Choque con otros autos (NPCs)
+                    playSound('crash');
+                    lives--;
+                    screenShake = 10;
+                    if (lives <= 0) endGame("CHOQUE");
+                    enemies.splice(i, 1);
+                }
+            }
+            else if(en.y > 850 || en.y < -500) enemies.splice(i,1);
         });
         items.forEach((it, i) => {
             if(it.t === 'coin' && magnetTimer > 0) { let dx = (player.x + player.w/2) - (it.x + it.w/2), dy = (player.y + player.h/2) - (it.y + it.h/2), dist = Math.sqrt(dx*dx + dy*dy); if(dist < 300) { it.x += (dx/dist) * 12 * dt; it.y += (dy/dist) * 12 * dt; } else it.y += currentSpeed * dt; } else it.y += currentSpeed * dt;
@@ -913,10 +944,23 @@ window.openRanking = async function() {
         scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); }); if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; } if(fuel <= 0) endGame("SIN NAFTA"); updateHUD();
     }
 
-    function spawnItem(t) {
+  function spawnItem(t) {
+        let lane = Math.floor(Math.random() * 4);
+        
+        // Si hay una obra en el carril elegido, lo movemos al carril de al lado
+        if (constEvent.active && lane === constEvent.lane) {
+            lane = (lane + 1) % 4; 
+        }
+
+        let centers = [76.25, 158.75, 241.25, 323.75];
         let tx;
-        if (t === 'fuel') { let lane = Math.floor(Math.random() * 4); let centers = [76.25, 158.75, 241.25, 323.75]; tx = centers[lane] - 15;
-        } else { tx = 70 + Math.random()*260; }
+
+        if (t === 'fuel') { 
+            tx = centers[lane] - 15; 
+        } else { 
+            tx = (centers[lane] - 15) + (Math.random() * 20 - 10); 
+        }
+        
         items.push({ x: tx, y: -50, w: 30, h: 30, t: t, img: assets[t] });
     }
 
@@ -1228,11 +1272,28 @@ window.openRanking = async function() {
     function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
     function showRewardAd(onReward) { showToast("ANUNCIO", "Viendo anuncio publicitario..."); setTimeout(() => { onReward(); }, 2000); }
 
-    window.confirmRevive = function() { 
+   window.confirmRevive = function() { 
         showRewardAd(() => {
-            clearInterval(reviveInterval); lives = 1; fuel = 100; hasRevived = true; expObj = null; state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; 
-            playSound('music_race', true); playSound('motor', true); save(); lastTime = performance.now(); loop(); 
-            showToast("¡REVIVIDO!", "Gracias por ver el anuncio");
+            clearInterval(reviveInterval); 
+            lives = 1; 
+            fuel = 100; 
+            hasRevived = true; 
+            expObj = null; 
+            
+            // --- LIMPIEZA DE SEGURIDAD ---
+            enemies = [];      // Borramos todos los autos y obstáculos
+            items = [];        // Borramos ítems sueltos
+            constEvent.active = false; // Cancelamos cualquier obra que estuviera activa
+            
+            state = "PLAYING"; 
+            hideAll(); 
+            document.getElementById("btn-pause-trigger").style.display = "flex"; 
+            playSound('music_race', true); 
+            playSound('motor', true); 
+            save(); 
+            lastTime = performance.now(); 
+            loop(); 
+            showToast("¡REVIVIDO!", "Pista despejada para tu regreso");
         });
     }
 
@@ -1515,6 +1576,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
