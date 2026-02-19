@@ -783,6 +783,10 @@ window.openRanking = async function() {
     }
 
     // --- 1. NÚCLEO DEL JUEGO (LOOP Y POLICÍA) ---
+   // ==========================================
+    // --- MOTOR ÚNICO Y DEFINITIVO (SANEADO) ---
+    // ==========================================
+
     function loop(t) { 
         if(state !== "PLAYING") return; 
         let dt = (t - lastTime) / 16.66; 
@@ -805,88 +809,69 @@ window.openRanking = async function() {
         let fine = POLICE_FINES[stars] || 0;
         let finalFine = Math.min(garage.coins, fine);
         garage.coins -= finalFine;
-        save(); 
-        stopSound('motor'); stopSound('music_race'); playSound('crash'); 
+        save(); stopSound('motor'); stopSound('music_race'); playSound('crash'); 
         finishGame();
         document.getElementById("over-title").innerText = "¡ARRESTADO!";
-        document.getElementById("over-reason").innerText = `Multa de $${finalFine} por ${stars} estrellas.`;
+        document.getElementById("over-reason").innerText = `Multa de $${finalFine} por infracciones.`;
     };
 
-    // --- 2. MOTOR DE LÓGICA (UPDATE) ---
     function update(dt) {
         if(state === 'PLAYING' && soundEnabled && sonidos.music_race.buffer && !sonidos.music_race.source) {
             playSound('music_race', true);
         }
-
-        // Evasión y Arresto
-        if (evasionTimer > 0) { evasionTimer -= dt; } 
+        if (evasionTimer > 0) evasionTimer -= dt;
         else if (heat > 0) { heat -= 0.002 * dt; if (heat < 0) heat = 0; }
 
         let beingArrested = false;
         if (heat >= 1 && currentSpeed < 1.5) { 
-            let nearbyPolice = enemies.find(en => en.type === 'police' && Math.abs(en.x - player.x) < 80 && Math.abs(en.y - player.y) < 100);
-            if (nearbyPolice) {
-                beingArrested = true;
-                arrestProgress += 0.5 * dt; 
-                if (arrestProgress >= 100) arrestPlayer(); 
-            }
+            let pol = enemies.find(e => e.type === 'police' && Math.abs(e.x - player.x) < 80 && Math.abs(e.y - player.y) < 100);
+            if (pol) { beingArrested = true; arrestProgress += 0.5 * dt; if (arrestProgress >= 100) arrestPlayer(); }
         }
         if (!beingArrested) arrestProgress = Math.max(0, arrestProgress - dt);
 
-        // Física del Jugador
         const car = MODELS[garage.selected], stats = garage.carStats[garage.selected]; 
         level = (score < 4000) ? Math.floor(score / 500) + 1 : 9 + Math.floor((score - 4000) / 1000);
         const mSpd = car.maxSpeed + (stats.motor * 0.4); 
-        let hndl = car.handling; 
-        let rain = (level >= 6 && (level - 6) % 4 === 1); 
-        let turnInertia = 0.85; 
-        if(rain) { hndl *= 0.30; turnInertia = 0.97; }
-
+        
         if(isS) { currentSpeed *= 0.9; player.vx = 0; } 
         else { 
             if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); 
             else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); 
             else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); 
-            let adaptiveH = hndl * (1 / (1 + (currentSpeed / 15)));
+            let adaptiveH = car.handling * (1 / (1 + (currentSpeed / 15)));
             if(keys["ArrowLeft"]) player.vx -= adaptiveH * dt; 
             if(keys["ArrowRight"]) player.vx += adaptiveH * dt; 
         }
 
-        player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; 
-        if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; 
+        player.vx *= 0.85; player.x += player.vx * dt; 
+        player.x = Math.max(35, Math.min(365 - player.w, player.x));
         roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
         fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
         if(screenShake > 0.1) screenShake *= 0.85; 
-        
         actualizarMotor(currentSpeed);
 
-        // Spawns
         if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); 
         if (heat >= 1 && Math.random() < 0.01 * dt && !enemies.some(e => e.type === 'police')) {
-            let pL = Math.floor(Math.random()*4);
-            enemies.push({ x: [75, 157.5, 242.5, 325][pL]-24, y: -120, w: 48, h: 95, type: 'police', l: pL, tl: pL, speed: currentSpeed+2, baseSpeed: currentSpeed+2, img: assets.police, hit: false, rotation: 0, bTimer: 0, bCount: 0, blink: false });
+            let l = Math.floor(Math.random()*4);
+            enemies.push({ x: [75, 157.5, 242.5, 325][l]-24, y: -120, w: 48, h: 95, type: 'police', l: l, tl: l, speed: currentSpeed+2, baseSpeed: currentSpeed+2, img: assets.police, hit: false, rotation: 0, bTimer: 0, bCount: 0, blink: false });
         }
-        if(Math.random() < 0.02 * dt) spawnScenery(); 
-        if(Math.random() < 0.006 * dt) spawnItem('coin'); 
-        if(Math.random() < 0.007 * dt) spawnItem('fuel');
 
-        // Lógica de cada Enemigo e Ítem
         enemies.forEach((en, i) => {
             let dSpd = en.baseSpeed;
             if (en.type === 'police' && !en.hit) {
-                let pLane = Math.floor((player.x + player.w/2) / 100);
-                if (en.l !== pLane && !en.chg && !en.blink) { en.tl = Math.max(0, Math.min(3, pLane)); en.blink = true; en.tx = [75, 157.5, 242.5, 325][en.tl]-24; }
+                let pL = Math.floor((player.x + player.w/2) / 100);
+                if (en.l !== pL && !en.chg && !en.blink) { en.tl = Math.max(0, Math.min(3, pL)); en.blink = true; en.tx = [75, 157.5, 242.5, 325][en.tl]-24; }
                 dSpd = currentSpeed + 1.8; 
             }
             en.speed += (dSpd - en.speed) * 0.2 * dt;
             en.y += (currentSpeed - en.speed) * dt;
             if (en.hit) { en.x += en.vx * dt; en.rotation += 0.15 * dt; }
-
             if (checkCollision(player, en) && !en.hit) {
                 if (en.type === 'normal' || en.type === 'police') { 
                     lives--; updateHeat('npc_hit'); screenShake = 10; enemies.splice(i, 1); if (lives <= 0) endGame("CHOQUE"); 
                 } else if (en.subType === 'cono') { 
-                    en.hit = true; player.coneHits++; updateHeat('cono'); if (player.coneHits >= 4) { lives--; player.coneHits = 0; } en.vx = (en.x < player.x ? -10 : 10); 
+                    en.hit = true; player.coneHits++; updateHeat('cono'); if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos! -1 Vida"); }
+                    en.vx = (en.x < player.x ? -10 : 10); 
                 }
             } else if(en.y > 850) enemies.splice(i, 1);
         });
@@ -899,24 +884,17 @@ window.openRanking = async function() {
                 items.splice(i, 1);
             } else if(it.y > 800) items.splice(i, 1);
         });
-
-        scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i, 1); });
         if(fuel <= 0) endGame("SIN NAFTA");
         updateHUD();
     }
 
-    // --- 3. MOTOR DE DIBUJO (DRAW) ---
     function draw() {
         ctx.save(); 
         if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); 
-
-        // Ruta
         ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750);
         ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750);
         
-        scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
         items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
-
         enemies.forEach(en => {
             ctx.save();
             if (en.hit) { ctx.translate(en.x + en.w/2, en.y + en.h/2); ctx.rotate(en.rotation); ctx.drawImage(en.img, -en.w/2, -en.h/2, en.w, en.h); }
@@ -930,14 +908,11 @@ window.openRanking = async function() {
             }
             ctx.restore();
         });
-
         if(assets.player.complete) ctx.drawImage(assets.player, player.x, player.y, player.w, player.h);
 
-        // UI de Arresto y Estrellas
         if (arrestProgress > 5) {
             ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(100, 250, 200, 25); 
             ctx.fillStyle = "#ff4757"; ctx.fillRect(105, 255, (arrestProgress / 100) * 190, 15);
-            ctx.fillStyle = "white"; ctx.font = "bold 14px Arial"; ctx.textAlign = "center"; ctx.fillText("¡TE ESTÁN ARRESTANDO!", 200, 243);
         }
 
         if (heat >= 1) {
@@ -948,9 +923,8 @@ window.openRanking = async function() {
         ctx.restore(); 
     }
 
-    // --- 4. FUNCIONES DE APOYO ---
+    // --- FUNCIONES DE SOPORTE ---
     function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
-    
     function updateHUD() { 
         document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
         document.getElementById("ui-score").innerText = score|0; 
@@ -959,24 +933,13 @@ window.openRanking = async function() {
         document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); 
         document.getElementById("fuel-bar").style.width = fuel + "%"; 
     }
-
+    function getCarImg(id) { return `Autos/${MODELS[id].img}`; }
+    function updateShopCoinDisplays() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
     function spawnTraffic() { let l = (Math.random()*4)|0; let tx = [75, 157.5, 242.5, 325][l]; enemies.push({ x: tx-22, y: -200, l: l, w: 45, h: 80, type: 'normal', img: assets.npcs[Math.floor(Math.random()*assets.npcs.length)], baseSpeed: 2 + Math.random()*2, speed: 2, hit: false, rotation: 0 }); }
     function spawnItem(t) { let l = Math.floor(Math.random()*4); items.push({ x: [75, 157.5, 242.5, 325][l]-15, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
     function spawnScenery() { } 
 
-    window.finishGame = function() {
-        state = "OVER"; hideAll();
-        if(score > garage.high) garage.high = score|0;
-        save();
-        document.getElementById("game-over").classList.remove("hidden");
-        document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
-    }
-
-    function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
-    window.showMenu = function() { clearInterval(reviveInterval); state = "MENU"; hideAll(); stopSound('music_race'); playSound('music_menu', true); updateUI(); }
-    function getCarImg(id) { return `Autos/${MODELS[id].img}`; }
-    window.updateShopCoinDisplays = function() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
-    // --- 5. LÓGICA DE TIENDA Y MEJORAS (RECUPERADO) ---
+    // --- GARAJE Y MEJORAS ---
     window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
     window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
     window.openMejoras = function() { 
@@ -984,36 +947,6 @@ window.openRanking = async function() {
         document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected);
         updateUI(); renderColorSelector(); 
     }
-    window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
-    
-    window.openNeones = function() { 
-        playSound('click'); hideAll(); updateShopCoinDisplays(); 
-        const container = document.getElementById("neon-container"); container.innerHTML = ""; 
-        Object.keys(NEONES).forEach(k => { 
-            const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); 
-            btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; 
-            btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; 
-            btn.onclick = () => { playSound('click'); if(owned) { garage.selectedNeon = k; save(); openNeones(); } else { if(garage.coins < n.price) { showToast("ERROR", "Sin monedas"); return; } tempUpgrade = { type: 'neon', key: k, cost: n.price }; document.getElementById("modal-title").innerText = "COMPRAR LUZ"; document.getElementById("modal-desc").innerHTML = `¿Instalar neón ${n.name}?`; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
-            container.appendChild(btn); 
-        }); 
-        document.getElementById("shop-neones").classList.remove("hidden"); 
-    }
-
-    function updateShopUI() { 
-        const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; 
-        document.getElementById("shop-car-img").src = getCarImg(key); 
-        document.getElementById("shop-car-name").innerText = car.name; 
-        document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; 
-        document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; 
-        const btn = document.getElementById("shop-car-btn"); 
-        btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; 
-        btn.onclick = () => { playSound('click'); if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else { if(garage.coins < car.price) { showToast("ERROR", "Sin monedas"); return; } tempUpgrade = { type: 'car', key: key, cost: car.price, name: car.name }; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
-        updateShopCoinDisplays(); 
-    }
-
-    window.nextCar = function() { playSound('click'); shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
-    window.prevCar = function() { playSound('click'); shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
-
     window.confirmUpgrade = function() {
         if(!tempUpgrade) return;
         if(garage.coins < tempUpgrade.cost) { showToast("ERROR", "Sin monedas"); closeUpgradeModal(); return; }
@@ -1022,121 +955,13 @@ window.openRanking = async function() {
             if (!garage.ownedColors[tempUpgrade.carKey]) garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
             if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
             garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
-        } else if (tempUpgrade.type === 'neon') {
-            if (!garage.neonOwned.includes(tempUpgrade.key)) garage.neonOwned.push(tempUpgrade.key);
-            garage.selectedNeon = tempUpgrade.key;
         } else if (tempUpgrade.type === 'car') {
             if (!garage.owned.includes(tempUpgrade.key)) garage.owned.push(tempUpgrade.key);
             garage.selected = tempUpgrade.key;
-        } else { garage.carStats[garage.selected][tempUpgrade.type]++; }
-        save(); updateUI(); closeUpgradeModal();
-        renderColorSelector(); showToast("ÉXITO", "¡Completado!");
-    }
-    window.closeUpgradeModal = function() { playSound('click'); document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
-
-    // --- 6. SISTEMA DE REVIVIR ---
-    function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
-    window.confirmRevive = function() { 
-        clearInterval(reviveInterval); lives = 1; fuel = 100; hasRevived = true; expObj = null; enemies = []; items = [];
-        state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; 
-        playSound('music_race', true); playSound('motor', true); lastTime = performance.now(); loop(); 
-    }
-// 1. Botón para EMPEZAR A CORRER
-const btnCorrer = document.querySelector(".btn-green[onclick*='startGame']");
-if (btnCorrer) {
-    btnCorrer.onclick = null; // Borramos el onclick viejo
-    btnCorrer.addEventListener("click", () => {
-        requestFullScreen();
-        startGame();
-    });
-}
-
-// 2. Botón para abrir el GARAJE
-const btnGaraje = document.querySelector(".btn-blue[onclick*='openShop']");
-if (btnGaraje) {
-    btnGaraje.onclick = null;
-    btnGaraje.addEventListener("click", openShop);
-}
-
-// 3. Botón de LOGIN (Google)
-const btnLogin = document.getElementById("btn-login");
-if (btnLogin) {
-    btnLogin.onclick = null;
-    btnLogin.addEventListener("click", loginGoogle);
-}
-
-// 4. Botón de PAUSA
-const btnPausa = document.getElementById("btn-pause-trigger");
-if (btnPausa) {
-    btnPausa.onclick = null;
-    btnPausa.addEventListener("click", togglePause);
-}
-
-// 5. Botón de RÁNKING
-const btnRank = document.querySelector(".btn-orange[onclick*='openRanking']");
-if (btnRank) {
-    btnRank.onclick = null;
-    btnRank.addEventListener("click", openRanking);
-}
-    // --- 5. LÓGICA DE TIENDA Y MEJORAS (RECUPERADO) ---
-    window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
-    window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
-    window.openMejoras = function() { 
-        playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); 
-        document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected);
-        updateUI(); renderColorSelector(); 
-    }
-    window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
-    
-    window.openNeones = function() { 
-        playSound('click'); hideAll(); updateShopCoinDisplays(); 
-        const container = document.getElementById("neon-container"); container.innerHTML = ""; 
-        Object.keys(NEONES).forEach(k => { 
-            const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); 
-            btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; 
-            btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; 
-            btn.onclick = () => { playSound('click'); if(owned) { garage.selectedNeon = k; save(); openNeones(); } else { if(garage.coins < n.price) { showToast("ERROR", "Sin monedas"); return; } tempUpgrade = { type: 'neon', key: k, cost: n.price }; document.getElementById("modal-title").innerText = "COMPRAR LUZ"; document.getElementById("modal-desc").innerHTML = `¿Instalar neón ${n.name}?`; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
-            container.appendChild(btn); 
-        }); 
-        document.getElementById("shop-neones").classList.remove("hidden"); 
-    }
-
-    function updateShopUI() { 
-        const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; 
-        document.getElementById("shop-car-img").src = getCarImg(key); 
-        document.getElementById("shop-car-name").innerText = car.name; 
-        document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; 
-        document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; 
-        const btn = document.getElementById("shop-car-btn"); 
-        btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; 
-        btn.onclick = () => { playSound('click'); if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else { if(garage.coins < car.price) { showToast("ERROR", "Sin monedas"); return; } tempUpgrade = { type: 'car', key: key, cost: car.price, name: car.name }; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
-        updateShopCoinDisplays(); 
-    }
-
-    window.nextCar = function() { playSound('click'); shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
-    window.prevCar = function() { playSound('click'); shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
-
-    window.confirmUpgrade = function() {
-        if(!tempUpgrade) return;
-        if(garage.coins < tempUpgrade.cost) { showToast("ERROR", "Sin monedas"); closeUpgradeModal(); return; }
-        playSound('coin'); garage.coins -= tempUpgrade.cost;
-        if(tempUpgrade.type === 'color') {
-            if (!garage.ownedColors[tempUpgrade.carKey]) garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
-            if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
-            garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
-        } else if (tempUpgrade.type === 'neon') {
-            if (!garage.neonOwned.includes(tempUpgrade.key)) garage.neonOwned.push(tempUpgrade.key);
-            garage.selectedNeon = tempUpgrade.key;
-        } else if (tempUpgrade.type === 'car') {
-            if (!garage.owned.includes(tempUpgrade.key)) { garage.owned.push(tempUpgrade.key); }
-            garage.selected = tempUpgrade.key;
             updateShopUI(); 
         } else { garage.carStats[garage.selected][tempUpgrade.type]++; }
-        save(); updateUI(); closeUpgradeModal();
-        if (typeof renderColorSelector === 'function') renderColorSelector();
-        showToast("ÉXITO", "¡Compra realizada!");
+        save(); updateUI(); closeUpgradeModal(); renderColorSelector(); showToast("ÉXITO", "¡Completado!");
     }
-
     window.renderColorSelector = function() {
         const carKey = garage.selected; const car = MODELS[carKey]; const container = document.getElementById("color-selector-container");
         if (!container || !car.colors) return; container.innerHTML = "";
@@ -1144,51 +969,48 @@ if (btnRank) {
             const isOwned = (garage.ownedColors[carKey] || [car.colors[0]]).includes(col);
             const isSelected = (garage.selectedColors[carKey] || car.colors[0]) === col;
             const dot = document.createElement("div");
-            const colorMap = { 'rojo': '#e74c3c', 'azul': '#3498db', 'verde': '#2ecc71', 'amarillo': '#f1c40f', 'negro': '#111', 'blanco': '#fff', 'rosa': '#ff69b4', 'violeta': '#9b59b6', 'gris': '#95a5a6', 'plata': '#bdc3c7', 'naranja': '#e67e22', 'celeste': '#87ceeb' };
-            dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${colorMap[col] || col}; border: 2px solid ${isSelected ? '#f1c40f' : '#333'}; cursor:pointer;`;
-            dot.onclick = () => { 
-                if(isOwned) { garage.selectedColors[carKey] = col; save(); renderColorSelector(); }
-                else { tempUpgrade = { type: 'color', color: col, carKey: carKey, cost: 1500 }; document.getElementById("modal-title").innerText = "PINTAR"; document.getElementById("modal-desc").innerText = "Costo: $1,500"; document.getElementById("upgrade-modal").classList.remove("hidden"); }
-            };
+            dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${col}; border: 2px solid ${isSelected ? '#f1c40f' : '#333'}; cursor:pointer;`;
+            dot.onclick = () => { if(isOwned) { garage.selectedColors[carKey] = col; save(); renderColorSelector(); } else { tempUpgrade = { type: 'color', color: col, carKey: carKey, cost: 1500 }; document.getElementById("modal-title").innerText = "PINTAR"; document.getElementById("modal-desc").innerText = "Costo: $1,500"; document.getElementById("upgrade-modal").classList.remove("hidden"); } };
             container.appendChild(dot);
         });
     }
 
-    window.closeUpgradeModal = function() { playSound('click'); document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
-    function getCarImg(carId) { return `Autos/${MODELS[carId].img}`; }
-
-    // --- 6. SISTEMA DE REVIVIR Y BOTÓN DE INICIO ---
-    window.confirmRevive = function() { 
-        clearInterval(reviveInterval); lives = 1; fuel = 100; hasRevived = true; expObj = null; enemies = []; items = [];
-        state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; 
-        playSound('music_race', true); playSound('motor', true); lastTime = performance.now(); loop(); 
-    }
-
+    // --- INICIO Y BOTONES ---
     window.startGame = function() {
         requestFullScreen();
         if (!localStorage.getItem('racing_tutorial_v1')) { document.getElementById('tutorial-overlay').classList.remove('hidden'); return; }
         const car = MODELS[garage.selected]; assets.player.src = getCarImg(garage.selected);
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 };
-        score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; heat = 0; arrestProgress = 0; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false;
+        score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; heat = 0; arrestProgress = 0; coinsThisRun = 0;
         state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex";
         stopSound('music_menu'); playSound('music_race', true); playSound('motor', true);
         lastTime = performance.now(); loop();
     }
 
-    // --- 7. EL PUENTE (CONECTAR BOTONES) ---
-    const misBotones = [
+    window.finishGame = function() {
+        state = "OVER"; hideAll();
+        if(score > garage.high) garage.high = score|0;
+        garage.coins += coinsThisRun; save();
+        document.getElementById("game-over").classList.remove("hidden");
+        document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
+    }
+
+    function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
+    window.showMenu = function() { state = "MENU"; hideAll(); stopSound('music_race'); playSound('music_menu', true); updateUI(); }
+    window.closeUpgradeModal = function() { document.getElementById("upgrade-modal").classList.add("hidden"); }
+
+    const botonesJuego = [
         { sel: ".btn-green[onclick*='startGame']", fn: window.startGame },
         { sel: ".btn-blue[onclick*='openShop']", fn: window.openShop },
         { sel: ".btn-orange[onclick*='openRanking']", fn: window.openRanking },
         { sel: "#btn-login", fn: window.loginGoogle },
         { sel: "#btn-pause-trigger", fn: window.togglePause }
     ];
-    misBotones.forEach(b => {
+    botonesJuego.forEach(b => {
         const el = document.querySelector(b.sel) || document.getElementById(b.sel.replace('#',''));
         if (el) { el.onclick = null; el.addEventListener("click", b.fn); }
     });
 
-    // --- 8. SERVICE WORKER ---
     if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').then(reg => reg.update()); }
     } catch (e) {
         console.error("Error crítico en el motor del juego:", e);
@@ -1196,5 +1018,6 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
