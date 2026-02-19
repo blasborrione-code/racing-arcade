@@ -976,6 +976,71 @@ window.openRanking = async function() {
     window.showMenu = function() { clearInterval(reviveInterval); state = "MENU"; hideAll(); stopSound('music_race'); playSound('music_menu', true); updateUI(); }
     function getCarImg(id) { return `Autos/${MODELS[id].img}`; }
     window.updateShopCoinDisplays = function() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
+    // --- 5. LÓGICA DE TIENDA Y MEJORAS (RECUPERADO) ---
+    window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
+    window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
+    window.openMejoras = function() { 
+        playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); 
+        document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected);
+        updateUI(); renderColorSelector(); 
+    }
+    window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
+    
+    window.openNeones = function() { 
+        playSound('click'); hideAll(); updateShopCoinDisplays(); 
+        const container = document.getElementById("neon-container"); container.innerHTML = ""; 
+        Object.keys(NEONES).forEach(k => { 
+            const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); 
+            btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; 
+            btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; 
+            btn.onclick = () => { playSound('click'); if(owned) { garage.selectedNeon = k; save(); openNeones(); } else { if(garage.coins < n.price) { showToast("ERROR", "Sin monedas"); return; } tempUpgrade = { type: 'neon', key: k, cost: n.price }; document.getElementById("modal-title").innerText = "COMPRAR LUZ"; document.getElementById("modal-desc").innerHTML = `¿Instalar neón ${n.name}?`; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
+            container.appendChild(btn); 
+        }); 
+        document.getElementById("shop-neones").classList.remove("hidden"); 
+    }
+
+    function updateShopUI() { 
+        const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; 
+        document.getElementById("shop-car-img").src = getCarImg(key); 
+        document.getElementById("shop-car-name").innerText = car.name; 
+        document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; 
+        document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; 
+        const btn = document.getElementById("shop-car-btn"); 
+        btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; 
+        btn.onclick = () => { playSound('click'); if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else { if(garage.coins < car.price) { showToast("ERROR", "Sin monedas"); return; } tempUpgrade = { type: 'car', key: key, cost: car.price, name: car.name }; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
+        updateShopCoinDisplays(); 
+    }
+
+    window.nextCar = function() { playSound('click'); shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
+    window.prevCar = function() { playSound('click'); shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
+
+    window.confirmUpgrade = function() {
+        if(!tempUpgrade) return;
+        if(garage.coins < tempUpgrade.cost) { showToast("ERROR", "Sin monedas"); closeUpgradeModal(); return; }
+        playSound('coin'); garage.coins -= tempUpgrade.cost;
+        if(tempUpgrade.type === 'color') {
+            if (!garage.ownedColors[tempUpgrade.carKey]) garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
+            if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
+            garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
+        } else if (tempUpgrade.type === 'neon') {
+            if (!garage.neonOwned.includes(tempUpgrade.key)) garage.neonOwned.push(tempUpgrade.key);
+            garage.selectedNeon = tempUpgrade.key;
+        } else if (tempUpgrade.type === 'car') {
+            if (!garage.owned.includes(tempUpgrade.key)) garage.owned.push(tempUpgrade.key);
+            garage.selected = tempUpgrade.key;
+        } else { garage.carStats[garage.selected][tempUpgrade.type]++; }
+        save(); updateUI(); closeUpgradeModal();
+        renderColorSelector(); showToast("ÉXITO", "¡Completado!");
+    }
+    window.closeUpgradeModal = function() { playSound('click'); document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
+
+    // --- 6. SISTEMA DE REVIVIR ---
+    function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
+    window.confirmRevive = function() { 
+        clearInterval(reviveInterval); lives = 1; fuel = 100; hasRevived = true; expObj = null; enemies = []; items = [];
+        state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; 
+        playSound('music_race', true); playSound('motor', true); lastTime = performance.now(); loop(); 
+    }
 // 1. Botón para EMPEZAR A CORRER
 const btnCorrer = document.querySelector(".btn-green[onclick*='startGame']");
 if (btnCorrer) {
@@ -1013,10 +1078,123 @@ if (btnRank) {
     btnRank.onclick = null;
     btnRank.addEventListener("click", openRanking);
 }
+    // --- 5. LÓGICA DE TIENDA Y MEJORAS (RECUPERADO) ---
+    window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
+    window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
+    window.openMejoras = function() { 
+        playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); 
+        document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected);
+        updateUI(); renderColorSelector(); 
+    }
+    window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(key => { let cur = garage.unlockedLogros[key], val = (key === 'totalDist') ? garage.totalDist : (key === 'totalCoins') ? garage.totalCoinsRec : (key === 'totalNear') ? garage.totalNear : garage.totalPlays; const div = document.createElement("div"); div.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; div.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${key.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[key][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(div); }); document.getElementById("shop-logros").classList.remove("hidden"); }
+    
+    window.openNeones = function() { 
+        playSound('click'); hideAll(); updateShopCoinDisplays(); 
+        const container = document.getElementById("neon-container"); container.innerHTML = ""; 
+        Object.keys(NEONES).forEach(k => { 
+            const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); 
+            btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; 
+            btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; 
+            btn.onclick = () => { playSound('click'); if(owned) { garage.selectedNeon = k; save(); openNeones(); } else { if(garage.coins < n.price) { showToast("ERROR", "Sin monedas"); return; } tempUpgrade = { type: 'neon', key: k, cost: n.price }; document.getElementById("modal-title").innerText = "COMPRAR LUZ"; document.getElementById("modal-desc").innerHTML = `¿Instalar neón ${n.name}?`; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
+            container.appendChild(btn); 
+        }); 
+        document.getElementById("shop-neones").classList.remove("hidden"); 
+    }
+
+    function updateShopUI() { 
+        const key = Object.keys(MODELS)[shopIndex], car = MODELS[key]; 
+        document.getElementById("shop-car-img").src = getCarImg(key); 
+        document.getElementById("shop-car-name").innerText = car.name; 
+        document.getElementById("shop-car-speed").innerText = "VEL: " + (car.maxSpeed * 12).toFixed(0) + " KM/H"; 
+        document.getElementById("shop-car-lives").innerText = "❤️ " + car.lives; 
+        const btn = document.getElementById("shop-car-btn"); 
+        btn.innerText = garage.owned.includes(key) ? (garage.selected === key ? "EQUIPADO" : "EQUIPAR") : `COMPRAR $${car.price.toLocaleString()}`; 
+        btn.onclick = () => { playSound('click'); if(garage.owned.includes(key)) { garage.selected = key; save(); updateShopUI(); } else { if(garage.coins < car.price) { showToast("ERROR", "Sin monedas"); return; } tempUpgrade = { type: 'car', key: key, cost: car.price, name: car.name }; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
+        updateShopCoinDisplays(); 
+    }
+
+    window.nextCar = function() { playSound('click'); shopIndex = (shopIndex + 1) % Object.keys(MODELS).length; updateShopUI(); }
+    window.prevCar = function() { playSound('click'); shopIndex = (shopIndex - 1 + Object.keys(MODELS).length) % Object.keys(MODELS).length; updateShopUI(); }
+
+    window.confirmUpgrade = function() {
+        if(!tempUpgrade) return;
+        if(garage.coins < tempUpgrade.cost) { showToast("ERROR", "Sin monedas"); closeUpgradeModal(); return; }
+        playSound('coin'); garage.coins -= tempUpgrade.cost;
+        if(tempUpgrade.type === 'color') {
+            if (!garage.ownedColors[tempUpgrade.carKey]) garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
+            if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
+            garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
+        } else if (tempUpgrade.type === 'neon') {
+            if (!garage.neonOwned.includes(tempUpgrade.key)) garage.neonOwned.push(tempUpgrade.key);
+            garage.selectedNeon = tempUpgrade.key;
+        } else if (tempUpgrade.type === 'car') {
+            if (!garage.owned.includes(tempUpgrade.key)) { garage.owned.push(tempUpgrade.key); }
+            garage.selected = tempUpgrade.key;
+            updateShopUI(); 
+        } else { garage.carStats[garage.selected][tempUpgrade.type]++; }
+        save(); updateUI(); closeUpgradeModal();
+        if (typeof renderColorSelector === 'function') renderColorSelector();
+        showToast("ÉXITO", "¡Compra realizada!");
+    }
+
+    window.renderColorSelector = function() {
+        const carKey = garage.selected; const car = MODELS[carKey]; const container = document.getElementById("color-selector-container");
+        if (!container || !car.colors) return; container.innerHTML = "";
+        car.colors.forEach((col) => {
+            const isOwned = (garage.ownedColors[carKey] || [car.colors[0]]).includes(col);
+            const isSelected = (garage.selectedColors[carKey] || car.colors[0]) === col;
+            const dot = document.createElement("div");
+            const colorMap = { 'rojo': '#e74c3c', 'azul': '#3498db', 'verde': '#2ecc71', 'amarillo': '#f1c40f', 'negro': '#111', 'blanco': '#fff', 'rosa': '#ff69b4', 'violeta': '#9b59b6', 'gris': '#95a5a6', 'plata': '#bdc3c7', 'naranja': '#e67e22', 'celeste': '#87ceeb' };
+            dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${colorMap[col] || col}; border: 2px solid ${isSelected ? '#f1c40f' : '#333'}; cursor:pointer;`;
+            dot.onclick = () => { 
+                if(isOwned) { garage.selectedColors[carKey] = col; save(); renderColorSelector(); }
+                else { tempUpgrade = { type: 'color', color: col, carKey: carKey, cost: 1500 }; document.getElementById("modal-title").innerText = "PINTAR"; document.getElementById("modal-desc").innerText = "Costo: $1,500"; document.getElementById("upgrade-modal").classList.remove("hidden"); }
+            };
+            container.appendChild(dot);
+        });
+    }
+
+    window.closeUpgradeModal = function() { playSound('click'); document.getElementById("upgrade-modal").classList.add("hidden"); tempUpgrade = null; }
+    function getCarImg(carId) { return `Autos/${MODELS[carId].img}`; }
+
+    // --- 6. SISTEMA DE REVIVIR Y BOTÓN DE INICIO ---
+    window.confirmRevive = function() { 
+        clearInterval(reviveInterval); lives = 1; fuel = 100; hasRevived = true; expObj = null; enemies = []; items = [];
+        state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; 
+        playSound('music_race', true); playSound('motor', true); lastTime = performance.now(); loop(); 
+    }
+
+    window.startGame = function() {
+        requestFullScreen();
+        if (!localStorage.getItem('racing_tutorial_v1')) { document.getElementById('tutorial-overlay').classList.remove('hidden'); return; }
+        const car = MODELS[garage.selected]; assets.player.src = getCarImg(garage.selected);
+        player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 };
+        score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; heat = 0; arrestProgress = 0; coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false;
+        state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex";
+        stopSound('music_menu'); playSound('music_race', true); playSound('motor', true);
+        lastTime = performance.now(); loop();
+    }
+
+    // --- 7. EL PUENTE (CONECTAR BOTONES) ---
+    const misBotones = [
+        { sel: ".btn-green[onclick*='startGame']", fn: window.startGame },
+        { sel: ".btn-blue[onclick*='openShop']", fn: window.openShop },
+        { sel: ".btn-orange[onclick*='openRanking']", fn: window.openRanking },
+        { sel: "#btn-login", fn: window.loginGoogle },
+        { sel: "#btn-pause-trigger", fn: window.togglePause }
+    ];
+    misBotones.forEach(b => {
+        const el = document.querySelector(b.sel) || document.getElementById(b.sel.replace('#',''));
+        if (el) { el.onclick = null; el.addEventListener("click", b.fn); }
+    });
+
+    // --- 8. SERVICE WORKER ---
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').then(reg => reg.update()); }
     } catch (e) {
         console.error("Error crítico en el motor del juego:", e);
     }
 </script>
 </body>
 </html>
+
 
