@@ -796,7 +796,14 @@ try {
         document.getElementById("fuel-bar").style.width = fuel + "%"; 
     }
     function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
-    window.showMenu = function() { state = "MENU"; hideAll(); stopSound('music_race'); playSound('music_menu', true); updateUI(); }
+    window.showMenu = function() { 
+    state = "MENU"; 
+    hideAll(); 
+    document.getElementById("menu").classList.remove("hidden"); /* <-- ESTA ES LA LÍNEA QUE FALTABA */
+    stopSound('music_race'); 
+    playSound('music_menu', true); 
+    updateUI(); 
+}
     window.updateUI = function() { document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; }
     function getCarImg(id) { const col = garage.selectedColors[id] || MODELS[id].colors[0]; return col === MODELS[id].colors[0] ? `Autos/${MODELS[id].img}` : `Autos/car_${id}_${col}.png`; }
     window.updateShopCoinDisplays = function() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
@@ -929,6 +936,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
