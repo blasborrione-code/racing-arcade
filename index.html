@@ -707,86 +707,20 @@ window.openRanking = async function() {
         document.getElementById("weekly-bar").style.width = Math.min(100, (garage.weeklyDist/50000)*100) + "%";
     }
 
-    let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
-    let player = { x: 0, y: 0, vx: 0, w: 0, h: 0, coneHits: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
-    let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
-    let heat = 0, evasionTimer = 0, arrestProgress = 0, zoomLevel = 1;
+    // ==========================================
+    // --- 1. VARIABLES DE ESTADO Y JUGADOR ---
+    // ==========================================
+    let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, lastTime = 0;
+    let player = { x: 0, y: 0, vx: 0, w: 0, h: 0, coneHits: 0 };
+    let enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false;
+    let coinsThisRun = 0, nearMissesThisRun = 0, hasRevived = false, lastReason = "";
+    let reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
+    let heat = 0, evasionTimer = 0, arrestProgress = 0, shopIndex = 0;
     const POLICE_FINES = { 1: 150, 2: 350, 3: 750, 4: 1500 };
 
-
-    window.checkTutorial = function() {
-        if (!localStorage.getItem('racing_tutorial_v1')) {
-            document.getElementById('tutorial-overlay').classList.remove('hidden');
-            return true;
-        }
-        return false;
-    }
-
-    window.closeTutorial = function() {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        playSound('click'); 
-        playSound('music_menu', true);
-        document.getElementById('tutorial-overlay').classList.add('hidden');
-        localStorage.setItem('racing_tutorial_v1', 'true');
-        startGameLogic(); 
-    }
-
-    window.startGame = function() {
-        requestFullScreen();
-        if (checkTutorial()) return; 
-        startGameLogic();
-    }
-
- function startGameLogic() {
-        // Primero intentamos la pantalla completa para que el navegador no se queje
-        requestFullScreen();
-
-        const car = MODELS[garage.selected]; 
-        assets.player.src = getCarImg(garage.selected); 
-        
-        // Reset del jugador y el contador de tus 4 conos (TOC safe)
-        player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
-        
-        score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; 
-        enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
-        coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; 
-        magnetTimer = 0; 
-        
-        // Reset de eventos de obra
-        constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
-        
-        state = "PLAYING"; 
-        hideAll(); 
-        document.getElementById("btn-pause-trigger").style.display = "flex"; 
-        lastTime = performance.now(); 
-        
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        playSound('click'); 
-        stopSound('music_menu');
-        playSound('music_race', true); 
-        playSound('motor', true);
-        loop();
-    }
-
-    window.togglePause = function() { 
-        if(state !== "PLAYING" && state !== "PAUSED") return; 
-        state = (state === "PAUSED") ? "PLAYING" : "PAUSED"; 
-        playSound('click');
-        if(state === "PAUSED") {
-            document.getElementById("pause-screen").classList.remove("hidden"); 
-            stopSound('motor'); 
-        } else { 
-            document.getElementById("pause-screen").classList.add("hidden"); 
-            playSound('motor', true); 
-            lastTime = performance.now(); loop(); 
-        } 
-    }
-
-    // --- 1. NÚCLEO DEL JUEGO (LOOP Y POLICÍA) ---
-   // ==========================================
-    // --- MOTOR ÚNICO Y DEFINITIVO (SANEADO) ---
     // ==========================================
-
+    // --- 2. MOTOR DEL JUEGO (LOOP, UPDATE, DRAW) ---
+    // ==========================================
     function loop(t) { 
         if(state !== "PLAYING") return; 
         let dt = (t - lastTime) / 16.66; 
@@ -797,28 +731,10 @@ window.openRanking = async function() {
         requestAnimationFrame(loop); 
     }
 
-    window.updateHeat = function(action) {
-        if (action === 'cono') heat = Math.min(4, heat + 0.25);
-        if (action === 'npc_hit') heat = Math.min(4, heat + 1);
-        if (heat >= 1) evasionTimer = 600; 
-    };
-
-    window.arrestPlayer = function() {
-        state = "OVER";
-        let stars = Math.floor(heat);
-        let fine = POLICE_FINES[stars] || 0;
-        let finalFine = Math.min(garage.coins, fine);
-        garage.coins -= finalFine;
-        save(); stopSound('motor'); stopSound('music_race'); playSound('crash'); 
-        finishGame();
-        document.getElementById("over-title").innerText = "¡ARRESTADO!";
-        document.getElementById("over-reason").innerText = `Multa de $${finalFine} por infracciones.`;
-    };
-
     function update(dt) {
-        if(state === 'PLAYING' && soundEnabled && sonidos.music_race.buffer && !sonidos.music_race.source) {
-            playSound('music_race', true);
-        }
+        if(state === 'PLAYING' && soundEnabled && sonidos.music_race.buffer && !sonidos.music_race.source) playSound('music_race', true);
+
+        // Lógica de Policía (Arresto y Evasión)
         if (evasionTimer > 0) evasionTimer -= dt;
         else if (heat > 0) { heat -= 0.002 * dt; if (heat < 0) heat = 0; }
 
@@ -829,6 +745,7 @@ window.openRanking = async function() {
         }
         if (!beingArrested) arrestProgress = Math.max(0, arrestProgress - dt);
 
+        // Física del Auto
         const car = MODELS[garage.selected], stats = garage.carStats[garage.selected]; 
         level = (score < 4000) ? Math.floor(score / 500) + 1 : 9 + Math.floor((score - 4000) / 1000);
         const mSpd = car.maxSpeed + (stats.motor * 0.4); 
@@ -850,32 +767,27 @@ window.openRanking = async function() {
         if(screenShake > 0.1) screenShake *= 0.85; 
         actualizarMotor(currentSpeed);
 
+        // Spawns (Tráfico, Policía e Ítems)
         if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); 
         if (heat >= 1 && Math.random() < 0.01 * dt && !enemies.some(e => e.type === 'police')) {
             let l = Math.floor(Math.random()*4);
-            enemies.push({ x: [75, 157.5, 242.5, 325][l]-24, y: -120, w: 48, h: 95, type: 'police', l: l, tl: l, speed: currentSpeed+2, baseSpeed: currentSpeed+2, img: assets.police, hit: false, rotation: 0, bTimer: 0, bCount: 0, blink: false });
+            enemies.push({ x: [75, 157.5, 242.5, 325][l]-24, y: -120, w: 48, h: 95, type: 'police', l: l, speed: currentSpeed+2, img: assets.police, hit: false, rotation: 0 });
         }
+        if(Math.random() < 0.006 * dt) spawnItem('coin');
+        if(Math.random() < 0.007 * dt) spawnItem('fuel');
 
+        // Movimiento de Enemigos
         enemies.forEach((en, i) => {
-            let dSpd = en.baseSpeed;
-            if (en.type === 'police' && !en.hit) {
-                let pL = Math.floor((player.x + player.w/2) / 100);
-                if (en.l !== pL && !en.chg && !en.blink) { en.tl = Math.max(0, Math.min(3, pL)); en.blink = true; en.tx = [75, 157.5, 242.5, 325][en.tl]-24; }
-                dSpd = currentSpeed + 1.8; 
-            }
-            en.speed += (dSpd - en.speed) * 0.2 * dt;
-            en.y += (currentSpeed - en.speed) * dt;
-            if (en.hit) { en.x += en.vx * dt; en.rotation += 0.15 * dt; }
-            if (checkCollision(player, en) && !en.hit) {
+            en.y += (currentSpeed - (en.speed || 2)) * dt;
+            if (checkCollision(player, en)) {
                 if (en.type === 'normal' || en.type === 'police') { 
-                    lives--; updateHeat('npc_hit'); screenShake = 10; enemies.splice(i, 1); if (lives <= 0) endGame("CHOQUE"); 
-                } else if (en.subType === 'cono') { 
-                    en.hit = true; player.coneHits++; updateHeat('cono'); if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos! -1 Vida"); }
-                    en.vx = (en.x < player.x ? -10 : 10); 
+                    lives--; updateHeat('npc_hit'); screenShake = 10; enemies.splice(i, 1); 
+                    if (lives <= 0) endGame("CHOQUE"); 
                 }
             } else if(en.y > 850) enemies.splice(i, 1);
         });
 
+        // Movimiento de Ítems
         items.forEach((it, i) => {
             it.y += currentSpeed * dt;
             if(checkCollision(player, it)) {
@@ -884,137 +796,119 @@ window.openRanking = async function() {
                 items.splice(i, 1);
             } else if(it.y > 800) items.splice(i, 1);
         });
+
         if(fuel <= 0) endGame("SIN NAFTA");
         updateHUD();
     }
 
     function draw() {
-        ctx.save(); 
-        if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); 
-        ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750);
-        ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750);
-        
-        items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
+        ctx.save();
+        if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
+        ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); // Pasto
+        ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); // Calle
+
+        items.forEach(it => ctx.drawImage(it.img, it.x, it.y, it.w, it.h));
         enemies.forEach(en => {
-            ctx.save();
-            if (en.hit) { ctx.translate(en.x + en.w/2, en.y + en.h/2); ctx.rotate(en.rotation); ctx.drawImage(en.img, -en.w/2, -en.h/2, en.w, en.h); }
-            else { 
-                ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
-                if (en.type === 'police') {
-                    const isR = Math.floor(performance.now() / 150) % 2 === 0;
-                    ctx.fillStyle = isR ? "red" : "blue"; ctx.beginPath(); ctx.arc(en.x + 15, en.y + 20, 7, 0, 7); ctx.fill();
-                    ctx.fillStyle = isR ? "blue" : "red"; ctx.beginPath(); ctx.arc(en.x + en.w - 15, en.y + 20, 7, 0, 7); ctx.fill();
-                }
+            ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
+            if(en.type === 'police') { // Sirenas
+                let isR = Math.floor(performance.now()/150)%2===0;
+                ctx.fillStyle = isR ? "red" : "blue"; ctx.beginPath(); ctx.arc(en.x+15, en.y+20, 7, 0, 7); ctx.fill();
             }
-            ctx.restore();
         });
-        if(assets.player.complete) ctx.drawImage(assets.player, player.x, player.y, player.w, player.h);
+        ctx.drawImage(assets.player, player.x, player.y, player.w, player.h);
 
-        if (arrestProgress > 5) {
-            ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(100, 250, 200, 25); 
-            ctx.fillStyle = "#ff4757"; ctx.fillRect(105, 255, (arrestProgress / 100) * 190, 15);
+        if(arrestProgress > 5) { // Barra de arresto
+            ctx.fillStyle = "black"; ctx.fillRect(100, 250, 200, 20);
+            ctx.fillStyle = "red"; ctx.fillRect(100, 250, arrestProgress * 2, 20);
         }
-
-        if (heat >= 1) {
-            ctx.save(); ctx.font = "bold 28px Arial"; ctx.textAlign = "right"; ctx.fillStyle = "#f1c40f";
-            let s = ""; for(let i=0; i < Math.floor(heat); i++) s += "⭐";
-            ctx.fillText(s, 385, 120); ctx.restore();
+        if(heat >= 1) { // Estrellas
+            ctx.fillStyle = "yellow"; ctx.font = "bold 25px Arial";
+            ctx.fillText("⭐".repeat(Math.floor(heat)), 380 - (Math.floor(heat)*25), 50);
         }
-        ctx.restore(); 
+        ctx.restore();
     }
 
-    // --- FUNCIONES DE SOPORTE ---
-    function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
-    function updateHUD() { 
-        document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
-        document.getElementById("ui-score").innerText = score|0; 
-        document.getElementById("ui-level").innerText = level; 
-        document.getElementById("ui-lives-text").innerText = lives; 
-        document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); 
-        document.getElementById("fuel-bar").style.width = fuel + "%"; 
-    }
-    function getCarImg(id) { return `Autos/${MODELS[id].img}`; }
-    function updateShopCoinDisplays() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
-    function spawnTraffic() { let l = (Math.random()*4)|0; let tx = [75, 157.5, 242.5, 325][l]; enemies.push({ x: tx-22, y: -200, l: l, w: 45, h: 80, type: 'normal', img: assets.npcs[Math.floor(Math.random()*assets.npcs.length)], baseSpeed: 2 + Math.random()*2, speed: 2, hit: false, rotation: 0 }); }
-    function spawnItem(t) { let l = Math.floor(Math.random()*4); items.push({ x: [75, 157.5, 242.5, 325][l]-15, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
-    function spawnScenery() { } 
-
-    // --- GARAJE Y MEJORAS ---
-    window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
-    window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
-    window.openMejoras = function() { 
-        playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); 
-        document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected);
-        updateUI(); renderColorSelector(); 
-    }
+    // ==========================================
+    // --- 3. LÓGICA DE TIENDA Y GARAJE ---
+    // ==========================================
+    window.openShop = function() { hideAll(); document.getElementById("shop-main").classList.remove("hidden"); updateShopCoinDisplays(); }
+    window.openMejoras = function() { hideAll(); document.getElementById("shop-upgrades").classList.remove("hidden"); updateUI(); renderColorSelector(); }
+    window.openConcesionario = function() { hideAll(); document.getElementById("shop-cars").classList.remove("hidden"); updateShopUI(); }
+    
     window.confirmUpgrade = function() {
         if(!tempUpgrade) return;
-        if(garage.coins < tempUpgrade.cost) { showToast("ERROR", "Sin monedas"); closeUpgradeModal(); return; }
-        playSound('coin'); garage.coins -= tempUpgrade.cost;
+        if(garage.coins < tempUpgrade.cost) { showToast("ERROR", "Sin monedas"); return; }
+        garage.coins -= tempUpgrade.cost;
         if(tempUpgrade.type === 'color') {
             if (!garage.ownedColors[tempUpgrade.carKey]) garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
-            if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
+            garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
             garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
         } else if (tempUpgrade.type === 'car') {
-            if (!garage.owned.includes(tempUpgrade.key)) garage.owned.push(tempUpgrade.key);
-            garage.selected = tempUpgrade.key;
-            updateShopUI(); 
+            garage.owned.push(tempUpgrade.key); garage.selected = tempUpgrade.key;
         } else { garage.carStats[garage.selected][tempUpgrade.type]++; }
-        save(); updateUI(); closeUpgradeModal(); renderColorSelector(); showToast("ÉXITO", "¡Completado!");
+        save(); updateUI(); closeUpgradeModal(); renderColorSelector();
     }
+
     window.renderColorSelector = function() {
-        const carKey = garage.selected; const car = MODELS[carKey]; const container = document.getElementById("color-selector-container");
-        if (!container || !car.colors) return; container.innerHTML = "";
-        car.colors.forEach((col) => {
+        const carKey = garage.selected, car = MODELS[carKey], cont = document.getElementById("color-selector-container");
+        if (!cont || !car.colors) return; cont.innerHTML = "";
+        car.colors.forEach(col => {
             const isOwned = (garage.ownedColors[carKey] || [car.colors[0]]).includes(col);
             const isSelected = (garage.selectedColors[carKey] || car.colors[0]) === col;
             const dot = document.createElement("div");
             dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${col}; border: 2px solid ${isSelected ? '#f1c40f' : '#333'}; cursor:pointer;`;
-            dot.onclick = () => { if(isOwned) { garage.selectedColors[carKey] = col; save(); renderColorSelector(); } else { tempUpgrade = { type: 'color', color: col, carKey: carKey, cost: 1500 }; document.getElementById("modal-title").innerText = "PINTAR"; document.getElementById("modal-desc").innerText = "Costo: $1,500"; document.getElementById("upgrade-modal").classList.remove("hidden"); } };
-            container.appendChild(dot);
+            dot.onclick = () => { if(isOwned) { garage.selectedColors[carKey] = col; save(); renderColorSelector(); } else { tempUpgrade = { type:'color', color:col, carKey:carKey, cost:1500 }; document.getElementById("upgrade-modal").classList.remove("hidden"); } };
+            cont.appendChild(dot);
         });
     }
 
-    // --- INICIO Y BOTONES ---
+    // ==========================================
+    // --- 4. FUNCIONES AUXILIARES ---
+    // ==========================================
+    window.updateHeat = function(act) { if(act==='npc_hit') heat = Math.min(4, heat + 1); evasionTimer = 600; }
+    window.arrestPlayer = function() { state = "OVER"; finishGame(); document.getElementById("over-title").innerText = "¡ARRESTADO!"; }
+    function checkCollision(p, o) { return p.x < o.x + o.w && p.x + p.w > o.x && p.y < o.y + o.h && p.y + p.h > o.y; }
+    function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-coins-total").innerText = garage.coins; document.getElementById("fuel-bar").style.width = fuel + "%"; }
+    function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
+    window.showMenu = function() { state = "MENU"; hideAll(); document.getElementById("menu").classList.remove("hidden"); updateUI(); }
+    window.updateUI = function() { document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; }
+    function getCarImg(id) { const col = garage.selectedColors[id] || MODELS[id].colors[0]; return col === MODELS[id].colors[0] ? `Autos/${MODELS[id].img}` : `Autos/car_${id}_${col}.png`; }
+    window.updateShopCoinDisplays = function() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins); }
+    function spawnTraffic() { let l = Math.floor(Math.random()*4); enemies.push({ x: [75, 157.5, 242.5, 325][l]-22, y: -100, w: 45, h: 80, type: 'normal', img: assets.npcs[0], speed: 2 }); }
+    function spawnItem(t) { let l = Math.floor(Math.random()*4); items.push({ x: [75, 157.5, 242.5, 325][l]-15, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
+    window.closeUpgradeModal = function() { document.getElementById("upgrade-modal").classList.add("hidden"); }
+    function endGame(r) { state = "OVER"; lastReason = r; finishGame(); }
+    window.finishGame = function() { state = "OVER"; if(score > garage.high) garage.high = score|0; save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = lastReason; }
+
+    // ==========================================
+    // --- 5. INICIO Y EVENTOS ---
+    // ==========================================
     window.startGame = function() {
-        requestFullScreen();
-        if (!localStorage.getItem('racing_tutorial_v1')) { document.getElementById('tutorial-overlay').classList.remove('hidden'); return; }
         const car = MODELS[garage.selected]; assets.player.src = getCarImg(garage.selected);
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 };
-        score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; enemies = []; items = []; heat = 0; arrestProgress = 0; coinsThisRun = 0;
+        score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; enemies = []; items = []; heat = 0; arrestProgress = 0;
         state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex";
-        stopSound('music_menu'); playSound('music_race', true); playSound('motor', true);
         lastTime = performance.now(); loop();
     }
 
-    window.finishGame = function() {
-        state = "OVER"; hideAll();
-        if(score > garage.high) garage.high = score|0;
-        garage.coins += coinsThisRun; save();
-        document.getElementById("game-over").classList.remove("hidden");
-        document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
-    }
-
-    function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
-    window.showMenu = function() { state = "MENU"; hideAll(); stopSound('music_race'); playSound('music_menu', true); updateUI(); }
-    window.closeUpgradeModal = function() { document.getElementById("upgrade-modal").classList.add("hidden"); }
-
-    const botonesJuego = [
-        { sel: ".btn-green[onclick*='startGame']", fn: window.startGame },
-        { sel: ".btn-blue[onclick*='openShop']", fn: window.openShop },
-        { sel: ".btn-orange[onclick*='openRanking']", fn: window.openRanking },
-        { sel: "#btn-login", fn: window.loginGoogle },
-        { sel: "#btn-pause-trigger", fn: window.togglePause }
-    ];
-    botonesJuego.forEach(b => {
-        const el = document.querySelector(b.sel) || document.getElementById(b.sel.replace('#',''));
-        if (el) { el.onclick = null; el.addEventListener("click", b.fn); }
+    // Puente de Botones
+    document.addEventListener("DOMContentLoaded", () => {
+        const config = [
+            { sel: ".btn-green", fn: window.startGame },
+            { sel: ".btn-blue", fn: window.openShop },
+            { sel: "#btn-pause-trigger", fn: window.togglePause }
+        ];
+        config.forEach(c => { const el = document.querySelector(c.sel); if(el) el.onclick = c.fn; });
     });
 
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').then(reg => reg.update()); }
-    } catch (e) {
-        console.error("Error crítico en el motor del juego:", e);
-    }
+    window.addEventListener("keydown", e => keys[e.code] = true);
+    window.addEventListener("keyup", e => keys[e.code] = false);
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+
+    setTimeout(() => { document.getElementById("loading-screen").classList.add("hidden"); showMenu(); }, 2000);
+
+    } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
 </html>
