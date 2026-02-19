@@ -1241,11 +1241,29 @@ window.openRanking = async function() {
     function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
     function showRewardAd(onReward) { showToast("ANUNCIO", "Viendo anuncio publicitario..."); setTimeout(() => { onReward(); }, 2000); }
 
-    window.confirmRevive = function() { 
+  window.confirmRevive = function() { 
         showRewardAd(() => {
-            clearInterval(reviveInterval); lives = 1; fuel = 100; hasRevived = true; expObj = null; state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; 
-            playSound('music_race', true); playSound('motor', true); save(); lastTime = performance.now(); loop(); 
-            showToast("¡REVIVIDO!", "Gracias por ver el anuncio");
+            clearInterval(reviveInterval); 
+            lives = 1; 
+            fuel = 100; 
+            hasRevived = true; 
+            expObj = null; 
+
+            // --- NUEVO: LIMPIEZA DE PANTALLA ("LA BARREDORA") ---
+            enemies = []; 
+            items = []; 
+            constEvent.active = false; 
+            // ----------------------------------------------------
+
+            state = "PLAYING"; 
+            hideAll(); 
+            document.getElementById("btn-pause-trigger").style.display = "flex"; 
+            playSound('music_race', true); 
+            playSound('motor', true); 
+            save(); 
+            lastTime = performance.now(); 
+            loop(); 
+            showToast("¡REVIVIDO!", "Calle despejada. ¡Acelera!");
         });
     }
 
@@ -1528,6 +1546,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
