@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-game-v57.1'; // BUMP de versión vital!
+const CACHE_NAME = 'racing-game-v57.2'; // BUMP de versión vital!
 const urlsToCache = [
   'index.html',
   './',
