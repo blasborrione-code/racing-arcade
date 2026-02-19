@@ -4,7 +4,6 @@ const urlsToCache = [
   './',
   
   // -- AUTOS --
-  'Autos/police_car.png',
   'Autos/car_compact_retro.png',
   'Autos/furgoneta.png',
   'Autos/auto_rosa.png',
