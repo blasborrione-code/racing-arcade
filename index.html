@@ -776,15 +776,37 @@ window.openRanking = async function() {
         if(Math.random() < 0.006 * dt) spawnItem('coin');
         if(Math.random() < 0.007 * dt) spawnItem('fuel');
 
-        // Movimiento de Enemigos
+    // Movimiento de Enemigos e IA
         enemies.forEach((en, i) => {
-            en.y += (currentSpeed - (en.speed || 2)) * dt;
-            if (checkCollision(player, en)) {
+            // Movimiento fluido
+            en.y += (currentSpeed - (en.speed || 0)) * dt;
+
+            // Si hay choque y el enemigo no fue golpeado ya
+            if (checkCollision(player, en) && !en.hit) {
                 if (en.type === 'normal' || en.type === 'police') { 
-                    lives--; updateHeat('npc_hit'); screenShake = 10; enemies.splice(i, 1); 
+                    // Choque grave
+                    lives--; 
+                    updateHeat('npc_hit'); 
+                    screenShake = 10; 
+                    enemies.splice(i, 1); 
                     if (lives <= 0) endGame("CHOQUE"); 
+                } else if (en.subType === 'cono') {
+                    // Choque con cono (Regla de los 4)
+                    en.hit = true; 
+                    player.coneHits++; 
+                    updateHeat('cono');
+                    if (player.coneHits >= 4) { 
+                        lives--; 
+                        player.coneHits = 0; 
+                        showToast("DAÑO", "¡4 conos! -1 Vida"); 
+                    }
+                    // El cono sale volando para que se note el golpe
+                    en.speed = currentSpeed + 5; 
+                    if (lives <= 0) endGame("DEMASIADOS CONOS");
                 }
-            } else if(en.y > 850) enemies.splice(i, 1);
+            } else if(en.y > 850) {
+                enemies.splice(i, 1);
+            }
         });
 
         // Movimiento de Ítems
@@ -862,23 +884,96 @@ window.openRanking = async function() {
         });
     }
 
+   // ==========================================
+    // --- 4. FUNCIONES AUXILIARES (RECUPERADAS) ---
     // ==========================================
-    // --- 4. FUNCIONES AUXILIARES ---
-    // ==========================================
-    window.updateHeat = function(act) { if(act==='npc_hit') heat = Math.min(4, heat + 1); evasionTimer = 600; }
-    window.arrestPlayer = function() { state = "OVER"; finishGame(); document.getElementById("over-title").innerText = "¡ARRESTADO!"; }
-    function checkCollision(p, o) { return p.x < o.x + o.w && p.x + p.w > o.x && p.y < o.y + o.h && p.y + p.h > o.y; }
-    function updateHUD() { document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; document.getElementById("ui-score").innerText = score|0; document.getElementById("ui-coins-total").innerText = garage.coins; document.getElementById("fuel-bar").style.width = fuel + "%"; }
+    window.updateHeat = function(action) { 
+        if(action === 'npc_hit') heat = Math.min(4, heat + 1); 
+        if(action === 'cono') heat = Math.min(4, heat + 0.25);
+        evasionTimer = 600; 
+    };
+
+    window.arrestPlayer = function() { 
+        state = "OVER"; 
+        let stars = Math.floor(heat);
+        let fine = POLICE_FINES[stars] || 0;
+        garage.coins = Math.max(0, garage.coins - fine);
+        save();
+        finishGame(); 
+        document.getElementById("over-title").innerText = "¡ARRESTADO!"; 
+        document.getElementById("over-reason").innerText = `Multa de $${fine} por infracciones.`;
+    };
+
+    function checkCollision(p, o) { 
+        let mx = 8, my = 12; // Margen para que no sea tan difícil
+        return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; 
+    }
+
+    function updateHUD() { 
+        document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
+        document.getElementById("ui-score").innerText = score|0; 
+        document.getElementById("ui-level").innerText = level; 
+        document.getElementById("ui-lives-text").innerText = lives; 
+        document.getElementById("ui-coins-total").innerText = garage.coins.toLocaleString(); 
+        document.getElementById("fuel-bar").style.width = fuel + "%"; 
+    }
+
+    function endGame(reason) {
+        state = "OVER";
+        lastReason = reason;
+        stopSound('motor');
+        stopSound('music_race');
+        playSound('crash');
+        finishGame();
+    }
+
+    window.finishGame = function() {
+        state = "OVER";
+        if(score > garage.high) garage.high = score|0;
+        garage.coins += coinsThisRun;
+        save();
+        document.getElementById("game-over").classList.remove("hidden");
+        document.getElementById("over-title").innerText = (score >= garage.high && score > 0) ? "¡NUEVO RÉCORD!" : "FIN DEL JUEGO";
+        document.getElementById("over-reason").innerText = lastReason;
+        document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
+    }
+
     function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
-    window.showMenu = function() { state = "MENU"; hideAll(); document.getElementById("menu").classList.remove("hidden"); updateUI(); }
+    window.showMenu = function() { state = "MENU"; hideAll(); document.getElementById("menu").classList.remove("hidden"); stopSound('music_race'); playSound('music_menu', true); updateUI(); }
     window.updateUI = function() { document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; }
-    function getCarImg(id) { const col = garage.selectedColors[id] || MODELS[id].colors[0]; return col === MODELS[id].colors[0] ? `Autos/${MODELS[id].img}` : `Autos/car_${id}_${col}.png`; }
-    window.updateShopCoinDisplays = function() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins); }
-    function spawnTraffic() { let l = Math.floor(Math.random()*4); enemies.push({ x: [75, 157.5, 242.5, 325][l]-22, y: -100, w: 45, h: 80, type: 'normal', img: assets.npcs[0], speed: 2 }); }
-    function spawnItem(t) { let l = Math.floor(Math.random()*4); items.push({ x: [75, 157.5, 242.5, 325][l]-15, y: -50, w: 30, h: 30, t: t, img: assets[t] }); }
+    
+    // Función para obtener la imagen del auto con su color
+    function getCarImg(carId) {
+        const car = MODELS[carId];
+        const color = garage.selectedColors[carId] || car.colors[0];
+        if (color === car.colors[0] || color === 'base') return `Autos/${car.img}`;
+        return `Autos/car_${carId}_${color}.png`;
+    }
+
+    window.updateShopCoinDisplays = function() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
+    
+    function spawnTraffic() { 
+        let l = Math.floor(Math.random()*4); 
+        let isCono = Math.random() < 0.15; // 15% de chances de que sea un cono
+        enemies.push({ 
+            x: [75, 157.5, 242.5, 325][l]-22, 
+            y: -100, 
+            w: isCono ? 30 : 45, 
+            h: isCono ? 30 : 80, 
+            type: isCono ? 'obstacle' : 'normal', 
+            subType: isCono ? 'cono' : '',
+            img: isCono ? assets.cono : assets.npcs[Math.floor(Math.random()*assets.npcs.length)], 
+            speed: isCono ? 0 : 2 + Math.random() * 2,
+            hit: false
+        }); 
+    }
+
+    function spawnItem(t) { 
+        let l = Math.floor(Math.random()*4); 
+        items.push({ x: [75, 157.5, 242.5, 325][l]-15, y: -50, w: 30, h: 30, t: t, img: assets[t] }); 
+    }
+    
     window.closeUpgradeModal = function() { document.getElementById("upgrade-modal").classList.add("hidden"); }
-    function endGame(r) { state = "OVER"; lastReason = r; finishGame(); }
-    window.finishGame = function() { state = "OVER"; if(score > garage.high) garage.high = score|0; save(); document.getElementById("game-over").classList.remove("hidden"); document.getElementById("over-reason").innerText = lastReason; }
 
     // ==========================================
     // --- 5. INICIO Y EVENTOS ---
@@ -912,6 +1007,7 @@ window.openRanking = async function() {
 </script>
 </body>
 </html>
+
 
 
 
