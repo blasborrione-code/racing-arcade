@@ -1,8 +1,10 @@
-const CACHE_NAME = 'racing-game-v56'; 
+const CACHE_NAME = 'racing-game-v57'; // BUMP de versión vital!
 const urlsToCache = [
   'index.html',
   './',
-  'Autos/police_car.png', // <--- NUEVO AUTO DE POLICÍA AGREGADO
+  
+  // -- AUTOS --
+  'Autos/police_car.png',
   'Autos/car_compact_retro.png',
   'Autos/furgoneta.png',
   'Autos/auto_rosa.png',
@@ -13,43 +15,26 @@ const urlsToCache = [
   'Autos/car_formula_classic.png',
   'Autos/car_formula_modern.png',
   'Autos/car_rally_blue_v2.png',
-  'Autos/car_compact_retro_verde.png',
-  'Autos/car_compact_retro_negro.png',
-  'Autos/car_compact_retro_rosa.png',
-  'Autos/car_compact_retro_violeta.png',
-  'Autos/car_compact_retro_azul.png',
-  'Autos/car_compact_retro_blanco.png',
-  'Autos/car_compact_retro_gris.png',
-  'Autos/car_compact_retro_rojo.png',
-  'Autos/car_furgoneta_rojo.png',
-  'Autos/car_furgoneta_verde.png',
-  'Autos/car_furgoneta_amarillo.png',
-  'Autos/car_auto_rosa_negro.png',
-  'Autos/car_auto_rosa_blanco.png',
-  'Autos/car_auto_rosa_verde.png',
-  'Autos/car_auto_rosa_azul.png',
-  'Autos/car_muscle_pony_rosa.png',
-  'Autos/car_muscle_pony_naranja.png',
-  'Autos/car_muscle_pony_celeste.png',
-  'Autos/car_muscle_pony_amarillo.png',
-  'Autos/car_super_yellow_rojo.png',
-  'Autos/car_super_yellow_verde.png',
-  'Autos/car_super_yellow_azul.png',
-  'Autos/car_super_yellow_rosa.png',
-  'Autos/car_super_yellow_negro.png',
-  'Autos/car_sport_black_plata.png',
-  'Autos/car_sport_black_rojo.png',
-  'Autos/car_sport_black_azul.png',
-  'Autos/car_sport_black_verde.png',
-  'Autos/car_sport_black_amarillo.png',
-  'Autos/car_luxury_white_negro.png',
-  'Autos/car_luxury_white_naranja.png',
-  'Autos/car_formula_classic_azul.png',
-  'Autos/car_formula_classic_amarillo.png',
-  'Autos/car_formula_modern_violeta.png',
-  'Autos/car_formula_modern_azul.png',
-  'Autos/car_formula_modern_rojo.png',
-  'Autos/car_formula_modern_verde.png'
+  // ... (dejá todos los colores que ya tenías acá) ...
+
+  // -- NPCS (Tráfico) --
+  'Autos/npc_azul.png',
+  'Autos/npc_blanco.png',
+  'Autos/npc_taxi.png',
+  'Autos/npc_rojo.png',
+  'Autos/npc_gris.png',
+
+  // -- ÍTEMS Y ENTORNO --
+  'Items/bidon_nafta.png',
+  'Items/moneda_pixel.png',
+  'Items/fondo_carga.png',
+  // Te recomiendo agregar acá el charco, la bomba, el imán, etc.
+
+  // -- SONIDOS --
+  'sonidos/motor.m4a',
+  'sonidos/music_menu.m4a',
+  'sonidos/music_race.m4a'
+  // Te recomiendo agregar el resto de los audios
 ];
 
 self.addEventListener('install', e => {
