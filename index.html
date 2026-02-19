@@ -928,11 +928,39 @@ window.openRanking = async function() {
 
     function spawnItem(t) {
         let tx;
-        if (t === 'fuel') { let lane = Math.floor(Math.random() * 4); let centers = [76.25, 158.75, 241.25, 323.75]; tx = centers[lane] - 15;
-        } else { tx = 70 + Math.random()*260; }
+        let itemSeguro = false;
+
+        // Repetimos el sorteo hasta asegurarnos de que cae en un lugar seguro
+        while (!itemSeguro) {
+            if (t === 'fuel') { 
+                let lane = Math.floor(Math.random() * 4); 
+                // Si hay obra y eligió el carril cortado, salteamos y vuelve a sortear
+                if (constEvent.active && lane === constEvent.lane) {
+                    continue; 
+                }
+                let centers = [76.25, 158.75, 241.25, 323.75]; 
+                tx = centers[lane] - 15;
+                itemSeguro = true;
+            } else { 
+                // Sortea una posición libre en la calle para monedas, imanes o bombas
+                tx = 70 + Math.random() * 260; 
+                itemSeguro = true;
+                
+                // Si hay una obra, chequeamos que no caiga justo adentro de las vallas
+                if (constEvent.active) {
+                    let carriles = [ {min: 35, max: 115}, {min: 115, max: 200}, {min: 200, max: 285}, {min: 285, max: 365} ];
+                    let limitesObra = carriles[constEvent.lane];
+                    
+                    // Si el centro del ítem (tx + 15) está dentro de la obra, es zona de peligro
+                    if ((tx + 15) > limitesObra.min && (tx + 15) < limitesObra.max) {
+                        itemSeguro = false; // Rechazamos el lugar y el while vuelve a intentar
+                    }
+                }
+            }
+        }
+        
         items.push({ x: tx, y: -50, w: 30, h: 30, t: t, img: assets[t] });
     }
-
     function spawnConstructionItem(type) {
         let w, h, variant, tx, subType;
         if (type === 'cono_line') { w = 30; h = 30; variant = 'cono'; subType = 'cono'; tx = (constEvent.lane === 0 ? 115 : 285) - (w / 2);
@@ -1546,6 +1574,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
