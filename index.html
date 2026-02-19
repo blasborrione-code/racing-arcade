@@ -738,7 +738,7 @@ window.openRanking = async function() {
         assets.player.src = getCarImg(garage.selected); 
         
         // --- NO TE OLVIDES DE ESTO (EL RESET) ---
-        player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0 }; 
+        player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
         score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; 
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; 
@@ -859,11 +859,24 @@ window.openRanking = async function() {
 }
             if (checkCollision(player, en) && !en.hit) { // El !en.hit evita que te saque 100 vidas juntas
     if (en.type === 'obs') {
-        if (en.subType === 'cono' || en.subType === 'valla') {
+       if (en.subType === 'cono' || en.subType === 'valla') {
             playSound('crash');
-            lives--;
+            
+            // --- NUEVA LÓGICA DE CONOS ---
+            if (en.subType === 'cono') {
+                player.coneHits++; // Sumamos un cono chocado
+                if (player.coneHits >= 4) {
+                    lives--; // Al cuarto cono, restamos vida
+                    player.coneHits = 0; // Reiniciamos el contador para los próximos 4
+                    showToast("DAÑO", "¡4 conos chocados! -1 Vida");
+                }
+            } else {
+                // Si es una VALLA, te saca la vida de una porque es pesada
+                lives--;
+            }
+
             screenShake = 6;
-            currentSpeed *= 0.6; 
+            currentSpeed *= 0.6;
             
             // --- EFECTO FÍSICO ---
             en.hit = true; 
@@ -1515,6 +1528,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
