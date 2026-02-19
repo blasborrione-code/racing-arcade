@@ -411,13 +411,11 @@ try {
             const result = await signInWithPopup(auth, provider);
             if (result.user) {
                 currentUser = result.user;
-                console.log("¡Login exitoso con Popup!", currentUser.displayName);
                 await loadCloudData(currentUser);
                 updateUI();
                 showToast("NUBE", "Conectado como " + currentUser.displayName);
             }
         } catch (error) {
-            console.error("Error en el Popup:", error);
             if (error.code === 'auth/popup-blocked') alert("Por favor, permite las ventanas emergentes para iniciar sesión.");
         }
     };
@@ -447,7 +445,7 @@ try {
                 rank++;
             });
             if(rank === 1) list.innerHTML = "Aún no hay récords.";
-        } catch (e) { console.error("Error cargando ranking:", e); list.innerHTML = "Error al cargar."; }
+        } catch (e) { list.innerHTML = "Error al cargar."; }
     };
 
     if (auth) {
@@ -455,7 +453,7 @@ try {
             try {
                 const result = await getRedirectResult(auth);
                 if (result?.user) { currentUser = result.user; await loadCloudData(currentUser); }
-            } catch (e) { console.error("Error en el redirect:", e); }
+            } catch (e) { }
 
             onAuthStateChanged(auth, async (user) => {
                 const status = document.getElementById("user-status");
@@ -467,7 +465,7 @@ try {
                     if(btn) {
                         btn.innerText = "✖️ DESCONECTAR CUENTA";
                         btn.style.background = "#c0392b";
-                        btn.onclick = async () => { try { await signOut(auth); } catch (e) { console.error("Error al salir:", e); } };
+                        btn.onclick = async () => { try { await signOut(auth); } catch (e) {} };
                     }
                     await loadCloudData(user);
                 } else {
@@ -507,7 +505,7 @@ try {
     async function saveToCloud() {
         if (!currentUser || !db) return;
         try { await setDoc(doc(db, "racing_users", currentUser.uid), { ...garage, name: currentUser.displayName }); } 
-        catch (e) { console.error("Error save cloud:", e); }
+        catch (e) { }
     }
 
     const canvas = document.getElementById("gameCanvas");
@@ -537,8 +535,7 @@ try {
     assets.police.src = 'Autos/police_car.png';
 
     ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
-    const sceneryAssets = { arboles: [new Image()] }; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
-
+    
     const MODELS = {
         'compact_retro': { name: 'EL COMPACTO', maxSpeed: 5.75, accel: 0.08, handling: 1.2, lives: 3, w: 45, h: 82, img: 'car_compact_retro.png', price: 0, colors: ['amarillo', 'verde', 'negro', 'rosa', 'violeta', 'azul', 'blanco', 'gris', 'rojo'] },
         'furgoneta': { name: 'CARGO VIAJES', maxSpeed: 6.25, accel: 0.07, handling: 1.0, lives: 3, w: 55, h: 95, img: 'furgoneta.png', price: 2500, colors: ['azul', 'rojo', 'verde', 'amarillo'] },
@@ -559,16 +556,6 @@ try {
         'compact_retro': [250, 500, 750, 1000, 1250], 'furgoneta': [400, 800, 1200, 1600, 2000], 'auto_rosa': [600, 1200, 1800, 2400, 3000], 'camioneta4x4': [800, 1600, 2400, 3200, 4000], 'muscle_pony': [1000, 2000, 3000, 4000, 5000], 'rally_blue': [1200, 2400, 3600, 4800, 6000], 'super_yellow': [1500, 3000, 4500, 6000, 7500], 'sport_black': [1500, 3000, 4500, 6000, 7500], 'tuner_night': [2000, 4000, 6000, 8000, 10000], 'tuner_legend': [2000, 4000, 6000, 8000, 10000], 'luxury_white': [3000, 6000, 9000, 12000, 15000], 'formula_classic': [3000, 6000, 10000, 15000, 20000], 'formula_modern': [5000, 10000, 15000, 20000, 25000]
     };
 
-    const DAILY_MISSIONS = [
-        { id: 0, desc: "Junta 50 monedas en una carrera", goal: 50, type: 'coins' }, { id: 1, desc: "Logra 10 Near Miss en una carrera", goal: 10, type: 'nearmiss' }, { id: 2, desc: "Llega al Nivel 5 en una carrera", goal: 5, type: 'level' }, { id: 3, desc: "Logra 20 Near Miss en una carrera", goal: 20, type: 'nearmiss' }, { id: 4, desc: "Recorre 3000m en una carrera", goal: 3000, type: 'dist' }, { id: 5, desc: "Junta 100 monedas en una carrera", goal: 100, type: 'coins' }
-    ];
-
-    const MILESTONES = { totalDist: [1000, 5000, 10000, 50000, 100000], totalCoins: [500, 2000, 5000, 10000, 50000], totalPlays: [10, 50, 100, 250, 500], totalNear: [50, 200, 500, 1000, 5000] };
-
-    const NEONES = {
-        'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 }, 'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 }, 'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 }, 'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
-    };
-
     let garage = { 
         owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, missionId: 0, missionDoneDate: "", 
         carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, 
@@ -586,25 +573,11 @@ try {
         const container = document.getElementById("toast-container"); const t = document.createElement("div"); t.className = `toast ${isAchievement ? 'logro' : ''}`; t.innerHTML = `<b>${title}</b><p>${msg}</p>`; container.appendChild(t); setTimeout(() => t.remove(), 3200);
     }
 
-    function getWeekNumber(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7)); return Math.ceil((((d - new Date(Date.UTC(d.getUTCFullYear(),0,1))) / 86400000) + 1)/7); }
-
-    window.actualizarEstructuraMisiones = function() {
-        const hoy = new Date().toDateString(); const currWeek = getWeekNumber(new Date()); if(garage.weeklyWeek !== currWeek) { garage.weeklyWeek = currWeek; garage.weeklyDist = 0; garage.weeklyDone = false; }
-        garage.missionId = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000) % DAILY_MISSIONS.length;
-        document.getElementById("menu-mission-desc").innerText = (garage.missionDoneDate !== hoy) ? DAILY_MISSIONS[garage.missionId].desc : "¡Completada!";
-        document.getElementById("menu-weekly-desc").innerText = garage.weeklyDone ? "¡Misión completada!" : `Meta: ${garage.weeklyDist.toLocaleString()} / 50.000m`;
-        document.getElementById("weekly-bar").style.width = Math.min(100, (garage.weeklyDist/50000)*100) + "%";
-    }
-
-    // ==========================================
-    // --- 1. VARIABLES DE ESTADO Y JUGADOR ---
-    // ==========================================
     let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0;
     let player = { x: 0, y: 0, vx: 0, w: 0, h: 0, coneHits: 0 };
-    let enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null;
+    let enemies = [], items = [], keys = {}, isS = false, expObj = null;
     let coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "";
     let reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
-    let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
     let heat = 0, evasionTimer = 0, arrestProgress = 0, zoomLevel = 1;
     const POLICE_FINES = { 1: 150, 2: 350, 3: 750, 4: 1500 };
 
@@ -633,9 +606,7 @@ try {
         } 
     }
 
-    // ==========================================
-    // --- 2. MOTOR DEL JUEGO ---
-    // ==========================================
+    // --- EL MOTOR DEL JUEGO ---
     function loop(t) { 
         if(state !== "PLAYING") return; 
         let dt = (t - lastTime) / 16.66; 
@@ -685,7 +656,7 @@ try {
 
         if(isS) { currentSpeed *= 0.9; player.vx = 0; } 
         else { 
-            if(keys["ArrowUp"] || keys["GAS"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); 
+            if(keys["ArrowUp"]) currentSpeed = Math.min(currentSpeed + car.accel * dt, mSpd); 
             else if(keys["ArrowDown"]) currentSpeed = Math.max(currentSpeed - 0.25 * dt, 0); 
             else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); 
             let adaptiveH = car.handling * (1 / (1 + (currentSpeed / 15)));
@@ -750,6 +721,15 @@ try {
         ctx.fillStyle = "#1e8449"; ctx.fillRect(0,0,400,750); 
         ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
         
+        // --- RESTAURADAS LAS LÍNEAS DE LA CALLE ---
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        for (let i = 0; i < 750; i += 60) {
+            let lineY = (i + roadY * 15) % 750;
+            ctx.fillRect(115, lineY, 4, 30);
+            ctx.fillRect(200, lineY, 4, 30);
+            ctx.fillRect(285, lineY, 4, 30);
+        }
+        
         items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
 
         enemies.forEach(en => {
@@ -783,9 +763,7 @@ try {
         ctx.restore();
     }
 
-    // ==========================================
-    // --- 3. FUNCIONES AUXILIARES ---
-    // ==========================================
+    // --- FUNCIONES AUXILIARES ---
     function checkCollision(p, o) { let mx = 8, my = 12; return p.x + mx < o.x + o.w - mx && p.x + p.w - mx > o.x + mx && p.y + my < o.y + o.h - my && p.y + p.h - my > o.y + my; }
     function updateHUD() { 
         document.getElementById("ui-speed").innerText = (currentSpeed * 12)|0; 
@@ -796,14 +774,16 @@ try {
         document.getElementById("fuel-bar").style.width = fuel + "%"; 
     }
     function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
+    
     window.showMenu = function() { 
-    state = "MENU"; 
-    hideAll(); 
-    document.getElementById("menu").classList.remove("hidden"); /* <-- ESTA ES LA LÍNEA QUE FALTABA */
-    stopSound('music_race'); 
-    playSound('music_menu', true); 
-    updateUI(); 
-}
+        state = "MENU"; 
+        hideAll(); 
+        document.getElementById("menu").classList.remove("hidden");
+        stopSound('music_race'); 
+        playSound('music_menu', true); 
+        updateUI(); 
+    }
+    
     window.updateUI = function() { document.getElementById("menu-high-score").innerText = garage.high; document.getElementById("menu-total-coins").innerText = garage.coins; }
     function getCarImg(id) { const col = garage.selectedColors[id] || MODELS[id].colors[0]; return col === MODELS[id].colors[0] ? `Autos/${MODELS[id].img}` : `Autos/car_${id}_${col}.png`; }
     window.updateShopCoinDisplays = function() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
@@ -821,11 +801,9 @@ try {
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
         
         score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; 
-        enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
+        enemies = []; items = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; 
         magnetTimer = 0; heat = 0; arrestProgress = 0;
-        
-        constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
         
         state = "PLAYING"; 
         hideAll(); 
@@ -849,16 +827,65 @@ try {
         document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
     }
 
-    // ==========================================
-    // --- 4. LÓGICA DE TIENDA Y GARAJE ---
-    // ==========================================
+    // --- LÓGICA DE TIENDA Y GARAJE RESTAURADA ---
     window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
-    window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); /* updateShopUI() iría acá */ }
+    window.openLogros = function() { playSound('click'); hideAll(); document.getElementById("shop-logros").classList.remove("hidden"); }
+    window.openNeones = function() { playSound('click'); hideAll(); document.getElementById("shop-neones").classList.remove("hidden"); }
+    
+    window.openConcesionario = function() { 
+        playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); 
+        shopIndex = Math.max(0, Object.keys(MODELS).indexOf(garage.selected)); 
+        updateShopUI(); 
+    }
+    
+    window.nextCar = function() { const keys = Object.keys(MODELS); shopIndex = (shopIndex + 1) % keys.length; updateShopUI(); }
+    window.prevCar = function() { const keys = Object.keys(MODELS); shopIndex = (shopIndex - 1 + keys.length) % keys.length; updateShopUI(); }
+
+    window.updateShopUI = function() {
+        const keysList = Object.keys(MODELS);
+        const carKey = keysList[shopIndex];
+        const car = MODELS[carKey];
+        document.getElementById("shop-car-img").src = getCarImg(carKey);
+        document.getElementById("shop-car-name").innerText = car.name;
+        document.getElementById("shop-car-speed").innerText = `VEL: ${car.maxSpeed}`;
+        document.getElementById("shop-car-lives").innerText = `❤️ ${car.lives}`;
+        
+        const btn = document.getElementById("shop-car-btn");
+        if (garage.owned.includes(carKey)) {
+            if (garage.selected === carKey) {
+                btn.innerText = "SELECCIONADO"; btn.style.background = "#7f8c8d"; btn.onclick = null;
+            } else {
+                btn.innerText = "SELECCIONAR"; btn.style.background = "#3498db";
+                btn.onclick = () => { garage.selected = carKey; save(); updateShopUI(); };
+            }
+        } else {
+            btn.innerText = `COMPRAR ($${car.price})`; btn.style.background = "#2ecc71";
+            btn.onclick = () => {
+                tempUpgrade = { type: 'car', key: carKey, cost: car.price };
+                document.getElementById("modal-title").innerText = "COMPRAR AUTO";
+                document.getElementById("modal-desc").innerText = `¿Comprar ${car.name} por $${car.price}?`;
+                document.getElementById("upgrade-modal").classList.remove("hidden");
+            };
+        }
+    }
+
     window.openMejoras = function() { 
         playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); 
         document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected);
         updateUI(); renderColorSelector(); 
     }
+    
+    window.prepUpgrade = function(type) {
+        const carKey = garage.selected;
+        const currentLvl = garage.carStats[carKey][type] || 0;
+        if(currentLvl >= 5) { showToast("MÁXIMO", "Ya está al máximo"); return; }
+        const cost = UPGRADE_PRICES[carKey][currentLvl];
+        tempUpgrade = { type: type, cost: cost };
+        document.getElementById("modal-title").innerText = `MEJORAR ${type.toUpperCase()}`;
+        document.getElementById("modal-desc").innerText = `Costo: $${cost}`;
+        document.getElementById("upgrade-modal").classList.remove("hidden");
+    }
+
     window.closeUpgradeModal = function() { document.getElementById("upgrade-modal").classList.add("hidden"); }
 
     let tempUpgrade = null;
@@ -877,7 +904,7 @@ try {
         } else if (tempUpgrade.type === 'car') {
             if (!garage.owned.includes(tempUpgrade.key)) garage.owned.push(tempUpgrade.key);
             garage.selected = tempUpgrade.key;
-            /* updateShopUI(); */
+            updateShopUI();
         } else { 
             garage.carStats[garage.selected][tempUpgrade.type]++; 
         }
@@ -889,11 +916,20 @@ try {
         if (!container || !car.colors) return; 
         container.innerHTML = "";
         
+        // --- DICCIONARIO DE COLORES PARA QUE CSS LO ENTIENDA ---
+        const colorMap = {
+            'amarillo': '#f1c40f', 'verde': '#2ecc71', 'negro': '#222', 'rosa': '#ff9ff3', 
+            'violeta': '#9b59b6', 'azul': '#3498db', 'blanco': '#fff', 'gris': '#95a5a6', 
+            'rojo': '#e74c3c', 'naranja': '#e67e22', 'celeste': '#81ecec', 'plata': '#bdc3c7', 'base': 'transparent'
+        };
+        
         car.colors.forEach((col) => {
             const isOwned = (garage.ownedColors[carKey] || [car.colors[0]]).includes(col);
             const isSelected = (garage.selectedColors[carKey] || car.colors[0]) === col;
+            const cssColor = colorMap[col] || col;
+            
             const dot = document.createElement("div");
-            dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${col}; border: 2px solid ${isSelected ? '#f1c40f' : '#333'}; cursor:pointer;`;
+            dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${cssColor}; border: 2px solid ${isSelected ? '#f1c40f' : '#333'}; cursor:pointer;`;
             dot.onclick = () => { 
                 if(isOwned) { 
                     garage.selectedColors[carKey] = col; save(); renderColorSelector(); 
@@ -908,11 +944,23 @@ try {
         });
     }
 
-    // ==========================================
-    // --- 5. EVENTOS FINALES ---
-    // ==========================================
+    // --- CONTROLES Y EVENTOS RESTAURADOS ---
     window.addEventListener("keydown", e => keys[e.code] = true);
     window.addEventListener("keyup", e => keys[e.code] = false);
+
+    const tLeft = document.getElementById("t-left"), tRight = document.getElementById("t-right");
+    const tBrake = document.getElementById("t-brake"), tUp = document.getElementById("t-up");
+    
+    const addTouch = (el, key) => {
+        if(!el) return;
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; }, {passive: false});
+        el.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; }, {passive: false});
+    };
+    
+    addTouch(tLeft, "ArrowLeft");
+    addTouch(tRight, "ArrowRight");
+    addTouch(tBrake, "ArrowDown");
+    addTouch(tUp, "ArrowUp");
 
     const botonesJuego = [
         { sel: ".btn-green[onclick*='startGame']", fn: window.startGame },
@@ -936,6 +984,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
