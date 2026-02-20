@@ -620,7 +620,8 @@ window.openRanking = async function() {
     assets.magnet.src = 'Items/iman_pixel.png';
     assets.topadora.src = 'Items/topadora.png'; 
     assets.pavimentadora.src = 'Items/pavimentadora.png';
-    assets.valla.src = 'Items/valla.png'; assets.cono.src = 'Items/cono.png';
+   assets.valla.src = 'Items/valla.png'; assets.cono.src = 'Items/cono.png';
+    assets.police = new Image(); assets.police.src = 'Autos/police_car.png';
 
     ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
     const sceneryAssets = { arboles: [new Image()] }; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
@@ -705,7 +706,7 @@ window.openRanking = async function() {
         document.getElementById("weekly-bar").style.width = Math.min(100, (garage.weeklyDist/50000)*100) + "%";
     }
 
-   let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0;
+  let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
     let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
     let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
 
@@ -739,7 +740,7 @@ window.openRanking = async function() {
         
         // --- NO TE OLVIDES DE ESTO (EL RESET) ---
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
-      score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; 
+     score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; 
         magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
@@ -821,6 +822,8 @@ window.openRanking = async function() {
         if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
         if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil'); if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
 
+        isArresting = false; // Se resetea cada frame. Solo se activa si chocás un patrullero.
+
         enemies.forEach((en, i) => {
             let desiredSpeed = en.baseSpeed;
             if(en.type !== 'obs') {
@@ -831,13 +834,27 @@ window.openRanking = async function() {
     en.x += en.vx * dt;       // Se mueve a la izquierda o derecha
     en.rotation += en.vRot * dt; // Va girando mientras vuela
 }
-         // --- INTELIGENCIA DE CAMBIO DE CARRIL Y PÁNICO ---
+        // --- INTELIGENCIA DE CAMBIO DE CARRIL Y PÁNICO ---
             if(en.type !== 'obs' && !en.chg && !en.blink) {
                 let quiereCambiar = false;
                 let nextLane = en.l;
 
-                // Si hay policía (1+ estrellas), los del medio huyen a los bordes
-                if (estrellas >= 1 && (en.l === 1 || en.l === 2)) {
+                // --- NUEVO: CEREBRO POLICIAL (Modo Interceptador) ---
+                if (en.type === 'police') {
+                    // Calcula por qué carril venís vos
+                    let pLane = 0;
+                    if (player.x + player.w/2 > 115) pLane = 1;
+                    if (player.x + player.w/2 > 200) pLane = 2;
+                    if (player.x + player.w/2 > 285) pLane = 3;
+                    
+                    // Si no está en tu carril, intenta ir hacia él para encerrarte
+                    if (en.l !== pLane && Math.random() < 0.08 * dt) {
+                        quiereCambiar = true;
+                        nextLane = (pLane > en.l) ? en.l + 1 : en.l - 1; 
+                    }
+                }
+                // Si hay policía (1+ estrellas), los civiles del medio huyen a los bordes
+                else if (estrellas >= 1 && (en.l === 1 || en.l === 2)) {
                     if (Math.random() < 0.05 * dt) { 
                         quiereCambiar = true;
                         nextLane = (en.l === 1) ? 0 : 3; 
@@ -877,8 +894,23 @@ window.openRanking = async function() {
                 nmT = {y: player.y, t: 40}; 
                 screenShake = 1.5; 
             }
-            if (checkCollision(player, en) && !en.hit) { // El !en.hit evita que te saque 100 vidas juntas
-    if (en.type === 'obs') {
+          // Modificamos para que el policía pueda empujarte sin borrarse
+            if (checkCollision(player, en) && (!en.hit || en.type === 'police')) { 
+                
+                // --- NUEVO: CHOQUE POLICIAL (El Cepo) ---
+                if (en.type === 'police') {
+                    isArresting = true;
+                    currentSpeed = Math.max(1, currentSpeed - 0.5 * dt); // Te frena como un muro pesado
+                    screenShake = 1.5;
+                    if (!en.sirenaOn) { 
+                        playSound('crash'); 
+                        en.sirenaOn = true; // Para que el golpe suene una sola vez
+                    }
+                    return; // Cortamos acá para que no sigas y pierdas vidas
+                }
+                // ----------------------------------------
+
+                if (en.type === 'obs') {
        if (en.subType === 'cono' || en.subType === 'valla') {
             playSound('crash');
             
@@ -947,6 +979,14 @@ window.openRanking = async function() {
         });
        scenery.forEach((s, i) => { s.y += currentSpeed * dt; if(s.y > 800) scenery.splice(i,1); }); 
         if(nmT) { nmT.t -= dt; if(nmT.t <= 0) nmT = null; } 
+
+      // --- LÓGICA DE BARRA DE ARRESTO ---
+        if (isArresting) {
+            arresto += 1.5 * dt; // La barra sube rápido si el policía te está empujando
+            if (arresto >= 100) endGame("ARRESTADO");
+        } else {
+            if (arresto > 0) arresto -= 0.5 * dt; // La barra baja si lográs despegarte y escapar
+        }
 
         // --- SISTEMA DE POLICÍA (CÁLCULO) ---
         if (puntosSospecha > 0) puntosSospecha -= 0.05 * dt; // Se enfría de a poco
@@ -1176,6 +1216,23 @@ window.openRanking = async function() {
             ctx.textAlign = "left"; 
         } 
 
+      // --- DIBUJAR BARRA DE ARRESTO ---
+        if (arresto > 0) {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+            ctx.fillRect(100, 320, 200, 24); // Fondo de la barra en el medio de la calle
+            
+            // Efecto de relleno titilante rojo/azul
+            let barColor = (Math.floor(performance.now() / 150) % 2 === 0) ? "#e74c3c" : "#2980b9";
+            ctx.fillStyle = barColor;
+            ctx.fillRect(104, 324, (arresto / 100) * 192, 16); // Relleno que crece
+            
+            ctx.fillStyle = "white";
+            ctx.font = "bold 14px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("¡ARRESTO EN PROGRESO!", 200, 310);
+            ctx.textAlign = "left";
+        }
+
         // --- DIBUJAR ESTRELLAS ---
         if (estrellas > 0) {
             ctx.fillStyle = "yellow"; 
@@ -1291,8 +1348,17 @@ window.openRanking = async function() {
     function spawnTraffic() { 
         let l = (Math.random()*4)|0; if(constEvent.active && l === constEvent.lane) return; 
         let tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; 
-        if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150))) return; 
-        enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false }); 
+       if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150))) return; 
+
+        // --- NUEVO: INTERCEPTADOR POLICIAL ---
+        // Si tenés 3+ estrellas, hay 25% de chance de que aparezca una patrulla bloqueadora
+        if (estrellas >= 3 && Math.random() < 0.25) {
+            enemies.push({ x: tx - 25, y: -200, l: l, w: 50, h: 90, type: 'police', img: assets.police, baseSpeed: Math.max(3, currentSpeed * 0.8), speed: Math.max(3, currentSpeed * 0.8), tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
+            return;
+        }
+        // -------------------------------------
+
+        enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
     }
     function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(!scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 
@@ -1628,6 +1694,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
