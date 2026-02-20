@@ -834,12 +834,12 @@ window.openRanking = async function() {
     en.x += en.vx * dt;       // Se mueve a la izquierda o derecha
     en.rotation += en.vRot * dt; // Va girando mientras vuela
 }
-        // --- INTELIGENCIA DE CAMBIO DE CARRIL Y PÁNICO ---
+      // --- INTELIGENCIA DE CAMBIO DE CARRIL Y PÁNICO ---
             if(en.type !== 'obs' && !en.chg && !en.blink) {
                 let quiereCambiar = false;
                 let nextLane = en.l;
 
-             // --- NUEVO: CEREBRO POLICIAL (Modo Interceptador) ---
+                // --- NUEVO: CEREBRO POLICIAL (Modo Interceptador Kamikaze) ---
                 if (en.type === 'police') {
                     // Radio de arresto: Sube la barra si te tienen acorralado (cerca y a menos de 40km/h)
                     if (Math.abs(player.x - en.x) < 70 && Math.abs(player.y - en.y) < 150 && currentSpeed < 3.5) {
@@ -874,18 +874,19 @@ window.openRanking = async function() {
                     nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
                 }
 
-               if (quiereCambiar) {
+                if (quiereCambiar) {
                     if(nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) { 
                         let tx = [75, 157.5, 242.5, 325][nextLane] - (en.w / 2); 
                         if(!enemies.some(o => o !== en && (o.l === nextLane || o.tl === nextLane) && Math.abs(o.y - en.y) < (en.h + o.h + 80))) { 
                             if (en.type === 'police') {
-                                en.chg = true; en.tx = tx; en.tl = nextLane; // Policía cambia al instante
+                                en.chg = true; en.tx = tx; en.tl = nextLane; // Policía cambia al instante sin guiño
                             } else {
                                 en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; 
                             }
                         } 
                     }
                 }
+            }
             // -------------------------------------------------
             if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
             if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
@@ -1707,6 +1708,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
