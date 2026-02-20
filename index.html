@@ -839,10 +839,10 @@ window.openRanking = async function() {
                 let quiereCambiar = false;
                 let nextLane = en.l;
 
-                // --- NUEVO: CEREBRO POLICIAL (Modo Interceptador Kamikaze) ---
+             // --- NUEVO: CEREBRO POLICIAL (Modo Interceptador Kamikaze y Frenado) ---
                 if (en.type === 'police') {
-                    // Radio de arresto: Sube la barra si te tienen acorralado (cerca y a menos de 40km/h)
-                    if (Math.abs(player.x - en.x) < 70 && Math.abs(player.y - en.y) < 150 && currentSpeed < 3.5) {
+                    // Radio de arresto MEJORADO: Te arrestan incluso yendo a media velocidad si están cerca
+                    if (Math.abs(player.x - en.x) < 85 && Math.abs(player.y - en.y) < 180 && currentSpeed < 5) {
                         isArresting = true;
                     }
 
@@ -852,8 +852,15 @@ window.openRanking = async function() {
                     if (player.x + player.w/2 > 200) pLane = 2;
                     if (player.x + player.w/2 > 285) pLane = 3;
                     
-                    // Si te tiene atrapado de frente, clava los frenos para que no pases
-                    if (en.l === pLane && (player.y - (en.y + en.h)) < 60) en.speed *= 0.9;
+                    // OJOS EN LA NUCA: Si la patrulla está adelante tuyo, NUNCA se aleja. Copia tu velocidad.
+                    if (en.y < player.y && (player.y - en.y) < 250) {
+                        en.speed = Math.min(en.speed, currentSpeed + 1); 
+                        
+                        // Si encima está en tu mismo carril y lo tenés pegado, te clava los frenos feo
+                        if (en.l === pLane && (player.y - (en.y + en.h)) < 80) {
+                            en.speed = currentSpeed * 0.5; 
+                        }
+                    }
 
                     // Reacción kamikaze para encerrarte (mucho más rápido)
                     if (en.l !== pLane && Math.random() < 0.3 * dt) {
@@ -909,12 +916,18 @@ window.openRanking = async function() {
           // Modificamos para que el policía pueda empujarte sin borrarse
             if (checkCollision(player, en) && (!en.hit || en.type === 'police')) { 
                 
-              // --- NUEVO: CHOQUE POLICIAL (El Cepo Físico) ---
+// --- NUEVO: CHOQUE POLICIAL (El Cepo Físico corregido) ---
                 if (en.type === 'police') {
                     isArresting = true;
-                    currentSpeed *= 0.85; // Frenazo brusco
-                    en.y = player.y - en.h + 2; // Bloqueo físico: impide traspasarlo
-                    en.speed = currentSpeed; // Iguala tu velocidad para quedarse pegado
+                    currentSpeed *= 0.5; // Frenazo brusco
+                    en.speed = currentSpeed; // Iguala tu velocidad para que la barra suba
+                    
+                    // CORRECCIÓN: Solo hace de "muro" si realmente está adelante tuyo.
+                    // Si te choca de costado, te frena pero no se teletransporta.
+                    if (en.y < player.y - 30) {
+                        en.y = player.y - en.h + 2; 
+                    }
+                    
                     screenShake = 1.5;
                     if (!en.sirenaOn) { 
                         playSound('crash'); 
@@ -996,7 +1009,7 @@ window.openRanking = async function() {
 
       // --- LÓGICA DE BARRA DE ARRESTO ---
         if (isArresting) {
-            arresto += 1.5 * dt; // La barra sube rápido si el policía te está empujando
+            arresto += 2.5 * dt; // La barra sube rápido si el policía te está empujando
             if (arresto >= 100) endGame("ARRESTADO");
         } else {
             if (arresto > 0) arresto -= 0.5 * dt; // La barra baja si lográs despegarte y escapar
@@ -1708,6 +1721,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
