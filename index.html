@@ -839,16 +839,24 @@ window.openRanking = async function() {
                 let quiereCambiar = false;
                 let nextLane = en.l;
 
-                // --- NUEVO: CEREBRO POLICIAL (Modo Interceptador) ---
+             // --- NUEVO: CEREBRO POLICIAL (Modo Interceptador) ---
                 if (en.type === 'police') {
+                    // Radio de arresto: Sube la barra si te tienen acorralado (cerca y a menos de 40km/h)
+                    if (Math.abs(player.x - en.x) < 70 && Math.abs(player.y - en.y) < 150 && currentSpeed < 3.5) {
+                        isArresting = true;
+                    }
+
                     // Calcula por qué carril venís vos
                     let pLane = 0;
                     if (player.x + player.w/2 > 115) pLane = 1;
                     if (player.x + player.w/2 > 200) pLane = 2;
                     if (player.x + player.w/2 > 285) pLane = 3;
                     
-                    // Si no está en tu carril, intenta ir hacia él para encerrarte
-                    if (en.l !== pLane && Math.random() < 0.08 * dt) {
+                    // Si te tiene atrapado de frente, clava los frenos para que no pases
+                    if (en.l === pLane && (player.y - (en.y + en.h)) < 60) en.speed *= 0.9;
+
+                    // Reacción kamikaze para encerrarte (mucho más rápido)
+                    if (en.l !== pLane && Math.random() < 0.3 * dt) {
                         quiereCambiar = true;
                         nextLane = (pLane > en.l) ? en.l + 1 : en.l - 1; 
                     }
@@ -866,15 +874,18 @@ window.openRanking = async function() {
                     nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
                 }
 
-                if (quiereCambiar) {
+               if (quiereCambiar) {
                     if(nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) { 
                         let tx = [75, 157.5, 242.5, 325][nextLane] - (en.w / 2); 
                         if(!enemies.some(o => o !== en && (o.l === nextLane || o.tl === nextLane) && Math.abs(o.y - en.y) < (en.h + o.h + 80))) { 
-                            en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; 
+                            if (en.type === 'police') {
+                                en.chg = true; en.tx = tx; en.tl = nextLane; // Policía cambia al instante
+                            } else {
+                                en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; 
+                            }
                         } 
                     }
                 }
-            }
             // -------------------------------------------------
             if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
             if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
@@ -897,16 +908,18 @@ window.openRanking = async function() {
           // Modificamos para que el policía pueda empujarte sin borrarse
             if (checkCollision(player, en) && (!en.hit || en.type === 'police')) { 
                 
-                // --- NUEVO: CHOQUE POLICIAL (El Cepo) ---
+              // --- NUEVO: CHOQUE POLICIAL (El Cepo Físico) ---
                 if (en.type === 'police') {
                     isArresting = true;
-                    currentSpeed = Math.max(1, currentSpeed - 0.5 * dt); // Te frena como un muro pesado
+                    currentSpeed *= 0.85; // Frenazo brusco
+                    en.y = player.y - en.h + 2; // Bloqueo físico: impide traspasarlo
+                    en.speed = currentSpeed; // Iguala tu velocidad para quedarse pegado
                     screenShake = 1.5;
                     if (!en.sirenaOn) { 
                         playSound('crash'); 
-                        en.sirenaOn = true; // Para que el golpe suene una sola vez
+                        en.sirenaOn = true; 
                     }
-                    return; // Cortamos acá para que no sigas y pierdas vidas
+                    return;
                 }
                 // ----------------------------------------
 
@@ -1350,9 +1363,9 @@ window.openRanking = async function() {
         let tx = [75, 157.5, 242.5, 325][l], isC = (level >= 2 && Math.random() < 0.3), w = isC ? 55 : 45, h = isC ? 110 : 80; 
        if(enemies.some(e => Math.abs(e.x - (tx - w/2)) < 55 && e.y < (h + 150))) return; 
 
-        // --- NUEVO: INTERCEPTADOR POLICIAL ---
-        // Si tenés 3+ estrellas, hay 25% de chance de que aparezca una patrulla bloqueadora
-        if (estrellas >= 3 && Math.random() < 0.25) {
+       // --- NUEVO: INTERCEPTADOR POLICIAL ---
+        // Nivel 3: 40% chance. Nivel 4: 80% chance de que sea policía
+        if (estrellas >= 3 && Math.random() < (estrellas === 4 ? 0.8 : 0.4)) {
             enemies.push({ x: tx - 25, y: -200, l: l, w: 50, h: 90, type: 'police', img: assets.police, baseSpeed: Math.max(3, currentSpeed * 0.8), speed: Math.max(3, currentSpeed * 0.8), tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
             return;
         }
@@ -1694,6 +1707,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
