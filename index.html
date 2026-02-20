@@ -916,16 +916,24 @@ window.openRanking = async function() {
           // Modificamos para que el policía pueda empujarte sin borrarse
             if (checkCollision(player, en) && (!en.hit || en.type === 'police')) { 
                 
-// --- NUEVO: CHOQUE POLICIAL (El Cepo Físico corregido) ---
+// --- NUEVO: CHOQUE POLICIAL (El Cepo Físico + Rebote Lateral) ---
                 if (en.type === 'police') {
                     isArresting = true;
-                    currentSpeed *= 0.5; // Frenazo brusco
-                    en.speed = currentSpeed; // Iguala tu velocidad para que la barra suba
+                    currentSpeed *= 0.5; // Frenazo brutal
+                    en.speed = currentSpeed; // Iguala tu velocidad
                     
-                    // CORRECCIÓN: Solo hace de "muro" si realmente está adelante tuyo.
-                    // Si te choca de costado, te frena pero no se teletransporta.
                     if (en.y < player.y - 30) {
+                        // Choque de frente: hace de muro
                         en.y = player.y - en.h + 2; 
+                    } else {
+                        // Choque lateral: empujón físico para que no se fusionen los dibujos
+                        if (player.x < en.x) {
+                            en.x += 40 * dt; // Empujón hacia la derecha
+                        } else {
+                            en.x -= 40 * dt; // Empujón hacia la izquierda
+                        }
+                        // Le cortamos el envión de giro para que no siga empujando hacia adentro tuyo
+                        en.chg = false; 
                     }
                     
                     screenShake = 1.5;
@@ -1721,6 +1729,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
