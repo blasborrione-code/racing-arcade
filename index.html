@@ -793,7 +793,13 @@ window.openRanking = async function() {
         if(keys["ArrowLeft"]) player.vx -= adaptiveHandling * dt; 
         if(keys["ArrowRight"]) player.vx += adaptiveHandling * dt; 
      }
-        player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
+      player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
+        
+        // --- EFECTO ZOOM OUT (Hacer espacio para ver atrás) ---
+        let targetY = (estrellas > 0) ? 380 : 550; // Si hay policía, subís; si no, bajás
+        player.y += (targetY - player.y) * 0.03 * dt; // Movimiento suave de cámara
+        // ------------------------------------------------------
+
         fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
         if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) { magnetTimer -= dt; document.getElementById("ui-coin-label").classList.add("magnet-active"); } else document.getElementById("ui-coin-label").classList.remove("magnet-active");
         actualizarMotor(currentSpeed);
@@ -817,7 +823,21 @@ window.openRanking = async function() {
                 } else { spawnConstructionItem('machine'); constEvent.spawnTimer = 140 + Math.random() * 60; }
             }
         }
-        if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
+       if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); 
+        
+        // --- NUEVO: FÁBRICA DE PERSEGUIDORES (Por atrás) ---
+        if (estrellas >= 2 && Math.random() < 0.008 * dt) {
+            let policiasEnPantalla = enemies.filter(e => e.type === 'police').length;
+            if (policiasEnPantalla < estrellas + 1) { // Límite de patrullas a la vez
+                let l = Math.floor(Math.random() * 4);
+                let tx = [75, 157.5, 242.5, 325][l] - 25;
+                // Le agregamos "isChaser: true" y lo hacemos aparecer en y: 850 (abajo)
+                enemies.push({ x: tx, y: 850, l: l, w: 50, h: 90, type: 'police', isChaser: true, img: assets.police, baseSpeed: currentSpeed + 3, speed: currentSpeed + 3, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
+            }
+        }
+        // ---------------------------------------------------
+
+        if(Math.random() < 0.02 * dt) spawnScenery(); if(Math.random() < 0.006 * dt) spawnItem('coin'); 
         if(Math.random() < 0.007 * dt) spawnItem('fuel'); if(Math.random() < 0.0008 * dt) spawnItem('magnet'); 
         if(level >= 2 && !heartSpawnedInLevel && Math.random() < 0.001 * dt) { spawnItem('heart'); heartSpawnedInLevel = true; }
         if(level >= 4 && Math.random() < 0.0025 * dt) spawnItem('oil'); if(level >= 5 && Math.random() < 0.002 * dt) spawnItem('bomb');
@@ -839,33 +859,43 @@ window.openRanking = async function() {
                 let quiereCambiar = false;
                 let nextLane = en.l;
 
-             // --- NUEVO: CEREBRO POLICIAL (Modo Interceptador Kamikaze y Frenado) ---
+            // --- NUEVO: CEREBRO POLICIAL (Interceptador y Perseguidor) ---
                 if (en.type === 'police') {
-                    // Radio de arresto MEJORADO: Te arrestan incluso yendo a media velocidad si están cerca
+                    // Radio de arresto general
                     if (Math.abs(player.x - en.x) < 85 && Math.abs(player.y - en.y) < 180 && currentSpeed < 5) {
                         isArresting = true;
                     }
 
-                    // Calcula por qué carril venís vos
                     let pLane = 0;
                     if (player.x + player.w/2 > 115) pLane = 1;
                     if (player.x + player.w/2 > 200) pLane = 2;
                     if (player.x + player.w/2 > 285) pLane = 3;
                     
-                    // OJOS EN LA NUCA: Si la patrulla está adelante tuyo, NUNCA se aleja. Copia tu velocidad.
-                    if (en.y < player.y && (player.y - en.y) < 250) {
-                        en.speed = Math.min(en.speed, currentSpeed + 1); 
-                        
-                        // Si encima está en tu mismo carril y lo tenés pegado, te clava los frenos feo
-                        if (en.l === pLane && (player.y - (en.y + en.h)) < 80) {
-                            en.speed = currentSpeed * 0.5; 
+                    if (en.isChaser) {
+                        // --- MODO PERSEGUIDOR (Viene de atrás) ---
+                        if (en.y > player.y) {
+                            en.speed = currentSpeed + 2; // Va más rápido para cazarte
+                        } else {
+                            en.speed = currentSpeed; // Si te pasa por accidente, iguala tu velocidad
                         }
-                    }
-
-                    // Reacción kamikaze para encerrarte (mucho más rápido)
-                    if (en.l !== pLane && Math.random() < 0.3 * dt) {
-                        quiereCambiar = true;
-                        nextLane = (pLane > en.l) ? en.l + 1 : en.l - 1; 
+                        
+                        // Busca tu carril súper agresivamente para chocarte de atrás
+                        if (en.l !== pLane && Math.random() < 0.4 * dt) {
+                            quiereCambiar = true;
+                            nextLane = (pLane > en.l) ? en.l + 1 : en.l - 1; 
+                        }
+                    } else {
+                        // --- MODO INTERCEPTADOR (Viene de frente) ---
+                        if (en.y < player.y && (player.y - en.y) < 250) {
+                            en.speed = Math.min(en.speed, currentSpeed + 1); 
+                            if (en.l === pLane && (player.y - (en.y + en.h)) < 80) {
+                                en.speed = currentSpeed * 0.5; 
+                            }
+                        }
+                        if (en.l !== pLane && Math.random() < 0.3 * dt) {
+                            quiereCambiar = true;
+                            nextLane = (pLane > en.l) ? en.l + 1 : en.l - 1; 
+                        }
                     }
                 }
                 // Si hay policía (1+ estrellas), los civiles del medio huyen a los bordes
@@ -893,7 +923,6 @@ window.openRanking = async function() {
                         } 
                     }
                 }
-            }
             // -------------------------------------------------
             if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
             if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
@@ -1025,13 +1054,27 @@ window.openRanking = async function() {
             if (arresto > 0) arresto -= 0.5 * dt; // La barra baja si lográs despegarte y escapar
         }
 
-        // --- SISTEMA DE POLICÍA (CÁLCULO) ---
-        if (puntosSospecha > 0) puntosSospecha -= 0.05 * dt; // Se enfría de a poco
+      // --- SISTEMA DE POLICÍA Y FUGA ---
+        let estrellasPrevias = estrellas; // Guardamos para ver si cambiaron
+
+        if (puntosSospecha > 0) puntosSospecha -= 0.05 * dt; 
         if (puntosSospecha < 0) puntosSospecha = 0;
         estrellas = Math.floor(puntosSospecha / 100);
-        if (estrellas > 4) estrellas = 4; // Máximo 4 estrellas
-        // ------------------------------------
+        if (estrellas > 4) estrellas = 4;
 
+        // Si tenías estrellas y bajaron a 0, ¡te escapaste!
+        if (estrellasPrevias > 0 && estrellas === 0) {
+            showToast("🚔 ¡ESCAPASTE!", "La policía te perdió de vista", true);
+            
+            // Todas las patrullas en pantalla se rinden y frenan
+            enemies.forEach(e => {
+                if (e.type === 'police') {
+                    e.type = 'normal'; // Le sacamos la placa, ya no te siguen
+                    e.speed = currentSpeed * 0.3; // Clavan los frenos y se quedan atrás
+                }
+            });
+        }
+        // ------------------------------------
         if(fuel <= 0) endGame("SIN NAFTA"); 
         updateHUD();
     }
@@ -1731,6 +1774,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
