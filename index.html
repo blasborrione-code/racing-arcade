@@ -919,26 +919,28 @@ window.openRanking = async function() {
 // --- NUEVO: CHOQUE POLICIAL (El Cepo Físico + Rebote Lateral) ---
                 if (en.type === 'police') {
                     isArresting = true;
-                    currentSpeed *= 0.5; // Frenazo brutal
+                    currentSpeed *= 0.3; // Frenazo brutal que te corta todo el envión
                     en.speed = currentSpeed; // Iguala tu velocidad
                     
                     if (en.y < player.y - 30) {
                         // Choque de frente: hace de muro
                         en.y = player.y - en.h + 2; 
                     } else {
-                        // Choque lateral: empujón físico para que no se fusionen los dibujos
+                        // Choque lateral: empujón físico para ambos
                         if (player.x < en.x) {
-                            en.x += 40 * dt; // Empujón hacia la derecha
+                            en.x += 30 * dt; // Escupe al policía a la derecha
+                            player.vx -= 10; // Te empuja a vos hacia la izquierda (perdés control)
                         } else {
-                            en.x -= 40 * dt; // Empujón hacia la izquierda
+                            en.x -= 30 * dt; // Escupe al policía a la izquierda
+                            player.vx += 10; // Te empuja a vos hacia la derecha
                         }
-                        // Le cortamos el envión de giro para que no siga empujando hacia adentro tuyo
                         en.chg = false; 
                     }
                     
-                    screenShake = 1.5;
+                    screenShake = 3; // Temblor más fuerte para sentir el impacto
                     if (!en.sirenaOn) { 
                         playSound('crash'); 
+                        arresto += 25; // ¡PENALIZACIÓN INSTANTÁNEA! Te llena 1/4 de barra de un solo golpe
                         en.sirenaOn = true; 
                     }
                     return;
@@ -1729,6 +1731,7 @@ if (btnRank) {
 </script>
 </body>
 </html>
+
 
 
 
