@@ -643,7 +643,7 @@ try {
         const car = MODELS[garage.selected]; 
         assets.player.src = getCarImg(garage.selected); 
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
-        score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
+        score = 0; fuel = 100; lives = 99; currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; 
         magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
@@ -1124,3 +1124,4 @@ try {
 </script>
 </body>
 </html>
+
