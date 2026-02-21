@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-game-v60.12'; 
+const CACHE_NAME = 'racing-game-v60.13'; 
 
 const urlsToCache = [
   'index.html',
