@@ -701,9 +701,6 @@ try {
         player.y += (targetY - player.y) * 0.03 * dt;
         globalZoom += (targetZoom - globalZoom) * 0.03 * dt;
         
-        let targetY = (estrellas > 0) ? 380 : 550;
-        player.y += (targetY - player.y) * 0.03 * dt;
-
         fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
         if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) magnetTimer -= dt;
         actualizarMotor(currentSpeed);
@@ -1158,3 +1155,4 @@ try {
 </script>
 </body>
 </html>
+
