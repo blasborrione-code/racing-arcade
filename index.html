@@ -645,7 +645,7 @@ try {
         const car = MODELS[garage.selected]; 
         assets.player.src = getCarImg(garage.selected); 
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
-        score = 0; fuel = 100; lives = 99; currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
+        score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; 
         magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
@@ -836,7 +836,7 @@ try {
         else { if (arresto > 0) arresto -= 0.5 * dt; }
 
         let estrellasPrevias = estrellas; puntosSospecha = Math.max(0, puntosSospecha - 0.15 * dt);
-      estrellas = Math.min(4, Math.floor(puntosSospecha / 70));
+      estrellas = Math.min(4, Math.floor(puntosSospecha / 80));
         if (estrellasPrevias > 0 && estrellas === 0) {
             showToast("🚔 ¡ESCAPASTE!", "La policía te perdió de vista", true);
             enemies.forEach(e => { if (e.type === 'police') { e.type = 'normal'; e.speed = currentSpeed * 0.3; } });
@@ -1164,6 +1164,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
