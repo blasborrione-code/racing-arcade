@@ -718,12 +718,12 @@ try {
         }
         
         if(Math.random() < (0.015 + level*0.005) * dt) spawnTraffic(); 
-      if (estrellas >= 2 && Math.random() < 0.003 * dt) {
+    if (estrellas >= 2) {
             let polsAtras = enemies.filter(e => e.type === 'police' && e.isChaser).length;
-            if (polsAtras < 1) { // SOLO permite uno atrás a la vez
+            // Aumentamos la chance a 0.02 para que sea casi instantáneo
+            if (polsAtras < 1 && Math.random() < 0.02 * dt) { 
                 let l = Math.floor(Math.random() * 4);
                 let tx = [75, 157.5, 242.5, 325][l] - 25;
-                // Reducimos baseSpeed a +1.5 para que no sea imposible de esquivar
                 enemies.push({ x: tx, y: 850, l: l, w: 50, h: 90, type: 'police', isChaser: true, img: assets.police, baseSpeed: currentSpeed + 1.5, speed: currentSpeed + 1.5, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
             }
         }
@@ -791,7 +791,7 @@ try {
 
             if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
                 en.nm = true; playSound('near'); if (navigator.vibrate) navigator.vibrate([10, 30, 10]); 
-                garage.coins += 10; nearMissesThisRun++; puntosSospecha += 5; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
+                garage.coins += 10; nearMissesThisRun++; puntosSospecha += 10; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
             }
 
             if (checkCollision(player, en) && (!en.hit || en.type === 'police')) {
@@ -804,10 +804,10 @@ try {
                 }
                 if (en.type === 'obs') {
                     playSound('crash'); if (en.subType === 'cono') { player.coneHits++; if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos chocados! -1 Vida"); } } else lives--;
-                    screenShake = 6; currentSpeed *= 0.6; en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 15;
+                    screenShake = 6; currentSpeed *= 0.6; en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 40;
                     if (lives <= 0) endGame("CHOQUE EN OBRA");
                 } else {
-                    playSound('crash'); puntosSospecha += 40; lives--; screenShake = 10;
+                    playSound('crash'); puntosSospecha += 80; lives--; screenShake = 10;
                     if (lives <= 0) endGame("CHOQUE"); enemies.splice(i, 1);
                 }
             } else if(en.y > 900 || en.y < -600) enemies.splice(i,1);
@@ -836,7 +836,7 @@ try {
         else { if (arresto > 0) arresto -= 0.5 * dt; }
 
         let estrellasPrevias = estrellas; puntosSospecha = Math.max(0, puntosSospecha - 0.05 * dt);
-        estrellas = Math.min(4, Math.floor(puntosSospecha / 100));
+      estrellas = Math.min(4, Math.floor(puntosSospecha / 70));
         if (estrellasPrevias > 0 && estrellas === 0) {
             showToast("🚔 ¡ESCAPASTE!", "La policía te perdió de vista", true);
             enemies.forEach(e => { if (e.type === 'police') { e.type = 'normal'; e.speed = currentSpeed * 0.3; } });
@@ -1164,6 +1164,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
