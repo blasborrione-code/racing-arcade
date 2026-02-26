@@ -791,7 +791,7 @@ try {
 
             if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
                 en.nm = true; playSound('near'); if (navigator.vibrate) navigator.vibrate([10, 30, 10]); 
-                garage.coins += 10; nearMissesThisRun++; puntosSospecha += 10; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
+                garage.coins += 10; nearMissesThisRun++; puntosSospecha -= 5; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
             }
 
             if (checkCollision(player, en) && (!en.hit || en.type === 'police')) {
@@ -835,7 +835,7 @@ try {
         if (isArresting) { arresto += 2.5 * dt; if (arresto >= 100) endGame("ARRESTADO"); }
         else { if (arresto > 0) arresto -= 0.5 * dt; }
 
-        let estrellasPrevias = estrellas; puntosSospecha = Math.max(0, puntosSospecha - 0.05 * dt);
+        let estrellasPrevias = estrellas; puntosSospecha = Math.max(0, puntosSospecha - 0.15 * dt);
       estrellas = Math.min(4, Math.floor(puntosSospecha / 70));
         if (estrellasPrevias > 0 && estrellas === 0) {
             showToast("🚔 ¡ESCAPASTE!", "La policía te perdió de vista", true);
@@ -1164,6 +1164,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
