@@ -449,7 +449,7 @@ try {
         document.getElementById("my-cloud-high").innerText = garage.high;
         const list = document.getElementById("leaderboard-list");
         list.innerHTML = "Cargando...";
-        if (!db) { list.innerHTML = "Error de conexión"; return; }
+        if (!db) { list.innerHTML = "Error de DB"; return; }
         try {
             const q = query(collection(db, "racing_users"), orderBy("high", "desc"), limit(10));
             const querySnapshot = await getDocs(q);
@@ -460,13 +460,13 @@ try {
                 const isMe = currentUser && doc.id === currentUser.uid;
                 const row = document.createElement("div");
                 row.style.cssText = `display:flex; justify-content:space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: ${isMe ? '#f1c40f' : 'white'};`;
-                row.innerHTML = `<span>#${rank} ${d.name || "Anónimo"}</span> <b>${d.high}m</b>`;
+                row.innerHTML = `<span>#${rank} ${d.name || "Anónimo"}</span> <b>${d.high || 0}m</b>`;
                 list.appendChild(row);
                 rank++;
             });
             if(rank === 1) list.innerHTML = "Aún no hay récords.";
         } catch (e) {
-            console.error("Error cargando ranking:", e);
+            console.error("Error Firestore:", e);
             list.innerHTML = "Error al cargar.";
         }
     };
@@ -695,11 +695,9 @@ try {
         if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; 
         roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
         
-        // --- ZOOM OUT ARCADE (Punto B: Efecto de cámara corregido) ---
-        let targetY = (estrellas > 0) ? 280 : 550; 
-        let targetZoom = (estrellas > 0) ? 0.85 : 1.0; 
-        player.y += (targetY - player.y) * 0.03 * dt;
-        globalZoom += (targetZoom - globalZoom) * 0.03 * dt;
+      // Auto siempre abajo
+        player.y = 550;
+        globalZoom = 1;
         
         fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
         if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) magnetTimer -= dt;
@@ -903,12 +901,6 @@ try {
 
    function draw() {
         ctx.save();
-
-        // --- APLICAR ZOOM GLOBAL (Punto D) ---
-        ctx.translate(canvas.width/2, canvas.height/2);
-        ctx.scale(globalZoom, globalZoom);
-        ctx.translate(-canvas.width/2, -canvas.height/2);
-        // -------------------------------------
 
         if (screenShake > 0.1) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake); 
         
@@ -1172,6 +1164,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
