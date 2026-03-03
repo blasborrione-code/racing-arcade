@@ -839,14 +839,14 @@ try {
                             en.hit = true; // Evita perder 5 vidas en un roce
                             if (en.hitCount >= 3) {
                                 // Camión averiado: velocidad clavada en 0
-                                en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = 0;
+                               en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = 0; en.baseSpeed = 0;
                             } else {
                                 // Tope suave contra el camión intacto
                                 if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -5; } else { player.vx = 5; }
                             }
                         } else {
                             // Auto civil destruido: velocidad clavada en 0
-                            en.hit = true; en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.25; en.speed = 0;
+                           en.hit = true; en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.25; en.speed = 0; en.baseSpeed = 0;
                         }
                     }
                 }
@@ -1221,6 +1221,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
