@@ -815,8 +815,8 @@ try {
                         currentSpeed *= 0.8; // Te frena si lo querés empujar
                         screenShake = 2;
                         // Tope suave: mata tu inercia y te corre apenitas para no traspasarlo
-                        if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -15; player.x -= 2; } 
-                        else { player.vx = 15; player.x += 2; }
+                        if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -5; player.x -= 2; } 
+                        else { player.vx = 5; player.x += 2; }
                     } else if (!en.hit) {
                         // --- CHOQUE FRESCO (El primer impacto) ---
                         playSound('crash'); puntosSospecha += 80; lives--; screenShake = 10;
@@ -833,7 +833,7 @@ try {
                                 en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = 0;
                             } else {
                                 // Tope suave contra el camión intacto
-                                if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -15; } else { player.vx = 15; }
+                                if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -5; } else { player.vx = 5; }
                             }
                         } else {
                             // Auto civil destruido: velocidad clavada en 0
@@ -1212,6 +1212,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
