@@ -808,7 +808,26 @@ try {
                     if (lives <= 0) endGame("CHOQUE EN OBRA");
                 } else {
                     playSound('crash'); puntosSospecha += 80; lives--; screenShake = 10;
-                    if (lives <= 0) endGame("CHOQUE"); enemies.splice(i, 1);
+                    currentSpeed *= 0.5; // El impacto te frena a vos
+                    if (lives <= 0) { endGame("CHOQUE"); return; }
+                    
+                    if (en.img === assets.truck) {
+                        en.hitCount = (en.hitCount || 0) + 1;
+                        en.hit = true; // Evita que pierdas 5 vidas en un solo roce
+                        if (en.hitCount >= 3) {
+                            en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = currentSpeed * 0.2;
+                        }
+                    } else {
+                        // Auto civil normal (se destruye al primer choque)
+                        en.hit = true; en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.25; en.speed = currentSpeed * 0.1;
+                    }
+                }
+            } else {
+                // Si te despegás del camión y no está roto, reseteamos el choque para que puedas volver a pegarle
+                if (en.img === assets.truck && !en.crashed) en.hit = false;
+                // Limpieza de memoria (borra los que ya no se ven)
+                if(en.y > 900 || en.y < -600) enemies.splice(i,1);
+            }
                 }
             } else if(en.y > 900 || en.y < -600) enemies.splice(i,1);
         });
@@ -916,11 +935,24 @@ try {
         
         enemies.forEach(en => {
             ctx.save();
-            if (en.hit) {
-                ctx.translate(en.x + en.w / 2, en.y + en.h / 2); ctx.rotate(en.rotation);
-                let scale = Math.max(0.1, 1 - (en.y - 550) * 0.003); ctx.scale(scale, scale);
-                ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h);
-            } else {
+            // Los obstáculos de obra (obs) salen volando, los civiles averiados (crashed) quedan en pista
+            if ((en.hit && en.type === 'obs') || en.crashed) { 
+                ctx.translate(en.x + en.w / 2, en.y + en.h / 2); 
+                ctx.rotate(en.rotation || 0); 
+                if (en.type === 'obs') { 
+                    let sc = Math.max(0.1, 1 - (en.y - 550) * 0.003); ctx.scale(sc, sc); 
+                }
+                ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h); 
+                
+                // Efecto de humo animado para autos destruidos
+                if (en.crashed) {
+                    ctx.fillStyle = "rgba(100, 100, 100, 0.7)";
+                    let humoY = -en.h/2 + (Math.floor(performance.now() / 150) % 10);
+                    ctx.beginPath(); ctx.arc(0, humoY, 10 + Math.random()*5, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(5, humoY + 10, 8 + Math.random()*5, 0, Math.PI * 2); ctx.fill();
+                }
+            } 
+            else {
                 if (en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night, sunset, rain);
                 if (en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
                 if (en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h);
@@ -1164,6 +1196,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
