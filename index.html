@@ -804,7 +804,7 @@ try {
                 }
                 if (en.type === 'obs') {
                     playSound('crash'); if (en.subType === 'cono') { player.coneHits++; if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos chocados! -1 Vida"); } } else lives--;
-                    screenShake = 6; currentSpeed *= 0.6; en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 40;
+                    screenShake = 6; currentSpeed *= 0.6; en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 30;
                     if (lives <= 0) endGame("CHOQUE EN OBRA");
                 } else {
                     playSound('crash'); puntosSospecha += 80; lives--; screenShake = 10;
@@ -828,8 +828,6 @@ try {
                 // Limpieza de memoria (borra los que ya no se ven)
                 if(en.y > 900 || en.y < -600) enemies.splice(i,1);
             }
-                }
-            } else if(en.y > 900 || en.y < -600) enemies.splice(i,1);
         });
 
         items.forEach((it, i) => {
@@ -1196,6 +1194,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
