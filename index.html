@@ -685,14 +685,14 @@ try {
       if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
         else { 
             if(keys["ArrowUp"] || keys["GAS"]) {
-                // Sistema progresivo: Acelera rápido de cero, pero le cuesta llegar al tope máximo
-                let resistencia = 1 - ((currentSpeed / mSpd) * 0.5); 
-                // Reducimos la aceleración brutal a un 30% del valor original para que se sienta el peso
-                currentSpeed = Math.min(currentSpeed + (car.accel * 0.3 * resistencia) * dt, mSpd); 
+                // Resistencia un poco más suave al final
+                let resistencia = 1 - ((currentSpeed / mSpd) * 0.4); 
+                // Subimos la potencia de arranque: de 0.3 pasamos a 0.55
+                currentSpeed = Math.min(currentSpeed + (car.accel * 0.55 * resistencia) * dt, mSpd); 
             }
             else if(keys["ArrowDown"]) {
-                // Mejoramos un poquito el freno para compensar (0.4 en vez de 0.25)
-                currentSpeed = Math.max(currentSpeed - 0.4 * dt, 0); 
+                // Suavizamos el freno: bajamos de 0.4 a 0.3 (el original tuyo era 0.25)
+                currentSpeed = Math.max(currentSpeed - 0.3 * dt, 0); 
             }
             else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); 
             
@@ -1221,6 +1221,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
