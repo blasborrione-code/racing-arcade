@@ -794,7 +794,8 @@ try {
                 garage.coins += 10; nearMissesThisRun++; puntosSospecha -= 5; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
             }
 
-            if (checkCollision(player, en) && (!en.hit || en.type === 'police')) {
+           // Le sacamos el filtro de "hit" al IF principal para que la chatarra siga siendo sólida
+            if (checkCollision(player, en)) {
                 if (en.type === 'police') {
                     isArresting = true; currentSpeed *= 0.3; en.speed = currentSpeed;
                     if (en.y < player.y - 30) en.y = player.y - en.h + 2;
@@ -803,29 +804,45 @@ try {
                     return;
                 }
                 if (en.type === 'obs') {
-                    playSound('crash'); if (en.subType === 'cono') { player.coneHits++; if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos chocados! -1 Vida"); } } else lives--;
-                    screenShake = 6; currentSpeed *= 0.6; en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 30;
-                    if (lives <= 0) endGame("CHOQUE EN OBRA");
+                    if (!en.hit) {
+                        playSound('crash'); if (en.subType === 'cono') { player.coneHits++; if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos chocados! -1 Vida"); } } else lives--;
+                        screenShake = 6; currentSpeed *= 0.6; en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 30;
+                        if (lives <= 0) endGame("CHOQUE EN OBRA");
+                    }
                 } else {
-                    playSound('crash'); puntosSospecha += 80; lives--; screenShake = 10;
-                    currentSpeed *= 0.5; // El impacto te frena a vos
-                    if (lives <= 0) { endGame("CHOQUE"); return; }
-                    
-                    if (en.img === assets.truck) {
-                        en.hitCount = (en.hitCount || 0) + 1;
-                        en.hit = true; // Evita que pierdas 5 vidas en un solo roce
-                        if (en.hitCount >= 3) {
-                            en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = currentSpeed * 0.2;
+                    if (en.crashed) {
+                        // --- 1 y 2: FÍSICAS DE LA CHATARRA ---
+                        currentSpeed *= 0.8; // Te frena constantemente si intentás empujarlo
+                        screenShake = 2;
+                        // Te hace "rebotar" hacia los costados para que no lo puedas traspasar
+                        if (player.x + player.w/2 < en.x + en.w/2) { player.vx -= 50; player.x -= 2; } 
+                        else { player.vx += 50; player.x += 2; }
+                    } else if (!en.hit) {
+                        // --- CHOQUE FRESCO (El primer impacto) ---
+                        playSound('crash'); puntosSospecha += 80; lives--; screenShake = 10;
+                        currentSpeed *= 0.5; // El impacto te frena a la mitad
+                        if (lives <= 0) { endGame("CHOQUE"); return; }
+                        
+                        if (en.img === assets.truck) {
+                            en.hitCount = (en.hitCount || 0) + 1;
+                            en.hit = true; // Evita perder 5 vidas en un roce
+                            if (en.hitCount >= 3) {
+                                // Camión averiado: velocidad clavada en 0
+                                en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = 0;
+                            } else {
+                                // Mini rebote para que no te quedes pegado al camión en el primer choque
+                                if (player.x + player.w/2 < en.x + en.w/2) { player.vx -= 100; } else { player.vx += 100; }
+                            }
+                        } else {
+                            // Auto civil destruido: velocidad clavada en 0
+                            en.hit = true; en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.25; en.speed = 0;
                         }
-                    } else {
-                        // Auto civil normal (se destruye al primer choque)
-                        en.hit = true; en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.25; en.speed = currentSpeed * 0.1;
                     }
                 }
             } else {
                 // Si te despegás del camión y no está roto, reseteamos el choque para que puedas volver a pegarle
                 if (en.img === assets.truck && !en.crashed) en.hit = false;
-                // Limpieza de memoria (borra los que ya no se ven)
+                // Limpieza de memoria
                 if(en.y > 900 || en.y < -600) enemies.splice(i,1);
             }
         });
@@ -1194,6 +1211,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
