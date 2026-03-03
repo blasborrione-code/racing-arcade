@@ -1165,8 +1165,8 @@ try {
             } 
         });
 
-        // Agregamos ?v= y la fecha actual para que NO use el archivo viejo del caché
-        navigator.serviceWorker.register('sw.js?v=' + Date.now()).then(reg => { 
+       // Registro normal del Service Worker
+        navigator.serviceWorker.register('sw.js').then(reg => { 
             reg.update(); 
             if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' }); 
             reg.onupdatefound = () => { 
@@ -1221,6 +1221,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
