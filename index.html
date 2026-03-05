@@ -753,6 +753,39 @@ try {
             en.y += (currentSpeed - en.speed) * dt;
             if (en.hit) { en.x += en.vx * dt; en.rotation += en.vRot * dt; }
 
+            // --- LÓGICA DEL DESAFÍO CALLEJERO ---
+            if (en.type === 'racer' && !en.isRacing) {
+                // Si estás en un carril contiguo y a la par (misma altura Y +/- 40px)
+                if (Math.abs(en.l - (player.x / 85 | 0)) === 1 && Math.abs(player.y - en.y) < 40) {
+                    en.raceTimer += dt;
+                    // Si pasaron 3 segundos (aprox 180 frames)
+                    if (en.raceTimer > 180) {
+                        en.isRacing = true;
+                        en.startDist = score; // Guardamos dónde empezó
+                        showToast("🏁 ¡CARRERA CALLEJERA!", "1.000 Metros - ¡Acelera!", true);
+                        playSound('near');
+                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                    }
+                } else {
+                    en.raceTimer = 0; // Si te alejas, se reinicia el contador
+                }
+            }
+            
+            // --- IA COMPETITIVA DEL RIVAL ---
+            if (en.type === 'racer' && en.isRacing) {
+                // Su objetivo es ir un 2% más rápido que vos para obligarte a usar el rebufo
+                en.baseSpeed = Math.max(currentSpeed * 1.02, 6.0); 
+                
+                // Si ya corrieron 1000 metros, la carrera termina
+                if (score - en.startDist >= 1000) {
+                    en.isRacing = false;
+                    en.baseSpeed = 5.5; // Vuelve a ser un auto normal
+                    let ganador = (player.y < en.y) ? "¡GANASTE!" : "PERDISTE...";
+                    if (player.y < en.y) { garage.coins += 1000; playSound('coin'); }
+                    showToast("🏁 FIN DE CARRERA", ganador + (player.y < en.y ? " +💰1000" : ""));
+                }
+            }
+
             if(en.type !== 'obs' && !en.chg && !en.blink) {
                 let quiereCambiar = false; let nextLane = en.l;
                 if (en.type === 'police') {
@@ -813,15 +846,20 @@ try {
                     screenShake = 3; if (!en.sirenaOn) { playSound('crash'); arresto += 25; en.sirenaOn = true; }
                     return;
                 }
-               if (en.type === 'racer') {
+              if (en.type === 'racer') {
                     // --- CHAPA Y PINTURA (Toques de carrera sin daño) ---
-                    currentSpeed *= 0.95; // Apenas te frena el roce
-                    screenShake = 1.5;
-                    // Físicas de empujón mutuo
-                    if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -8; player.x -= 1; en.x += 1; } 
-                    else { player.vx = 8; player.x += 1; en.x -= 1; }
-                    // Cooldown de sonido para que no aturda
-                    if (!en.hit) { playSound('crash'); en.hit = true; setTimeout(() => en.hit = false, 300); }
+                    currentSpeed *= 0.98; // Casi ni te frena
+                    screenShake = 1.0;
+                    // Físicas de empujón mutuo (Suaves como chatarra)
+                    if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -3; player.x -= 1; } 
+                    else { player.vx = 3; player.x += 1; }
+                    
+                    // Cooldown de sonido (Usamos 'touched' para que no desaparezca mágicamente)
+                    if (!en.touched) { 
+                        playSound('crash'); 
+                        en.touched = true; 
+                        setTimeout(() => en.touched = false, 300); 
+                    }
                 } else if (en.type === 'obs') {
                     if (!en.hit) {
                         playSound('crash'); if (en.subType === 'cono') { player.coneHits++; if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos chocados! -1 Vida"); } } else lives--;
@@ -1244,6 +1282,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
