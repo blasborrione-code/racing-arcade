@@ -815,6 +815,23 @@ try {
                         }
                         if (en.l !== pLane && Math.random() < 0.3 * dt) { quiereCambiar = true; nextLane = (pLane > en.l) ? en.l + 1 : en.l - 1; }
                     }
+                    } else if (en.type === 'racer' && en.isRacing) {
+                    // --- IA DE CARRERA: ESQUIVAR TRÁFICO ---
+                    // Mira lejos hacia adelante (250px) a ver si hay un auto frenándolo
+                    let carAhead = enemies.find(o => o !== en && o.l === en.l && o.y < en.y && (en.y - (o.y + o.h)) < 250);
+                    
+                    if (carAhead) {
+                        quiereCambiar = true;
+                        // Verifica si los carriles de al lado están vacíos
+                        let leftLibre = en.l > 0 && !enemies.some(o => o !== en && (o.l === en.l - 1 || o.tl === en.l - 1) && Math.abs(o.y - en.y) < 180);
+                        let rightLibre = en.l < 3 && !enemies.some(o => o !== en && (o.l === en.l + 1 || o.tl === en.l + 1) && Math.abs(o.y - en.y) < 180);
+                        
+                        // Si ambos están libres, elige al azar. Si no, va al que esté libre.
+                        if (leftLibre && rightLibre) nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
+                        else if (leftLibre) nextLane = en.l - 1;
+                        else if (rightLibre) nextLane = en.l + 1;
+                        else quiereCambiar = false; // Si está atrapado sin salida, va a frenar solo para no chocar
+                    }
                 } else if (estrellas >= 1 && (en.l === 1 || en.l === 2)) {
                     if (Math.random() < 0.05 * dt) { quiereCambiar = true; nextLane = (en.l === 1) ? 0 : 3; }
                 } else if (level >= 3 && Math.random() < 0.002 * dt) {
@@ -1025,9 +1042,20 @@ try {
                     ctx.beginPath(); ctx.arc(5, humoY + 10, 8 + Math.random()*5, 0, Math.PI * 2); ctx.fill();
                 }
             } 
-            else {
+           else {
                 if (en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night, sunset, rain);
                 if (en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
+                
+                // --- CUENTA REGRESIVA VISUAL SOBRE EL AUTO ---
+                if (en.type === 'racer' && !en.isRacing && en.raceTimer > 0) {
+                    let num = Math.ceil(3 - (en.raceTimer / 60)); // Convierte los frames a 3, 2, 1
+                    if (num > 0 && num <= 3) {
+                        ctx.fillStyle = "#f1c40f"; ctx.font = "900 35px Arial"; ctx.textAlign = "center";
+                        ctx.fillText(num, en.x + en.w / 2, en.y - 15);
+                        ctx.textAlign = "left";
+                    }
+                }
+                
                 if (en.subType === 'valla') drawConstructionLights(en.x, en.y, en.w, en.h);
                 if (en.type !== 'obs' && en.blink && Math.floor(performance.now() / 250) % 2 === 0) {
                     ctx.fillStyle = "#ffa500"; ctx.beginPath(); ctx.arc(en.x + (en.tl < en.l ? 5 : en.w-5), en.y + en.h - 10, 5, 0, Math.PI * 2); ctx.fill();
@@ -1282,6 +1310,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
