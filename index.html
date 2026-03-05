@@ -840,7 +840,7 @@ try {
                 if (quiereCambiar && nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) {
                     let tx = [75, 157.5, 242.5, 325][nextLane] - (en.w / 2); 
                     if(!enemies.some(o => o !== en && (o.l === nextLane || o.tl === nextLane) && Math.abs(o.y - en.y) < (en.h + o.h + 80))) { 
-                        if (en.type === 'police') { en.chg = true; en.tx = tx; en.tl = nextLane; } 
+                        if (en.type === 'police' || (en.type === 'racer' && en.isRacing)) { en.chg = true; en.tx = tx; en.tl = nextLane; } 
                         else { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
                     }
                 }
@@ -919,9 +919,14 @@ try {
                 // Si te despegás del camión y no está roto, reseteamos el choque para que puedas volver a pegarle
                 if (en.img === assets.truck && !en.crashed) en.hit = false;
                 // Limpieza de memoria
-                if(en.y > 900 || en.y < -600) enemies.splice(i,1);
-            }
-        });
+               // Limpieza de memoria y Victoria por Paliza
+                if(en.y > 900 || en.y < -600) { 
+                    if (en.type === 'racer' && en.isRacing && en.y > 900) {
+                        garage.coins += 1000; playSound('coin');
+                        showToast("🏁 ¡VICTORIA POR PALIZA!", "Lo dejaste comiendo polvo +💰1000", true);
+                    }
+                    enemies.splice(i,1); 
+                }
         items.forEach((it, i) => {
             if(it.t === 'coin' && magnetTimer > 0) { 
                 let dx = (player.x + player.w/2) - (it.x + it.w/2), dy = (player.y + player.h/2) - (it.y + it.h/2), dist = Math.sqrt(dx*dx + dy*dy);
@@ -1164,7 +1169,7 @@ try {
             return;
         }
         // --- SPAWN DEL RIVAL DE CARRERA ---
-        if (level >= 2 && !isC && Math.random() < 0.05) {
+        if (level >= 2 && !isC && Math.random() < 0.05 && !enemies.some(e => e.type === 'racer')) {
             enemies.push({ x: tx - 24, y: -200, l: l, w: 48, h: 88, type: 'racer', isRacing: false, raceTimer: 0, img: assets.rival, baseSpeed: 5.5, speed: 5.5, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
             return;
         }
@@ -1310,6 +1315,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
