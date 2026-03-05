@@ -987,10 +987,18 @@ try {
             }
             ctx.restore();
         });
-        if(!expObj && assets.player.complete) { 
+       if(!expObj && assets.player.complete) { 
             if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night, sunset, rain);
             ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
-        } 
+            
+            // --- EFECTO DE DAÑO CRÍTICO (1 Vida restante) ---
+            if (lives === 1) {
+                ctx.fillStyle = "rgba(50, 50, 50, 0.8)"; // Humo oscuro
+                let humoY = player.y - 10 + (Math.floor(performance.now() / 120) % 15);
+                ctx.beginPath(); ctx.arc(player.x + player.w/2 - 5, humoY, 12 + Math.random()*6, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(player.x + player.w/2 + 5, humoY + 12, 10 + Math.random()*6, 0, Math.PI * 2); ctx.fill();
+            }
+        }
         if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
         if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } 
         if (estrellas >= 1) {
@@ -1221,6 +1229,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
