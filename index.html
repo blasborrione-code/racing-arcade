@@ -746,8 +746,11 @@ try {
         enemies.forEach((en, i) => {
             let desiredSpeed = en.baseSpeed;
             if(en.type !== 'obs') {
-                let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < 240);
-                if (ahead) { if (en.y - (ahead.y + ahead.h) < 30) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); }
+                let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); 
+                // MODO TORETTO: Se pega a 60px del auto de adelante antes de frenar. El resto a 240px.
+                let distFreno = (en.type === 'racer' && en.isRacing) ? 60 : 240; 
+                let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < distFreno);
+                if (ahead) { if (en.y - (ahead.y + ahead.h) < 20) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); }
                 en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
             }
             en.y += (currentSpeed - en.speed) * dt;
@@ -837,14 +840,21 @@ try {
                 } else if (level >= 3 && Math.random() < 0.002 * dt) {
                     quiereCambiar = true; nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
                 }
-                if (quiereCambiar && nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) {
+               if (quiereCambiar && nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) {
                     let tx = [75, 157.5, 242.5, 325][nextLane] - (en.w / 2); 
-                    if(!enemies.some(o => o !== en && (o.l === nextLane || o.tl === nextLane) && Math.abs(o.y - en.y) < (en.h + o.h + 80))) { 
-                        if (en.type === 'police' || (en.type === 'racer' && en.isRacing)) { en.chg = true; en.tx = tx; en.tl = nextLane; } 
-                        else { en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; }
+                    
+                    // MODO TORETTO: Se mete en huecos de 40px. Los civiles necesitan el doble de espacio.
+                    let huecoMinimo = (en.type === 'racer' && en.isRacing) ? 40 : (en.h + 80); 
+                    
+                    if(!enemies.some(o => o !== en && (o.l === nextLane || o.tl === nextLane) && Math.abs(o.y - en.y) < huecoMinimo)) { 
+                        // MODO TORETTO y POLICÍA: Volantazo instantáneo sin luz de giro
+                        if (en.type === 'police' || (en.type === 'racer' && en.isRacing)) { 
+                            en.chg = true; en.tx = tx; en.tl = nextLane; 
+                        } else { 
+                            en.blink = true; en.bCount = 0; en.bTimer = 0; en.tx = tx; en.tl = nextLane; 
+                        }
                     }
                 }
-            }
 
             if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
             if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
@@ -1315,6 +1325,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
