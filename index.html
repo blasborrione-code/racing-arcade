@@ -557,6 +557,7 @@ try {
     assets.oil.src = 'Items/charco_aceite.png'; assets.heart.src = 'Items/heart_pixel.png'; assets.bomb.src = 'Items/bomba.png'; assets.exp.src = 'Items/explosion.png';
     assets.magnet.src = 'Items/iman_pixel.png'; assets.topadora.src = 'Items/topadora.png'; assets.pavimentadora.src = 'Items/pavimentadora.png';
     assets.valla.src = 'Items/valla.png'; assets.cono.src = 'Items/cono.png'; assets.police.src = 'Autos/police_car.png';
+    assets.rival = new Image(); assets.rival.src = 'Autos/car_tuner_night.png';
 
     ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
     const sceneryAssets = { arboles: [new Image()] }; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
@@ -812,7 +813,16 @@ try {
                     screenShake = 3; if (!en.sirenaOn) { playSound('crash'); arresto += 25; en.sirenaOn = true; }
                     return;
                 }
-                if (en.type === 'obs') {
+               if (en.type === 'racer') {
+                    // --- CHAPA Y PINTURA (Toques de carrera sin daño) ---
+                    currentSpeed *= 0.95; // Apenas te frena el roce
+                    screenShake = 1.5;
+                    // Físicas de empujón mutuo
+                    if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -8; player.x -= 1; en.x += 1; } 
+                    else { player.vx = 8; player.x += 1; en.x -= 1; }
+                    // Cooldown de sonido para que no aturda
+                    if (!en.hit) { playSound('crash'); en.hit = true; setTimeout(() => en.hit = false, 300); }
+                } else if (en.type === 'obs') {
                     if (!en.hit) {
                         playSound('crash'); if (en.subType === 'cono') { player.coneHits++; if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos chocados! -1 Vida"); } } else lives--;
                         screenShake = 6; currentSpeed *= 0.6; en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 30;
@@ -1087,6 +1097,11 @@ try {
             enemies.push({ x: tx - 25, y: -200, l: l, w: 50, h: 90, type: 'police', img: assets.police, baseSpeed: Math.max(3, currentSpeed * 0.8), speed: Math.max(3, currentSpeed * 0.8), tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
             return;
         }
+        // --- SPAWN DEL RIVAL DE CARRERA ---
+        if (level >= 2 && !isC && Math.random() < 0.05) {
+            enemies.push({ x: tx - 24, y: -200, l: l, w: 48, h: 88, type: 'racer', isRacing: false, raceTimer: 0, img: assets.rival, baseSpeed: 5.5, speed: 5.5, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
+            return;
+        }
         enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
     }
 
@@ -1229,6 +1244,7 @@ try {
 </script>
 </body>
 </html>
+
 
 
 
