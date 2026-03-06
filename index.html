@@ -572,8 +572,8 @@ try {
         'rally_blue': { name: 'BLUE RALLY', maxSpeed: 8.08, accel: 0.15, handling: 1.5, lives: 4, w: 44, h: 86, img: 'car_rally_blue_v2.png', price: 22500, colors: ['base'] },
         'super_yellow': { name: 'ITALIA GTR', maxSpeed: 8.75, accel: 0.18, handling: 1.6, lives: 4, w: 42, h: 76, img: 'car_super_yellow.png', price: 33300, colors: ['amarillo', 'rojo', 'verde', 'azul', 'rosa', 'negro'] },
         'sport_black': { name: 'DEPORTIVO GT', maxSpeed: 8.92, accel: 0.2, handling: 1.8, lives: 4, w: 57, h: 82, img: 'car_sport_black.png', price: 40000, colors: ['negro', 'plata', 'rojo', 'azul', 'verde', 'amarillo'] },
-        'tuner_night': { name: 'NIGHT WALKER', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 48, h: 88, img: 'car_tuner_night.png', price: 50000, colors: ['base'] },
-        'tuner_legend': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 43, h: 78, img: 'car_tuner_legend.png', price: 50000, colors: ['base'] },
+        'tuner_night': { name: 'NIGHT WALKER', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 46, h: 85, img: 'car_tuner_night.png', price: 50000, colors: ['base'] },
+        'tuner_legend': { name: 'TURBO LEGEND', maxSpeed: 9.58, accel: 0.22, handling: 2.0, lives: 4, w: 37, h: 74, img: 'car_tuner_legend.png', price: 50000, colors: ['base'] },
         'luxury_white': { name: 'SILVER LUX', maxSpeed: 9.83, accel: 0.24, handling: 2.2, lives: 4, w: 51, h: 90, img: 'car_luxury_white.png', price: 60000, colors: ['blanco', 'negro', 'naranja'] },
         'formula_classic': { name: 'VINTAGE 50', maxSpeed: 10.0, accel: 0.28, handling: 2.5, lives: 2, w: 58, h: 110, img: 'car_formula_classic.png', price: 85000, colors: ['verde', 'azul', 'amarillo'] },
         'formula_modern': { name: 'APEX FORMULA', maxSpeed: 10.42, accel: 0.3, handling: 2.6, lives: 2, w: 48, h: 105, img: 'car_formula_modern.png', price: 95000, colors: ['celeste', 'violeta', 'azul', 'rojo', 'verde'] }
@@ -756,7 +756,7 @@ if(keys["ArrowUp"] || keys["GAS"]) {
             if(en.type !== 'obs') {
                 let futureLanes = [en.l]; if(en.chg || en.blink) futureLanes.push(en.tl); 
                 // MODO TORETTO: Se pega a 60px del auto de adelante antes de frenar. El resto a 240px.
-                let distFreno = (en.type === 'racer' && en.isRacing) ? 60 : 240; 
+                let distFreno = (en.type === 'racer' && en.isRacing) ? 95 : 240; 
                 let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < distFreno);
             if (ahead) { if (en.y - (ahead.y + ahead.h) < 20) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); }
                 
@@ -1328,6 +1328,7 @@ if(keys["ArrowUp"] || keys["GAS"]) {
 </script>
 </body>
 </html>
+
 
 
 
