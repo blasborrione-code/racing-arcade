@@ -750,8 +750,11 @@ try {
                 // MODO TORETTO: Se pega a 60px del auto de adelante antes de frenar. El resto a 240px.
                 let distFreno = (en.type === 'racer' && en.isRacing) ? 60 : 240; 
                 let ahead = enemies.find(o => o !== en && (futureLanes.includes(o.l) || (o.chg && futureLanes.includes(o.tl))) && o.y < en.y && (en.y - o.y) < distFreno);
-                if (ahead) { if (en.y - (ahead.y + ahead.h) < 20) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); }
-                en.speed += (desiredSpeed - en.speed) * 0.2 * dt;
+            if (ahead) { if (en.y - (ahead.y + ahead.h) < 20) desiredSpeed = ahead.speed * 0.5; else desiredSpeed = Math.min(en.baseSpeed, ahead.speed * 0.9); }
+                
+                // MODO TORETTO: Acelera el triple de rápido que un civil después de frenar
+                let accelMotor = (en.type === 'racer' && en.isRacing) ? 0.6 : 0.2; 
+                en.speed += (desiredSpeed - en.speed) * accelMotor * dt;
             }
             en.y += (currentSpeed - en.speed) * dt;
             if (en.hit) { en.x += en.vx * dt; en.rotation += en.vRot * dt; }
@@ -768,9 +771,14 @@ try {
                 } else { en.raceTimer = 0; }
             }
             
-            // --- IA COMPETITIVA DEL RIVAL ---
+          // --- IA COMPETITIVA DEL RIVAL ---
             if (en.type === 'racer' && en.isRacing) {
-                en.baseSpeed = Math.max(currentSpeed * 1.02, 6.0); 
+                // EFECTO GOMA: Si se queda atrás, activa el Nitro invisible. Si te pasa, afloja un poco.
+                if (en.y > player.y + 300) en.baseSpeed = Math.max(currentSpeed * 1.25, 9.0); // Quedó re atrás: Boost extremo
+                else if (en.y > player.y + 100) en.baseSpeed = Math.max(currentSpeed * 1.10, 7.5); // Está atrás: Persecución agresiva
+                else if (en.y < player.y - 150) en.baseSpeed = Math.max(currentSpeed * 0.98, 5.0); // Va ganando por mucho: Te da chance
+                else en.baseSpeed = Math.max(currentSpeed * 1.03, 6.5); // Pelea cuerpo a cuerpo
+                
                 if (score - en.startDist >= 1000) {
                     en.isRacing = false; en.baseSpeed = 5.5; 
                     let ganador = (player.y < en.y) ? "¡GANASTE!" : "PERDISTE...";
@@ -817,9 +825,9 @@ try {
                 }
 
                 if (quiereCambiar && nextLane >= 0 && nextLane <= 3 && (!constEvent.active || nextLane !== constEvent.lane)) {
-                    let tx = [75, 157.5, 242.5, 325][nextLane] - (en.w / 2); 
-                    // MODO TORETTO: Huecos de 40px
-                    let huecoMinimo = (en.type === 'racer' && en.isRacing) ? 40 : (en.h + 80); 
+                let tx = [75, 157.5, 242.5, 325][nextLane] - (en.w / 2); 
+                    // MODO TORETTO EXTREMO: Se tira en huecos de apenas 15px (pasa raspando pintura)
+                    let huecoMinimo = (en.type === 'racer' && en.isRacing) ? 15 : (en.h + 80);
                     if(!enemies.some(o => o !== en && (o.l === nextLane || o.tl === nextLane) && Math.abs(o.y - en.y) < huecoMinimo)) { 
                         if (en.type === 'police' || (en.type === 'racer' && en.isRacing)) { 
                             en.chg = true; en.tx = tx; en.tl = nextLane; 
@@ -1279,3 +1287,4 @@ try {
 </script>
 </body>
 </html>
+
