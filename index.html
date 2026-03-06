@@ -558,6 +558,7 @@ try {
     assets.magnet.src = 'Items/iman_pixel.png'; assets.topadora.src = 'Items/topadora.png'; assets.pavimentadora.src = 'Items/pavimentadora.png';
     assets.valla.src = 'Items/valla.png'; assets.cono.src = 'Items/cono.png'; assets.police.src = 'Autos/police_car.png';
     assets.rival = new Image(); assets.rival.src = 'Autos/car_tuner_night.png';
+    assets.rival2 = new Image(); assets.rival2.src = 'Autos/car_tuner_legend.png'; // El madafakin SUPRA
 
     ['npc_azul.png', 'npc_blanco.png', 'npc_taxi.png', 'npc_rojo.png', 'npc_gris.png'].forEach(n => { let i = new Image(); i.src = `Autos/${n}`; assets.npcs.push(i); });
     const sceneryAssets = { arboles: [new Image()] }; sceneryAssets.arboles[0].src = 'Entorno/arbol_1.png';
@@ -822,16 +823,16 @@ if(keys["ArrowUp"] || keys["GAS"]) {
                         // Escaneamos los 4 carriles (0, 1, 2, 3) para ver cuál está más libre
                         let laneScores = [0, 0, 0, 0];
                         
-                        for (let l = 0; l < 4; l++) {
-                            // Verificamos si hay alguien estorbando en ese carril para hacer el cambio (hueco físico)
-                            let isBlocked = enemies.some(o => o !== en && (o.l === l || o.tl === l) && Math.abs(o.y - en.y) < 120);
+                     for (let l = 0; l < 4; l++) {
+                            // Radar lateral: Verifica si hay alguien REALMENTE estorbando en el carril destino
+                            // Subimos el margen de seguridad lateral a 150px para que no se encime
+                            let isBlocked = enemies.some(o => o !== en && (o.l === l || o.tl === l) && Math.abs(o.y - en.y) < 150);
                             
                             if (isBlocked) {
-                                laneScores[l] = -1000; // Carril prohibido, choque inminente
+                                laneScores[l] = -5000; // Bloqueo total
                             } else {
-                                // Si el carril está físicamente libre para entrar, medimos qué tan lejos está el próximo auto
                                 let nextCar = enemies.find(o => o !== en && o.l === l && o.y < en.y);
-                                laneScores[l] = nextCar ? (en.y - nextCar.y) : 2000; // Si no hay nadie, ese carril es la gloria (2000px libres)
+                                laneScores[l] = nextCar ? (en.y - nextCar.y) : 2000;
                             }
                         }
 
@@ -1327,6 +1328,7 @@ if(keys["ArrowUp"] || keys["GAS"]) {
 </script>
 </body>
 </html>
+
 
 
 
