@@ -1081,6 +1081,20 @@ if(keys["ArrowUp"] || keys["GAS"]) {
        if(!expObj && assets.player.complete) { 
             if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night, sunset, rain);
             ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
+           // --- EFECTO VISUAL DE REBUFO (Viento) ---
+            if (currentSpeed > MODELS[garage.selected].maxSpeed + 0.05) {
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                ctx.lineWidth = 2;
+                for(let i = 0; i < 3; i++) {
+                    let lx = player.x - 10 - (Math.random() * 15);
+                    let rx = player.x + player.w + 10 + (Math.random() * 15);
+                    let ly = player.y + (Math.random() * player.h);
+                    ctx.beginPath();
+                    ctx.moveTo(lx, ly); ctx.lineTo(lx, ly + 20);
+                    ctx.moveTo(rx, ly); ctx.lineTo(rx, ly + 20);
+                    ctx.stroke();
+                }
+            }
             
             // --- EFECTO DE DAÑO CRÍTICO (1 Vida restante) ---
             if (lives === 1) {
@@ -1180,8 +1194,8 @@ if(keys["ArrowUp"] || keys["GAS"]) {
         }
         // --- SPAWN DEL RIVAL DE CARRERA ---
         if (level >= 2 && !isC && Math.random() < 0.05 && !enemies.some(e => e.type === 'racer')) {
-            // Elegimos un auto deportivo al azar para el rival
-            const modelosRivales = [assets.rival, assets.npcs[0], assets.npcs[3]]; // Skyline, el deportivo azul y el rojo
+            // --- CORRECCIÓN: SOLO SKYLINE (rival) Y SUPRA (rival2) ---
+            const modelosRivales = [assets.rival, assets.rival2]; 
             let imgRival = modelosRivales[Math.floor(Math.random() * modelosRivales.length)];
           enemies.push({ x: tx - 24, y: -200, l: l, w: 48, h: 88, type: 'racer', isRacing: false, raceTimer: 0, img: imgRival, baseSpeed: 5.5, speed: 5.5, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
             return;
@@ -1328,6 +1342,7 @@ if(keys["ArrowUp"] || keys["GAS"]) {
 </script>
 </body>
 </html>
+
 
 
 
