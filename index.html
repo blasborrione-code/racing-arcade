@@ -685,14 +685,21 @@ try {
         if(rain) { hndl *= 0.30; turnInertia = 0.97; }
       if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
         else { 
-            if(keys["ArrowUp"] || keys["GAS"]) {
+if(keys["ArrowUp"] || keys["GAS"]) {
                 // Resistencia un poco más suave al final
                 let resistencia = 1 - ((currentSpeed / mSpd) * 0.4); 
                 // Subimos la potencia de arranque: de 0.3 pasamos a 0.55
                 currentSpeed = Math.min(currentSpeed + (car.accel * 0.55 * resistencia) * dt, mSpd); 
             }
+            // --- AQUÍ VA EL REBUFO ---
+            let autoAdelante = enemies.find(en => Math.abs(en.x - player.x) < 35 && en.y < player.y && (player.y - en.y) < 220 && en.type !== 'obs');
+            if (autoAdelante && currentSpeed > 4) {
+                currentSpeed += 0.012 * dt; // Empuje extra por succión
+                if (Math.random() < 0.1) screenShake = 0.5; // Vibración sutil por turbulencia
+            }
+            // --- FIN DEL REBUFO ---
             else if(keys["ArrowDown"]) {
-                // Suavizamos el freno: bajamos de 0.4 a 0.3 (el original tuyo era 0.25)
+                // Suavizamos el freno: bajamos de 0.4 a 0.3
                 currentSpeed = Math.max(currentSpeed - 0.3 * dt, 0); 
             }
             else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); 
@@ -806,17 +813,47 @@ try {
                         }
                         if (en.l !== pLane && Math.random() < 0.3 * dt) { quiereCambiar = true; nextLane = (pLane > en.l) ? en.l + 1 : en.l - 1; }
                     }
-                } else if (en.type === 'racer' && en.isRacing) {
-                    // --- IA DE CARRERA: ESQUIVAR TRÁFICO ---
+               } else if (en.type === 'racer' && en.isRacing) {
+                    // --- IA DE CARRERA PRO: VISIÓN PERIFÉRICA ---
                     let carAhead = enemies.find(o => o !== en && o.l === en.l && o.y < en.y && (en.y - (o.y + o.h)) < 250);
+                    
                     if (carAhead) {
                         quiereCambiar = true;
-                        let leftLibre = en.l > 0 && !enemies.some(o => o !== en && (o.l === en.l - 1 || o.tl === en.l - 1) && Math.abs(o.y - en.y) < 180);
-                        let rightLibre = en.l < 3 && !enemies.some(o => o !== en && (o.l === en.l + 1 || o.tl === en.l + 1) && Math.abs(o.y - en.y) < 180);
-                        if (leftLibre && rightLibre) nextLane = en.l + (Math.random() < 0.5 ? -1 : 1);
-                        else if (leftLibre) nextLane = en.l - 1;
-                        else if (rightLibre) nextLane = en.l + 1;
-                        else quiereCambiar = false;
+                        // Escaneamos los 4 carriles (0, 1, 2, 3) para ver cuál está más libre
+                        let laneScores = [0, 0, 0, 0];
+                        
+                        for (let l = 0; l < 4; l++) {
+                            // Verificamos si hay alguien estorbando en ese carril para hacer el cambio (hueco físico)
+                            let isBlocked = enemies.some(o => o !== en && (o.l === l || o.tl === l) && Math.abs(o.y - en.y) < 120);
+                            
+                            if (isBlocked) {
+                                laneScores[l] = -1000; // Carril prohibido, choque inminente
+                            } else {
+                                // Si el carril está físicamente libre para entrar, medimos qué tan lejos está el próximo auto
+                                let nextCar = enemies.find(o => o !== en && o.l === l && o.y < en.y);
+                                laneScores[l] = nextCar ? (en.y - nextCar.y) : 2000; // Si no hay nadie, ese carril es la gloria (2000px libres)
+                            }
+                        }
+
+                        // Elegimos el carril con la mayor puntuación (el más libre)
+                        let bestLane = en.l;
+                        let maxScore = -9999;
+                        
+                        // Solo permitimos saltar 1 carril a la vez para que el movimiento sea fluido (o 2 si es muy pro)
+                        let posibles = [en.l - 1, en.l + 1].filter(l => l >= 0 && l <= 3);
+                        
+                        posibles.forEach(l => {
+                            if (laneScores[l] > maxScore) {
+                                maxScore = laneScores[l];
+                                bestLane = l;
+                            }
+                        });
+
+                        if (maxScore > 0) {
+                            nextLane = bestLane;
+                        } else {
+                            quiereCambiar = false; // Si todo está bloqueado, frena y espera el hueco
+                        }
                     }
                 } else if (estrellas >= 1 && (en.l === 1 || en.l === 2)) {
                     if (Math.random() < 0.05 * dt) { quiereCambiar = true; nextLane = (en.l === 1) ? 0 : 3; }
@@ -1287,4 +1324,5 @@ try {
 </script>
 </body>
 </html>
+
 
