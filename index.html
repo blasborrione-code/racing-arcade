@@ -689,13 +689,13 @@ if(keys["ArrowUp"] || keys["GAS"]) {
                 // Resistencia un poco más suave al final
                 let resistencia = 1 - ((currentSpeed / mSpd) * 0.4); 
                 // Subimos la potencia de arranque: de 0.3 pasamos a 0.55
-                currentSpeed = Math.min(currentSpeed + (car.accel * 0.55 * resistencia) * dt, mSpd); 
+                currentSpeed = Math.min(currentSpeed + (car.accel * 0.85 * resistencia) * dt, mSpd); 
             }
             // --- AQUÍ VA EL REBUFO ---
             let autoAdelante = enemies.find(en => Math.abs(en.x - player.x) < 35 && en.y < player.y && (player.y - en.y) < 220 && en.type !== 'obs');
             if (autoAdelante && currentSpeed > 4) {
-                currentSpeed += 0.012 * dt; // Empuje extra por succión
-                if (Math.random() < 0.1) screenShake = 0.5; // Vibración sutil por turbulencia
+                currentSpeed += 0.025 * dt; // Empuje extra por succión
+                if (Math.random() < 0.1) screenShake = 0.8; // Vibración sutil por turbulencia
             }
             // --- FIN DEL REBUFO ---
             else if(keys["ArrowDown"]) {
@@ -1179,7 +1179,10 @@ if(keys["ArrowUp"] || keys["GAS"]) {
         }
         // --- SPAWN DEL RIVAL DE CARRERA ---
         if (level >= 2 && !isC && Math.random() < 0.05 && !enemies.some(e => e.type === 'racer')) {
-            enemies.push({ x: tx - 24, y: -200, l: l, w: 48, h: 88, type: 'racer', isRacing: false, raceTimer: 0, img: assets.rival, baseSpeed: 5.5, speed: 5.5, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
+            // Elegimos un auto deportivo al azar para el rival
+            const modelosRivales = [assets.rival, assets.npcs[0], assets.npcs[3]]; // Skyline, el deportivo azul y el rojo
+            let imgRival = modelosRivales[Math.floor(Math.random() * modelosRivales.length)];
+          enemies.push({ x: tx - 24, y: -200, l: l, w: 48, h: 88, type: 'racer', isRacing: false, raceTimer: 0, img: imgRival, baseSpeed: 5.5, speed: 5.5, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
             return;
         }
         enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
@@ -1324,5 +1327,6 @@ if(keys["ArrowUp"] || keys["GAS"]) {
 </script>
 </body>
 </html>
+
 
 
