@@ -1178,12 +1178,12 @@ if(keys["ArrowUp"] || keys["GAS"]) {
             enemies.push({ x: tx - 25, y: -200, l: l, w: 50, h: 90, type: 'police', img: assets.police, baseSpeed: Math.max(3, currentSpeed * 0.8), speed: Math.max(3, currentSpeed * 0.8), tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
             return;
         }
-        // --- SPAWN DEL RIVAL DE CARRERA ---
+      // --- SPAWN DEL RIVAL DE CARRERA ---
         if (level >= 2 && !isC && Math.random() < 0.05 && !enemies.some(e => e.type === 'racer')) {
-            // --- CORRECCIÓN: SOLO SKYLINE (rival) Y SUPRA (rival2) ---
             const modelosRivales = [assets.rival, assets.rival2]; 
             let imgRival = modelosRivales[Math.floor(Math.random() * modelosRivales.length)];
-          enemies.push({ x: tx - 24, y: -200, l: l, w: 48, h: 88, type: 'racer', isRacing: false, raceTimer: 0, img: imgRival, baseSpeed: 5.5, speed: 5.5, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
+            let wR = (imgRival === assets.rival) ? 46 : 37, hR = (imgRival === assets.rival) ? 85 : 74;
+            enemies.push({ x: tx - (wR/2), y: -200, l: l, w: wR, h: hR, type: 'racer', isRacing: false, raceTimer: 0, img: imgRival, baseSpeed: 5.5, speed: 5.5, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
             return;
         }
         enemies.push({ x: tx - (w / 2), y: -200, l: l, w: w, h: h, type: 'normal', img: (isC ? assets.truck : assets.npcs[(Math.random()*assets.npcs.length)|0]), baseSpeed: 1.5 + Math.random() * 3.0, speed: 1.5 + Math.random() * 3.0, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
@@ -1328,6 +1328,7 @@ if(keys["ArrowUp"] || keys["GAS"]) {
 </script>
 </body>
 </html>
+
 
 
 
