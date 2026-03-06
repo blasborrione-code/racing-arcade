@@ -1081,21 +1081,7 @@ if(keys["ArrowUp"] || keys["GAS"]) {
        if(!expObj && assets.player.complete) { 
             if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night, sunset, rain);
             ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
-           // --- EFECTO VISUAL DE REBUFO (Viento) ---
-            if (currentSpeed > MODELS[garage.selected].maxSpeed + 0.05) {
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-                ctx.lineWidth = 2;
-                for(let i = 0; i < 3; i++) {
-                    let lx = player.x - 10 - (Math.random() * 15);
-                    let rx = player.x + player.w + 10 + (Math.random() * 15);
-                    let ly = player.y + (Math.random() * player.h);
-                    ctx.beginPath();
-                    ctx.moveTo(lx, ly); ctx.lineTo(lx, ly + 20);
-                    ctx.moveTo(rx, ly); ctx.lineTo(rx, ly + 20);
-                    ctx.stroke();
-                }
-            }
-            
+         
             // --- EFECTO DE DAÑO CRÍTICO (1 Vida restante) ---
             if (lives === 1) {
                 ctx.fillStyle = "rgba(50, 50, 50, 0.8)"; // Humo oscuro
@@ -1342,6 +1328,7 @@ if(keys["ArrowUp"] || keys["GAS"]) {
 </script>
 </body>
 </html>
+
 
 
 
