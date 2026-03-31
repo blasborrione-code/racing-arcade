@@ -1181,9 +1181,23 @@ if(keys["ArrowUp"] || keys["GAS"]) {
         if(!document.getElementById("shop-upgrades").classList.contains("hidden")) updateUpgradeUI();
     }
 
-    // --- NUEVAS FUNCIONES DEL CARRUSEL DE MEJORAS ---
+   // --- NUEVAS FUNCIONES DEL CARRUSEL DE MEJORAS ---
     window.updateUpgradeUI = function() {
-        const ck = garage.selected; const st = garage.carStats[ck];
+        const ck = garage.selected; 
+        
+        // --- PARCHE AUTOSANADOR ---
+        // Si el auto es viejo y no tiene las piezas nuevas, se las ponemos en Nivel 0
+        if (!garage.carStats[ck]) garage.carStats[ck] = {motor:0, tanque:0, frenos:0, chasis:0, aero:0, gomas:0};
+        if (garage.carStats[ck].frenos === undefined) {
+            garage.carStats[ck].frenos = 0;
+            garage.carStats[ck].chasis = 0;
+            garage.carStats[ck].aero = 0;
+            garage.carStats[ck].gomas = 0;
+            saveLocal(); // Guardamos el parche para que quede en la memoria
+        }
+        // --------------------------
+
+        const st = garage.carStats[ck];
         const upg = UPGRADE_DATA[currentUpgradeIndex];
         const currentLvl = st[upg.id];
         
