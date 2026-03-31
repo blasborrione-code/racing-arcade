@@ -73,7 +73,13 @@
         @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
         .ui-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 30px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 320px; position: relative; }
         h1 { margin: 0 0 20px; font-size: 28px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
-        button { padding: 16px; font-size: 14px; cursor: pointer; border: none; color: white; border-radius: 15px; font-weight: 800; min-width: 100%; margin: 8px 0; text-transform: uppercase; }
+       button { padding: 16px; font-size: 14px; cursor: pointer; border: none; color: white; border-radius: 15px; font-weight: 800; min-width: 100%; margin: 8px 0; text-transform: uppercase; }
+        
+        button:active, .touch-btn:active, .ui-card div[onclick]:active {
+            transform: scale(0.92);
+            transition: transform 0.1s ease;
+            filter: brightness(1.2);
+        }
         .btn-green { background: #2ecc71; } .btn-blue { background: #3498db; } .btn-orange { background: #e67e22; } .btn-red { background: #e74c3c; }
         #timer-display { font-size: 60px; font-weight: 900; color: var(--accent); margin: 10px 0; }
         .magnet-active { color: #f1c40f; text-shadow: 0 0 10px #f1c40f; animation: blink 0.5s infinite; }
@@ -249,10 +255,16 @@
             <img id="upgrade-car-preview" style="height:80px; object-fit:contain; margin-bottom:10px;">
             <p id="up-car-name" style="color:#f1c40f; font-size:14px;"></p>
             
-            <div style="display:flex; gap:10px; margin:15px 0;">
-                <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;"><small>MOTOR</small><br><b>Lvl <span id="lvl-motor">0</span></b><button class="btn-orange" onclick="prepUpgrade('motor')" id="cost-motor" style="font-size:10px; padding:8px; min-width:auto; margin-top:5px;"></button></div>
-                <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;"><small>TANQUE</small><br><b>Lvl <span id="lvl-tanque">0</span></b><button class="btn-orange" onclick="prepUpgrade('tanque')" id="cost-tanque" style="font-size:10px; padding:8px; min-width:auto; margin-top:5px;"></button></div>
+           <div style="display:flex; align-items:center; justify-content:space-between; margin:15px 0; background:rgba(255,255,255,0.05); padding:15px; border-radius:20px;">
+                <div onclick="prevUpgrade()" style="cursor:pointer; font-size:30px; user-select:none;">◀</div>
+                <div style="text-align:center;">
+                    <div id="upg-icon" style="font-size:40px; margin-bottom:5px;">⚙️</div>
+                    <h4 id="upg-name" style="margin:0; color:#f1c40f; font-size:16px;">MOTOR</h4>
+                    <div style="font-size:12px; margin:5px 0; color:#bdc3c7;">Nivel <b id="upg-lvl" style="color:white;">0</b> / 5</div>
+                </div>
+                <div onclick="nextUpgrade()" style="cursor:pointer; font-size:30px; user-select:none;">▶</div>
             </div>
+            <button class="btn-orange" id="upg-btn" onclick="buyCurrentUpgrade()"></button>
 
             <p style="font-size:12px; color:#bdc3c7; margin: 10px 0 5px;">PINTURA DEL AUTO</p>
             <div id="color-selector-container" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px; border-radius:15px;">
@@ -599,7 +611,25 @@ try {
     function saveLocal() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); updateShopCoinDisplays(); }
 
     const saved = localStorage.getItem('borrione_racing_v3'); if(saved) garage = {...garage, ...JSON.parse(saved)};
-    Object.keys(MODELS).forEach(k => { if(!garage.carStats[k]) garage.carStats[k] = {motor:0, tanque:0}; });
+   Object.keys(MODELS).forEach(k => { 
+        if(!garage.carStats[k]) garage.carStats[k] = {motor:0, tanque:0, frenos:0, chasis:0, aero:0, gomas:0}; 
+        else {
+            // Esto evita errores si vos o un amigo entra con una cuenta vieja
+            if (garage.carStats[k].frenos === undefined) {
+                garage.carStats[k].frenos = 0; garage.carStats[k].chasis = 0; garage.carStats[k].aero = 0; garage.carStats[k].gomas = 0;
+            }
+        }
+    });
+
+    let currentUpgradeIndex = 0;
+    const UPGRADE_DATA = [
+        { id: 'motor', name: 'MOTOR V8', icon: '⚙️', desc: 'Aumenta la velocidad máxima y aceleración.' },
+        { id: 'tanque', name: 'TANQUE EXT.', icon: '⛽', desc: 'Reduce el consumo de combustible en la pista.' },
+        { id: 'frenos', name: 'FRENOS CERÁMICOS', icon: '🛑', desc: 'Reduce la distancia de frenado un 7% por nivel.' },
+        { id: 'chasis', name: 'CHASIS REFORZADO', icon: '🛡️', desc: 'Al Máximo: +1 Vida Extra. Resiste choques leves.' },
+        { id: 'aero', name: 'AERODINÁMICA', icon: '💨', desc: 'Optimiza el flujo de aire. Potencia el rebufo.' },
+        { id: 'gomas', name: 'NEUMÁTICOS SLICK', icon: '🛞', desc: 'Mejora drásticamente el agarre y control en la lluvia.' }
+    ];
 
     window.showToast = function(title, msg, isAchievement = false) {
         const container = document.getElementById("toast-container"); const t = document.createElement("div"); t.className = `toast ${isAchievement ? 'logro' : ''}`; t.innerHTML = `<b>${title}</b><p>${msg}</p>`; container.appendChild(t); setTimeout(() => t.remove(), 3200);
@@ -1141,19 +1171,51 @@ if(keys["ArrowUp"] || keys["GAS"]) {
     
     function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
 
-    window.updateUI = function() { 
-        const ck = garage.selected; const st = garage.carStats[ck]; document.getElementById("lvl-motor").innerText = st.motor; document.getElementById("lvl-tanque").innerText = st.tanque;
-        document.getElementById("cost-motor").innerText = st.motor < 5 ? `$${UPGRADE_PRICES[ck][st.motor].toLocaleString()}` : "MAX"; document.getElementById("cost-tanque").innerText = st.tanque < 5 ? `$${UPGRADE_PRICES[ck][st.tanque].toLocaleString()}` : "MAX";
-        document.getElementById("menu-high-score").innerText = garage.high.toLocaleString(); document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString(); document.getElementById("up-car-name").innerText = MODELS[ck].name;
+   window.updateUI = function() { 
+        const ck = garage.selected; 
+        document.getElementById("menu-high-score").innerText = garage.high.toLocaleString(); 
+        document.getElementById("menu-total-coins").innerText = garage.coins.toLocaleString(); 
+        document.getElementById("up-car-name").innerText = MODELS[ck].name;
         updateShopCoinDisplays();
+        // Solo actualizamos el carrusel si la pantalla de mejoras está abierta
+        if(!document.getElementById("shop-upgrades").classList.contains("hidden")) updateUpgradeUI();
     }
+
+    // --- NUEVAS FUNCIONES DEL CARRUSEL DE MEJORAS ---
+    window.updateUpgradeUI = function() {
+        const ck = garage.selected; const st = garage.carStats[ck];
+        const upg = UPGRADE_DATA[currentUpgradeIndex];
+        const currentLvl = st[upg.id];
+        
+        document.getElementById("upg-icon").innerText = upg.icon;
+        document.getElementById("upg-name").innerText = upg.name;
+        document.getElementById("upg-lvl").innerText = currentLvl;
+        
+        const btn = document.getElementById("upg-btn");
+        if (currentLvl < 5) {
+            btn.innerText = `MEJORAR $${UPGRADE_PRICES[ck][currentLvl].toLocaleString()}`;
+            btn.style.opacity = "1";
+            btn.onclick = window.buyCurrentUpgrade;
+        } else {
+            btn.innerText = "AL MÁXIMO";
+            btn.style.opacity = "0.5";
+            btn.onclick = null;
+        }
+    }
+
+    window.nextUpgrade = function() { playSound('click'); currentUpgradeIndex = (currentUpgradeIndex + 1) % UPGRADE_DATA.length; updateUpgradeUI(); }
+    window.prevUpgrade = function() { playSound('click'); currentUpgradeIndex = (currentUpgradeIndex - 1 + UPGRADE_DATA.length) % UPGRADE_DATA.length; updateUpgradeUI(); }
+    window.buyCurrentUpgrade = function() { playSound('click'); prepUpgrade(UPGRADE_DATA[currentUpgradeIndex].id); }
 
     let tempUpgrade = null;
     window.prepUpgrade = function(type) {
         playSound('click'); const st = garage.carStats[garage.selected]; const cost = UPGRADE_PRICES[garage.selected][st[type]]; if(st[type] >= 5) return;
         if(garage.coins < cost) { showToast("ERROR", "No tienes suficientes monedas"); return; }
-        tempUpgrade = { type, cost }; document.getElementById("modal-title").innerText = `MEJORAR ${type.toUpperCase()}`;
-        document.getElementById("modal-desc").innerHTML = `¿Instalar Nivel ${st[type]+1}?<br>Costo: <span style="color:#f1c40f">$${cost.toLocaleString()}</span>`;
+        
+        let upgInfo = UPGRADE_DATA.find(u => u.id === type);
+        tempUpgrade = { type, cost }; 
+        document.getElementById("modal-title").innerText = `MEJORAR ${upgInfo.name}`;
+        document.getElementById("modal-desc").innerHTML = `<span style="color:#bdc3c7; font-size:12px;">${upgInfo.desc}</span><br><br>¿Instalar Nivel <b style="color:white">${st[type]+1}</b>?<br>Costo: <span style="color:#f1c40f; font-weight:bold;">$${cost.toLocaleString()}</span>`;
         document.getElementById("upgrade-modal").classList.remove("hidden");
     }
 
@@ -1232,7 +1294,7 @@ if(keys["ArrowUp"] || keys["GAS"]) {
 
     window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
     window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
-    window.openMejoras = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected); updateUI(); renderColorSelector(); }
+   window.openMejoras = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected); currentUpgradeIndex = 0; updateUpgradeUI(); renderColorSelector(); }
     window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(k => { let cur = garage.unlockedLogros[k], val = (k === 'totalDist') ? garage.totalDist : (k === 'totalCoins') ? garage.totalCoinsRec : (k === 'totalNear') ? garage.totalNear : garage.totalPlays; const d = document.createElement("div"); d.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; d.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${k.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[k][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(d); }); document.getElementById("shop-logros").classList.remove("hidden"); }
     
     window.openNeones = function() { 
