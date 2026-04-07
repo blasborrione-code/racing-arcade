@@ -715,42 +715,45 @@ try {
         if(nextLvl > level) heartSpawnedInLevel = false;
         level = nextLvl;
         const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
-       let rain = (level >= 6 && (level - 6) % 4 === 1); 
+      let rain = (level >= 6 && (level - 6) % 4 === 1); 
         let turnInertia = 0.85; 
         
         // --- 🛞 NEUMÁTICOS (GOMAS) ---
-        // Lluvia base: Resbala muchísimo (0.30). Lvl 5: Recupera casi todo el agarre (0.90)
         if(rain) { 
             let agarreLluvia = 0.30 + (stats.gomas * 0.12); 
             hndl *= agarreLluvia; 
             turnInertia = 0.97 - (stats.gomas * 0.024); 
         }
+
+        // --- 💨 AERODINÁMICA (AERO) - AHORA MÁS LARGO Y FUERTE ---
+        let aeroDist = 250 + (stats.aero * 60); // Nivel 0: 250px. Nivel 5: 550px (Radar enorme)
+        let autoAdelante = enemies.find(en => Math.abs(en.x - player.x) < 35 && en.y < player.y && (player.y - en.y) < aeroDist && en.type !== 'obs');
+        let rebufoActivo = false;
+
+        if (autoAdelante && currentSpeed > 4) {
+            rebufoActivo = true;
+            // Elevamos el límite de velocidad máxima (mSpd) para que el auto pueda superar los 141km/h
+            mSpd += 0.2 + (stats.aero * 0.15); // Da aprox entre 2 y 12 km/h extra según el nivel
+            if (Math.random() < 0.1) screenShake = 0.8; 
+        }
         
-      if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
+        if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
         else { 
             if(keys["ArrowUp"] || keys["GAS"]) {
                 let resistencia = 1 - ((currentSpeed / mSpd) * 0.4); 
                 currentSpeed = Math.min(currentSpeed + (car.accel * 0.85 * resistencia) * dt, mSpd); 
             }
             
-            // --- 💨 AERODINÁMICA (AERO) ---
-            // Radar base: 180px. Lvl 5: 330px (Detecta desde re lejos). Empuje también sube.
-            let aeroDist = 180 + (stats.aero * 30);
-            let aeroBoost = 0.020 + (stats.aero * 0.005);
-            let autoAdelante = enemies.find(en => Math.abs(en.x - player.x) < 35 && en.y < player.y && (player.y - en.y) < aeroDist && en.type !== 'obs');
-            
-            if (autoAdelante && currentSpeed > 4) {
-                currentSpeed += aeroBoost * dt; 
-                if (Math.random() < 0.1) screenShake = 0.8; 
+            if (rebufoActivo) {
+                let aeroBoost = 0.03 + (stats.aero * 0.015); // Acelera más agresivo hacia el auto
+                currentSpeed = Math.min(currentSpeed + aeroBoost * dt, mSpd);
             }
             // --- 🛑 FRENOS CERÁMICOS ---
             else if(keys["ArrowDown"]) {
-                // Freno de botón. Base: 0.25. Lvl 5: 0.40 (Frena excelente en emergencias)
                 let frenoActivo = 0.25 + (stats.frenos * 0.03);
                 currentSpeed = Math.max(currentSpeed - frenoActivo * dt, 0); 
             }
             else {
-                // Fricción al soltar gas. Lvl 0: 0.02 (Auto pesado). Lvl 5: 0.07 (Freno motor suave)
                 let friccionNatural = 0.02 + (stats.frenos * 0.01);
                 currentSpeed = Math.max(currentSpeed - friccionNatural * dt, 0); 
             }
