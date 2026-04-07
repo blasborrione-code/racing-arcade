@@ -673,11 +673,15 @@ try {
         startGameLogic();
     }
 
-    function startGameLogic() {
+   function startGameLogic() {
         const car = MODELS[garage.selected]; 
+        const stats = garage.carStats[garage.selected]; // Traemos el garaje a la largada
         assets.player.src = getCarImg(garage.selected); 
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
-        score = 0; fuel = 100; lives = car.lives; currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
+        score = 0; fuel = 100; 
+        // --- 🛡️ CHASIS: Si está al Nivel 5, suma 1 ❤️ Extra desde la largada
+        lives = car.lives + (stats.chasis === 5 ? 1 : 0); 
+        currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; hasRevived = false; screenShake = 0; 
         magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
@@ -711,29 +715,45 @@ try {
         if(nextLvl > level) heartSpawnedInLevel = false;
         level = nextLvl;
         const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
-        let rain = (level >= 6 && (level - 6) % 4 === 1); 
+       let rain = (level >= 6 && (level - 6) % 4 === 1); 
         let turnInertia = 0.85; 
-        if(rain) { hndl *= 0.30; turnInertia = 0.97; }
+        
+        // --- 🛞 NEUMÁTICOS (GOMAS) ---
+        // Lluvia base: Resbala muchísimo (0.30). Lvl 5: Recupera casi todo el agarre (0.90)
+        if(rain) { 
+            let agarreLluvia = 0.30 + (stats.gomas * 0.12); 
+            hndl *= agarreLluvia; 
+            turnInertia = 0.97 - (stats.gomas * 0.024); 
+        }
+        
       if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
         else { 
-if(keys["ArrowUp"] || keys["GAS"]) {
-                // Resistencia un poco más suave al final
+            if(keys["ArrowUp"] || keys["GAS"]) {
                 let resistencia = 1 - ((currentSpeed / mSpd) * 0.4); 
-                // Subimos la potencia de arranque: de 0.3 pasamos a 0.55
                 currentSpeed = Math.min(currentSpeed + (car.accel * 0.85 * resistencia) * dt, mSpd); 
             }
-            // --- AQUÍ VA EL REBUFO ---
-            let autoAdelante = enemies.find(en => Math.abs(en.x - player.x) < 35 && en.y < player.y && (player.y - en.y) < 220 && en.type !== 'obs');
+            
+            // --- 💨 AERODINÁMICA (AERO) ---
+            // Radar base: 180px. Lvl 5: 330px (Detecta desde re lejos). Empuje también sube.
+            let aeroDist = 180 + (stats.aero * 30);
+            let aeroBoost = 0.020 + (stats.aero * 0.005);
+            let autoAdelante = enemies.find(en => Math.abs(en.x - player.x) < 35 && en.y < player.y && (player.y - en.y) < aeroDist && en.type !== 'obs');
+            
             if (autoAdelante && currentSpeed > 4) {
-                currentSpeed += 0.025 * dt; // Empuje extra por succión
-                if (Math.random() < 0.1) screenShake = 0.8; // Vibración sutil por turbulencia
+                currentSpeed += aeroBoost * dt; 
+                if (Math.random() < 0.1) screenShake = 0.8; 
             }
-            // --- FIN DEL REBUFO ---
+            // --- 🛑 FRENOS CERÁMICOS ---
             else if(keys["ArrowDown"]) {
-                // Suavizamos el freno: bajamos de 0.4 a 0.3
-                currentSpeed = Math.max(currentSpeed - 0.3 * dt, 0); 
+                // Freno de botón. Base: 0.25. Lvl 5: 0.40 (Frena excelente en emergencias)
+                let frenoActivo = 0.25 + (stats.frenos * 0.03);
+                currentSpeed = Math.max(currentSpeed - frenoActivo * dt, 0); 
             }
-            else currentSpeed = Math.max(currentSpeed - 0.05 * dt, 0); 
+            else {
+                // Fricción al soltar gas. Lvl 0: 0.02 (Auto pesado). Lvl 5: 0.07 (Freno motor suave)
+                let friccionNatural = 0.02 + (stats.frenos * 0.01);
+                currentSpeed = Math.max(currentSpeed - friccionNatural * dt, 0); 
+            }
             
             let adaptiveHandling = hndl * (1 / (1 + (currentSpeed / 15)));
             if(keys["ArrowLeft"]) player.vx -= adaptiveHandling * dt; 
@@ -934,8 +954,25 @@ if(keys["ArrowUp"] || keys["GAS"]) {
                     if (!en.touched) { playSound('crash'); en.touched = true; setTimeout(() => en.touched = false, 300); }
                 } else if (en.type === 'obs') {
                     if (!en.hit) {
-                        playSound('crash'); if (en.subType === 'cono') { player.coneHits++; if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos chocados! -1 Vida"); } } else lives--;
-                        screenShake = 6; currentSpeed *= 0.6; en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 30;
+                        playSound('crash'); 
+                        screenShake = 6; 
+                        let velKmH = currentSpeed * 12; // Anotamos la velocidad del impacto
+                        currentSpeed *= 0.6; 
+                        en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 30;
+                        
+                        // --- 🛡️ CHASIS REFORZADO (En Obras) ---
+                        let velSegura = 15 + (stats.chasis * 10);
+                        
+                        if (en.subType === 'cono') { 
+                            player.coneHits++; 
+                            if (player.coneHits >= 4) { lives--; player.coneHits = 0; showToast("DAÑO", "¡4 conos chocados! -1 Vida"); } 
+                        } else {
+                            if (velKmH <= velSegura) {
+                                showToast("🛡️ CHASIS", "¡Impacto absorbido!");
+                            } else {
+                                lives--;
+                            }
+                        }
                         if (lives <= 0) endGame("CHOQUE EN OBRA");
                     }
                 } else {
@@ -943,20 +980,31 @@ if(keys["ArrowUp"] || keys["GAS"]) {
                         currentSpeed *= 0.8; screenShake = 2;
                         if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -5; player.x -= 2; } else { player.vx = 5; player.x += 2; }
                     } else if (!en.hit) {
-                        playSound('crash'); puntosSospecha += 80; lives--; screenShake = 10;
+                        playSound('crash'); puntosSospecha += 80; screenShake = 10;
+                        let velKmH = currentSpeed * 12; // Anotamos la velocidad del impacto
                         currentSpeed *= 0.5; player.vx = 0; 
-                        if (lives <= 0) { endGame("CHOQUE"); return; }
                         
-                        if (en.img === assets.truck) {
-                            en.hitCount = (en.hitCount || 0) + 1; en.hit = true;
-                            if (en.hitCount >= 2) {
-                                en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = 0; en.baseSpeed = 0;
-                            } else {
-                                en.vx = 0; en.vRot = 0; 
-                                if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -5; } else { player.vx = 5; }
-                            }
+                        // --- 🛡️ CHASIS REFORZADO (En Tráfico Civil) ---
+                        let velSegura = 15 + (stats.chasis * 10); // Lvl 0 = 15km/h, Lvl 5 = 65km/h
+                        
+                        if (velKmH <= velSegura) {
+                            showToast("🛡️ CHASIS", "¡Choque leve absorbido!");
+                            en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -5 : 5; en.vRot = 0.1;
                         } else {
-                            en.hit = true; en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.25; en.speed = 0; en.baseSpeed = 0;
+                            lives--; 
+                            if (lives <= 0) { endGame("CHOQUE"); return; }
+                            
+                            if (en.img === assets.truck) {
+                                en.hitCount = (en.hitCount || 0) + 1; en.hit = true;
+                                if (en.hitCount >= 2) {
+                                    en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = 0; en.baseSpeed = 0;
+                                } else {
+                                    en.vx = 0; en.vRot = 0; 
+                                    if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -5; } else { player.vx = 5; }
+                                }
+                            } else {
+                                en.hit = true; en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.25; en.speed = 0; en.baseSpeed = 0;
+                            }
                         }
                     }
                 }
