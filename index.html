@@ -1408,6 +1408,46 @@ try {
     window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
    window.openMejoras = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected); currentUpgradeIndex = 0; updateUpgradeUI(); renderColorSelector(); }
     window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(k => { let cur = garage.unlockedLogros[k], val = (k === 'totalDist') ? garage.totalDist : (k === 'totalCoins') ? garage.totalCoinsRec : (k === 'totalNear') ? garage.totalNear : garage.totalPlays; const d = document.createElement("div"); d.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; d.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${k.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[k][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(d); }); document.getElementById("shop-logros").classList.remove("hidden"); }
+    // --- NUEVO SISTEMA VISUAL DE MISIONES ---
+    window.openMissions = function() {
+        playSound('click'); hideAll(); updateShopCoinDisplays();
+        
+        const dailyContainer = document.getElementById("missions-daily-container");
+        const weeklyContainer = document.getElementById("missions-weekly-container");
+        dailyContainer.innerHTML = ""; weeklyContainer.innerHTML = "";
+        
+        // (MAÑANA VAMOS A REEMPLAZAR ESTO POR TU ARRAY DINÁMICO DE MISIONES)
+        // Por ahora, simulamos una misión diaria y una semanal para que veas cómo queda
+        const misionesSimuladas = [
+            { tipo: 'diaria', desc: 'Choca 5 conos', progreso: 3, meta: 5, premio: 500, cobrado: false },
+            { tipo: 'diaria', desc: 'Junta 100 monedas', progreso: 100, meta: 100, premio: 1000, cobrado: false },
+            { tipo: 'semanal', desc: 'Recorre 50.000m', progreso: garage.weeklyDist, meta: 50000, premio: 5000, cobrado: garage.weeklyDone }
+        ];
+        
+        misionesSimuladas.forEach((m, index) => {
+            let p = Math.min(100, (m.progreso / m.meta) * 100);
+            let d = document.createElement("div");
+            d.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; text-align:left; border-left: 4px solid " + (m.tipo === 'diaria' ? "#f1c40f" : "var(--weekly-clr)");
+            
+            let btnCobrar = "";
+            if (m.cobrado) {
+                btnCobrar = `<button style="background:#27ae60; padding:5px; margin-top:5px; opacity:0.5; cursor:default;" disabled>✅ COBRADO</button>`;
+            } else if (m.progreso >= m.meta) {
+                // (MAÑANA ESTE BOTÓN VA A COBRAR EN SERIO LAS MONEDAS)
+                btnCobrar = `<button style="background:#f1c40f; color:#000; padding:5px; margin-top:5px; animation:blink 1s infinite;" onclick="playSound('coin'); this.innerText='✅ COBRADO'; this.style.background='#27ae60'; this.style.color='#fff'; this.style.animation='none'; this.style.opacity='0.5';">💰 RECLAMAR $${m.premio}</button>`;
+            }
+            
+            d.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-size:12px;"><b>${m.desc}</b><span style="color:#f1c40f;">$${m.premio}</span></div>
+                <div style="font-size:10px; color:#bdc3c7; margin:5px 0;">Progreso: ${m.progreso.toLocaleString()} / ${m.meta.toLocaleString()}</div>
+                <div class="bar-container" style="width:100%; height:8px; margin-top:0;"><div style="width:${p}%; background:${m.tipo === 'diaria' ? '#f1c40f' : 'var(--weekly-clr)'}; height:100%;"></div></div>
+                ${btnCobrar}
+            `;
+            if(m.tipo === 'diaria') dailyContainer.appendChild(d); else weeklyContainer.appendChild(d);
+        });
+        
+        document.getElementById("missions-screen").classList.remove("hidden");
+    }
     
     window.openNeones = function() { 
         playSound('click'); hideAll(); updateShopCoinDisplays(); const container = document.getElementById("neon-container"); container.innerHTML = ""; 
