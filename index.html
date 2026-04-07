@@ -714,7 +714,7 @@ try {
         let nextLvl = (score < 4000) ? Math.floor(score / 500) + 1 : 9 + Math.floor((score - 4000) / 1000);
         if(nextLvl > level) heartSpawnedInLevel = false;
         level = nextLvl;
-        const mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
+        let mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
       let rain = (level >= 6 && (level - 6) % 4 === 1); 
         let turnInertia = 0.85; 
         
