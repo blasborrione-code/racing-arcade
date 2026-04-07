@@ -959,11 +959,10 @@ try {
                     if (!en.hit) {
                         playSound('crash'); 
                         screenShake = 6; 
-                        let velKmH = currentSpeed * 12; // Anotamos la velocidad del impacto
+                        let velKmH = currentSpeed * 12; 
                         currentSpeed *= 0.6; 
                         en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -10 : 10; en.vRot = 0.15; puntosSospecha += 30;
                         
-                        // --- 🛡️ CHASIS REFORZADO (En Obras) ---
                         let velSegura = 15 + (stats.chasis * 10);
                         
                         if (en.subType === 'cono') { 
@@ -984,30 +983,30 @@ try {
                         if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -5; player.x -= 2; } else { player.vx = 5; player.x += 2; }
                     } else if (!en.hit) {
                         playSound('crash'); puntosSospecha += 80; screenShake = 10;
-                        let velKmH = currentSpeed * 12; // Anotamos la velocidad del impacto
+                        let velKmH = currentSpeed * 12; 
                         currentSpeed *= 0.5; player.vx = 0; 
                         
-                        // --- 🛡️ CHASIS REFORZADO (En Tráfico Civil) ---
-                        let velSegura = 15 + (stats.chasis * 10); // Lvl 0 = 15km/h, Lvl 5 = 65km/h
+                        // 1. Siempre rompemos el auto civil (humo y se frena en la pista)
+                        if (en.img === assets.truck) {
+                            en.hitCount = (en.hitCount || 0) + 1; en.hit = true;
+                            if (en.hitCount >= 2) {
+                                en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = 0; en.baseSpeed = 0;
+                            } else {
+                                en.vx = 0; en.vRot = 0; 
+                                if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -5; } else { player.vx = 5; }
+                            }
+                        } else {
+                            en.hit = true; en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.25; en.speed = 0; en.baseSpeed = 0;
+                        }
+
+                        // 2. --- 🛡️ CHASIS REFORZADO: ¿Te salvás o perdés vida? ---
+                        let velSegura = 15 + (stats.chasis * 10); 
                         
                         if (velKmH <= velSegura) {
                             showToast("🛡️ CHASIS", "¡Choque leve absorbido!");
-                            en.hit = true; en.vx = (en.x + en.w/2 < player.x + player.w/2) ? -5 : 5; en.vRot = 0.1;
                         } else {
                             lives--; 
                             if (lives <= 0) { endGame("CHOQUE"); return; }
-                            
-                            if (en.img === assets.truck) {
-                                en.hitCount = (en.hitCount || 0) + 1; en.hit = true;
-                                if (en.hitCount >= 2) {
-                                    en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.1; en.speed = 0; en.baseSpeed = 0;
-                                } else {
-                                    en.vx = 0; en.vRot = 0; 
-                                    if (player.x + player.w/2 < en.x + en.w/2) { player.vx = -5; } else { player.vx = 5; }
-                                }
-                            } else {
-                                en.hit = true; en.crashed = true; en.vx = 0; en.vRot = 0; en.rotation = 0.25; en.speed = 0; en.baseSpeed = 0;
-                            }
                         }
                     }
                 }
@@ -1461,11 +1460,3 @@ try {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
