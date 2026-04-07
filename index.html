@@ -1333,13 +1333,40 @@ try {
 
     function startReviveCountdown() { reviveCounter = 5; document.getElementById("timer-display").innerText = reviveCounter; document.getElementById("revive-screen").classList.remove("hidden"); reviveInterval = setInterval(() => { reviveCounter--; document.getElementById("timer-display").innerText = reviveCounter; if (reviveCounter <= 0) finishGame(); }, 1000); }
 
-    window.confirmRevive = function() { 
+   window.confirmRevive = function() { 
         showToast("ANUNCIO", "Viendo anuncio...");
         setTimeout(() => {
             clearInterval(reviveInterval); lives = 1; fuel = 100; hasRevived = true; expObj = null; enemies = []; items = []; constEvent.active = false;
             state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; 
             playSound('music_race', true); playSound('motor', true); lastTime = performance.now(); loop();
         }, 2000);
+    }
+
+    // --- FUNCIÓN PARA EL CONTADOR ANIMADO ---
+    function animateCounter(elementId, prefix, finalValue, suffix, duration) {
+        let startValue = 0;
+        let startTime = null;
+        const element = document.getElementById(elementId);
+        
+        function updateCounter(currentTime) {
+            if (!startTime) startTime = currentTime;
+            const progress = Math.min((currentTime - startTime) / duration, 1);
+            // Función de suavizado (easeOutQuad) para que frene lindo al final
+            const easeProgress = progress * (2 - progress); 
+            const currentValue = Math.floor(easeProgress * finalValue);
+            
+            element.innerText = `${prefix}${currentValue.toLocaleString()}${suffix}`;
+            
+            if (progress < 1) {
+                // Si todavía no terminó, hace un "clinc" chiquito de fondo (opcional, podés comentarlo si es molesto)
+                if (Math.random() < 0.1) playSound('click'); 
+                requestAnimationFrame(updateCounter);
+            } else {
+                element.innerText = `${prefix}${finalValue.toLocaleString()}${suffix}`;
+                playSound('coin'); // Sonido fuerte al terminar de contar
+            }
+        }
+        requestAnimationFrame(updateCounter);
     }
 
     window.finishGame = function() {
@@ -1353,7 +1380,11 @@ try {
         save(); document.getElementById("game-over").classList.remove("hidden");
         document.getElementById("over-title").innerText = newRec ? "¡NUEVO RÉCORD!" : "FIN";
         document.getElementById("over-reason").innerText = lastReason;
-        document.getElementById("final-stats").innerText = `Distancia: ${score|0}m | Monedas: ${coinsThisRun}`;
+        
+        // --- LLAMADA AL CONTADOR ANIMADO ---
+        // Le damos 1.5 segundos a la animación para que genere expectativa
+        document.getElementById("final-stats").innerText = ""; // Limpiamos primero
+        animateCounter("final-stats", "Distancia: ", score|0, `m | Monedas: ${coinsThisRun}`, 1500); 
     }
 
     window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
