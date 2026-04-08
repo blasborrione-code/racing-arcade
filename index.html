@@ -612,9 +612,38 @@ try {
         'compact_retro': [250, 500, 750, 1000, 1250], 'furgoneta': [400, 800, 1200, 1600, 2000], 'auto_rosa': [600, 1200, 1800, 2400, 3000], 'camioneta4x4': [800, 1600, 2400, 3200, 4000], 'muscle_pony': [1000, 2000, 3000, 4000, 5000], 'rally_blue': [1200, 2400, 3600, 4800, 6000], 'super_yellow': [1500, 3000, 4500, 6000, 7500], 'sport_black': [1500, 3000, 4500, 6000, 7500], 'tuner_night': [2000, 4000, 6000, 8000, 10000], 'tuner_legend': [2000, 4000, 6000, 8000, 10000], 'luxury_white': [3000, 6000, 9000, 12000, 15000], 'formula_classic': [3000, 6000, 10000, 15000, 20000], 'formula_modern': [5000, 10000, 15000, 20000, 25000]
     };
 
-    const DAILY_MISSIONS = [
-        { id: 0, desc: "Junta 50 monedas en una carrera", goal: 50, type: 'coins' }, { id: 1, desc: "Logra 10 Near Miss en una carrera", goal: 10, type: 'nearmiss' }, { id: 2, desc: "Llega al Nivel 5 en una carrera", goal: 5, type: 'level' }, { id: 3, desc: "Logra 20 Near Miss en una carrera", goal: 20, type: 'nearmiss' }, { id: 4, desc: "Recorre 3000m en una carrera", goal: 3000, type: 'dist' }, { id: 5, desc: "Junta 100 monedas en una carrera", goal: 100, type: 'coins' }
+   // --- LISTA MAESTRA DE MISIONES (El Cerebro) ---
+    // difficultyMultiplier: Fácil(1), Medio(2), Difícil(4), Extremo(10)
+    const MISSION_POOL = [
+        { id: 'nearmiss', descBase: "Haz Near Miss", prop: 'nearMissesThisRun', baseGoal: 10, baseReward: 100 },
+        { id: 'coins', descBase: "Junta Monedas", prop: 'coinsThisRun', baseGoal: 100, baseReward: 100 },
+        { id: 'dist', descBase: "Recorre Metros", prop: 'score', baseGoal: 1500, baseReward: 100 },
+        { id: 'fuel', descBase: "Agarra Bidones de Nafta", prop: 'fuelsThisRun', baseGoal: 3, baseReward: 150 },
+        { id: 'cones', descBase: "Choca Conos de Obra", prop: 'conesThisRun', baseGoal: 5, baseReward: 100 },
+        { id: 'police', descBase: "Escapa de la Policía (Estrellas)", prop: 'escapesThisRun', baseGoal: 1, baseReward: 300 }
     ];
+
+    // Función para generar una misión con dificultad aleatoria
+    function generateMission(isWeekly) {
+        let poolIndex = Math.floor(Math.random() * MISSION_POOL.length);
+        let template = MISSION_POOL[poolIndex];
+        
+        // Semanal: x25 a x50 de dificultad. Diaria: x1 a x4
+        let diffMult = isWeekly ? (25 + Math.floor(Math.random() * 25)) : (1 + Math.floor(Math.random() * 4));
+        let goal = template.baseGoal * diffMult;
+        let reward = template.baseReward * diffMult * (isWeekly ? 1.5 : 1); // Semanal paga un poquito extra
+
+        return {
+            id: template.id + '_' + Date.now() + Math.random(), // ID único
+            tipo: isWeekly ? 'semanal' : 'diaria',
+            desc: `${template.descBase} (${goal.toLocaleString()})`,
+            progreso: 0,
+            meta: goal,
+            premio: reward,
+            prop: template.prop, // Qué variable mirar
+            cobrado: false
+        };
+    }
 
     const MILESTONES = { totalDist: [1000, 5000, 10000, 50000, 100000], totalCoins: [500, 2000, 5000, 10000, 50000], totalPlays: [10, 50, 100, 250, 500], totalNear: [50, 200, 500, 1000, 5000] };
 
@@ -622,7 +651,7 @@ try {
         'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 }, 'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 }, 'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 }, 'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
     };
 
-    let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, missionId: 0, missionDoneDate: "", carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, weeklyDist: 0, weeklyWeek: -1, weeklyDone: false, ownedColors: {}, selectedColors: {} };
+   let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, activeMissions: [], lastMissionDate: "", lastWeeklyDate: "", fuelsThisRun: 0, conesThisRun: 0, escapesThisRun: 0, carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, ownedColors: {}, selectedColors: {} };
 
     function save() { saveLocal(); saveToCloud(); }
     function saveLocal() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); updateShopCoinDisplays(); }
@@ -654,14 +683,41 @@ try {
 
     function getWeekNumber(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7)); return Math.ceil((((d - new Date(Date.UTC(d.getUTCFullYear(),0,1))) / 86400000) + 1)/7); }
 
-    window.actualizarEstructuraMisiones = function() {
-        const hoy = new Date().toDateString(); const currWeek = getWeekNumber(new Date()); if(garage.weeklyWeek !== currWeek) { garage.weeklyWeek = currWeek; garage.weeklyDist = 0; garage.weeklyDone = false; }
-        garage.missionId = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000) % DAILY_MISSIONS.length;
-        document.getElementById("menu-mission-desc").innerText = (garage.missionDoneDate !== hoy) ? DAILY_MISSIONS[garage.missionId].desc : "¡Completada!";
-        document.getElementById("menu-weekly-desc").innerText = garage.weeklyDone ? "¡Misión completada!" : `Meta: ${garage.weeklyDist.toLocaleString()} / 50.000m`;
-        document.getElementById("weekly-bar").style.width = Math.min(100, (garage.weeklyDist/50000)*100) + "%";
-    }
+  window.actualizarEstructuraMisiones = function() {
+        const hoy = new Date().toDateString(); 
+        const currWeek = getWeekNumber(new Date()); 
+        
+        let needsSave = false;
 
+        // Si es un día nuevo, generamos 3 diarias nuevas (perdés progreso de las no completadas)
+        if (garage.lastMissionDate !== hoy) {
+            // Filtramos para quedarnos SOLO con las semanales (borramos diarias viejas)
+            garage.activeMissions = garage.activeMissions.filter(m => m.tipo === 'semanal');
+            
+            // Agregamos 3 diarias nuevas
+            garage.activeMissions.push(generateMission(false));
+            garage.activeMissions.push(generateMission(false));
+            garage.activeMissions.push(generateMission(false));
+            
+            garage.lastMissionDate = hoy;
+            needsSave = true;
+        }
+
+        // Si es una semana nueva, generamos 2 semanales nuevas
+        if (garage.lastWeeklyDate !== currWeek.toString()) {
+             // Filtramos para quedarnos SOLO con las diarias (borramos semanales viejas)
+            garage.activeMissions = garage.activeMissions.filter(m => m.tipo === 'diaria');
+            
+            // Agregamos 2 semanales nuevas
+            garage.activeMissions.push(generateMission(true));
+            garage.activeMissions.push(generateMission(true));
+            
+            garage.lastWeeklyDate = currWeek.toString();
+            needsSave = true;
+        }
+
+        if(needsSave) save();
+    }
    let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
     let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
     let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
@@ -1416,15 +1472,8 @@ try {
         const weeklyContainer = document.getElementById("missions-weekly-container");
         dailyContainer.innerHTML = ""; weeklyContainer.innerHTML = "";
         
-        // (MAÑANA VAMOS A REEMPLAZAR ESTO POR TU ARRAY DINÁMICO DE MISIONES)
-        // Por ahora, simulamos una misión diaria y una semanal para que veas cómo queda
-        const misionesSimuladas = [
-            { tipo: 'diaria', desc: 'Choca 5 conos', progreso: 3, meta: 5, premio: 500, cobrado: false },
-            { tipo: 'diaria', desc: 'Junta 100 monedas', progreso: 100, meta: 100, premio: 1000, cobrado: false },
-            { tipo: 'semanal', desc: 'Recorre 50.000m', progreso: garage.weeklyDist, meta: 50000, premio: 5000, cobrado: garage.weeklyDone }
-        ];
-        
-        misionesSimuladas.forEach((m, index) => {
+        // AHORA USAMOS LAS MISIONES REALES DEL GARAJE
+        garage.activeMissions.forEach((m, index) => {
             let p = Math.min(100, (m.progreso / m.meta) * 100);
             let d = document.createElement("div");
             d.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; text-align:left; border-left: 4px solid " + (m.tipo === 'diaria' ? "#f1c40f" : "var(--weekly-clr)");
@@ -1433,8 +1482,8 @@ try {
             if (m.cobrado) {
                 btnCobrar = `<button style="background:#27ae60; padding:5px; margin-top:5px; opacity:0.5; cursor:default;" disabled>✅ COBRADO</button>`;
             } else if (m.progreso >= m.meta) {
-                // (MAÑANA ESTE BOTÓN VA A COBRAR EN SERIO LAS MONEDAS)
-                btnCobrar = `<button style="background:#f1c40f; color:#000; padding:5px; margin-top:5px; animation:blink 1s infinite;" onclick="playSound('coin'); this.innerText='✅ COBRADO'; this.style.background='#27ae60'; this.style.color='#fff'; this.style.animation='none'; this.style.opacity='0.5';">💰 RECLAMAR $${m.premio}</button>`;
+                // EL BOTÓN AHORA PAGA EN SERIO Y GUARDA EL ESTADO
+                btnCobrar = `<button style="background:#f1c40f; color:#000; padding:5px; margin-top:5px; animation:blink 1s infinite;" onclick="playSound('coin'); this.innerText='✅ COBRADO'; this.style.background='#27ae60'; this.style.color='#fff'; this.style.animation='none'; this.style.opacity='0.5'; this.disabled=true; garage.coins += ${m.premio}; garage.activeMissions[${index}].cobrado = true; save(); updateShopCoinDisplays(); showToast('RECOMPENSA', '+💰${m.premio.toLocaleString()}');">💰 RECLAMAR $${m.premio}</button>`;
             }
             
             d.innerHTML = `
