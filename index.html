@@ -1442,21 +1442,41 @@ try {
         requestAnimationFrame(updateCounter);
     }
 
-    window.finishGame = function() {
+   window.finishGame = function() {
         clearInterval(reviveInterval); state = "OVER"; hideAll(); 
         let newRec = score > garage.high; if(newRec) garage.high = score|0;
-        garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; garage.weeklyDist += score|0;
-        const mis = DAILY_MISSIONS[garage.missionId], hoy = new Date().toDateString();
-        if (garage.missionDoneDate !== hoy) { let comp = (mis.type === 'coins' && coinsThisRun >= mis.goal) || (mis.type === 'nearmiss' && nearMissesThisRun >= mis.goal) || (mis.type === 'dist' && score >= mis.goal) || (mis.type === 'level' && level >= mis.goal); if (comp) { garage.coins += 500; garage.missionDoneDate = hoy; showToast("MISIÓN COMPLETADA", "+💰500"); } }
-        if(!garage.weeklyDone && garage.weeklyDist >= 50000) { garage.weeklyDone = true; garage.coins += 5000; showToast("¡SEMANA SUPERADA!", "+💰5.000", true); }
+        garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; 
+        
+        // --- NUEVO SISTEMA DE PROGRESO DE MISIONES ---
+        let misionesCompletadas = 0;
+        garage.activeMissions.forEach(m => {
+            if (!m.cobrado && m.progreso < m.meta) {
+                // Sumamos el progreso según lo que pida la misión
+                if (m.prop === 'score') m.progreso += score|0;
+                else if (m.prop === 'coinsThisRun') m.progreso += coinsThisRun;
+                else if (m.prop === 'nearMissesThisRun') m.progreso += nearMissesThisRun;
+                else if (m.prop === 'fuelsThisRun' && typeof fuelsThisRun !== 'undefined') m.progreso += fuelsThisRun;
+                else if (m.prop === 'conesThisRun' && typeof conesThisRun !== 'undefined') m.progreso += conesThisRun;
+                else if (m.prop === 'escapesThisRun' && typeof escapesThisRun !== 'undefined') m.progreso += escapesThisRun;
+                
+                // Topeamos en la meta para que no se pase del 100%
+                if (m.progreso >= m.meta) {
+                    m.progreso = m.meta;
+                    misionesCompletadas++;
+                }
+            }
+        });
+
+        if (misionesCompletadas > 0) {
+            showToast("¡MISIÓN LISTA!", `Tenés ${misionesCompletadas} premio(s) por cobrar en el menú`, true);
+        }
+
         Object.keys(MILESTONES).forEach(k => { let c = garage.unlockedLogros[k]; if(c < 5 && ((k === 'totalDist' ? garage.totalDist : k === 'totalCoins' ? garage.totalCoinsRec : k === 'totalNear' ? garage.totalNear : garage.totalPlays) >= MILESTONES[k][c])) { garage.unlockedLogros[k]++; garage.coins += 1000; showToast("LOGRO!", `Nivel ${c+1} de ${k}`, true); } });
         save(); document.getElementById("game-over").classList.remove("hidden");
         document.getElementById("over-title").innerText = newRec ? "¡NUEVO RÉCORD!" : "FIN";
         document.getElementById("over-reason").innerText = lastReason;
         
-        // --- LLAMADA AL CONTADOR ANIMADO ---
-        // Le damos 1.5 segundos a la animación para que genere expectativa
-        document.getElementById("final-stats").innerText = ""; // Limpiamos primero
+        document.getElementById("final-stats").innerText = ""; 
         animateCounter("final-stats", "Distancia: ", score|0, `m | Monedas: ${coinsThisRun}`, 1500); 
     }
 
