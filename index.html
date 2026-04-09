@@ -813,16 +813,25 @@ try {
        if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
         else { 
            if(keys["ArrowUp"] || keys["GAS"]) {
-                let resistencia = 1 - ((currentSpeed / mSpd) * 0.4);
-                let accelFinal = car.accel * 0.85 * resistencia;
-                
-                // El rebufo solo hace efecto si estás apretando el acelerador
-                if (rebufoActivo) {
-                    accelFinal += 0.03 + (stats.aero * 0.015);
-                }
-                
-                currentSpeed = Math.min(currentSpeed + accelFinal * dt, mSpd);
-            }
+                let resistencia = 1 - ((currentSpeed / mSpd) * 0.4);
+                let accelFinal = car.accel * 0.85 * resistencia;
+                
+                // --- FÍSICA DE REBUFO REALISTA ---
+                if (rebufoActivo) {
+                    // 1. Aceleración extra progresiva (valores mucho más chicos)
+                    // Trepa de a poquito en vez de patearte la espalda
+                    let empujeSuave = 0.005 + (stats.aero * 0.002); 
+                    accelFinal += empujeSuave;
+                    
+                    // 2. Tope de velocidad dinámica (Slipstream)
+                    // El auto puede pasar su límite, pero no instantáneamente
+                    let limiteRebufo = mSpd + 0.15 + (stats.aero * 0.1); 
+                    currentSpeed = Math.min(currentSpeed + accelFinal * dt, limiteRebufo);
+                } else {
+                    // Aceleración normal sin rebufo
+                    currentSpeed = Math.min(currentSpeed + accelFinal * dt, mSpd);
+                }
+            }
             // --- 🛑 FRENOS CERÁMICOS ---
             else if(keys["ArrowDown"]) {
                 let frenoActivo = 0.25 + (stats.frenos * 0.03);
