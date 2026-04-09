@@ -810,37 +810,33 @@ try {
             if (Math.random() < 0.1) screenShake = 0.8; 
         }
         
-        if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
-        else { 
-           if(keys["ArrowUp"] || keys["GAS"]) {
-                let resistencia = 1 - ((currentSpeed / mSpd) * 0.4);
-                let accelFinal = car.accel * 0.85 * resistencia;
-                
-                // El rebufo solo hace efecto si estás apretando el acelerador
-                if (rebufoActivo) {
-                    accelFinal += 0.03 + (stats.aero * 0.015);
-                }
-                
-                currentSpeed = Math.min(currentSpeed + accelFinal * dt, mSpd);
-            }
-            // --- 🛑 FRENOS CERÁMICOS ---
-            else if(keys["ArrowDown"]) {
-                let frenoActivo = 0.25 + (stats.frenos * 0.03);
-                currentSpeed = Math.max(currentSpeed - frenoActivo * dt, 0);
-            }
-            else {
-                let friccionNatural = 0.02 + (stats.frenos * 0.01);
-                currentSpeed = Math.max(currentSpeed - friccionNatural * dt, 0);
-            }
-            else {
-                let friccionNatural = 0.02 + (stats.frenos * 0.01);
-                currentSpeed = Math.max(currentSpeed - friccionNatural * dt, 0); 
-            }
-            
-            let adaptiveHandling = hndl * (1 / (1 + (currentSpeed / 15)));
-            if(keys["ArrowLeft"]) player.vx -= adaptiveHandling * dt; 
-            if(keys["ArrowRight"]) player.vx += adaptiveHandling * dt; 
-        }
+       if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
+        else { 
+           if(keys["ArrowUp"] || keys["GAS"]) {
+                let resistencia = 1 - ((currentSpeed / mSpd) * 0.4);
+                let accelFinal = car.accel * 0.85 * resistencia;
+                
+                // El rebufo solo hace efecto si estás apretando el acelerador
+                if (rebufoActivo) {
+                    accelFinal += 0.03 + (stats.aero * 0.015);
+                }
+                
+                currentSpeed = Math.min(currentSpeed + accelFinal * dt, mSpd);
+            }
+            // --- 🛑 FRENOS CERÁMICOS ---
+            else if(keys["ArrowDown"]) {
+                let frenoActivo = 0.25 + (stats.frenos * 0.03);
+                currentSpeed = Math.max(currentSpeed - frenoActivo * dt, 0);
+            }
+            else {
+                let friccionNatural = 0.02 + (stats.frenos * 0.01);
+                currentSpeed = Math.max(currentSpeed - friccionNatural * dt, 0);
+            }
+            
+            let adaptiveHandling = hndl * (1 / (1 + (currentSpeed / 15)));
+            if(keys["ArrowLeft"]) player.vx -= adaptiveHandling * dt; 
+            if(keys["ArrowRight"]) player.vx += adaptiveHandling * dt; 
+        }
        player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; 
         if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; 
         roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
