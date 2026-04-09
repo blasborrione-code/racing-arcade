@@ -812,19 +812,25 @@ try {
         
         if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
         else { 
-            if(keys["ArrowUp"] || keys["GAS"]) {
-                let resistencia = 1 - ((currentSpeed / mSpd) * 0.4); 
-                currentSpeed = Math.min(currentSpeed + (car.accel * 0.85 * resistencia) * dt, mSpd); 
-            }
-            
-            if (rebufoActivo) {
-                let aeroBoost = 0.03 + (stats.aero * 0.015); // Acelera más agresivo hacia el auto
-                currentSpeed = Math.min(currentSpeed + aeroBoost * dt, mSpd);
+           if(keys["ArrowUp"] || keys["GAS"]) {
+                let resistencia = 1 - ((currentSpeed / mSpd) * 0.4);
+                let accelFinal = car.accel * 0.85 * resistencia;
+                
+                // El rebufo solo hace efecto si estás apretando el acelerador
+                if (rebufoActivo) {
+                    accelFinal += 0.03 + (stats.aero * 0.015);
+                }
+                
+                currentSpeed = Math.min(currentSpeed + accelFinal * dt, mSpd);
             }
             // --- 🛑 FRENOS CERÁMICOS ---
             else if(keys["ArrowDown"]) {
                 let frenoActivo = 0.25 + (stats.frenos * 0.03);
-                currentSpeed = Math.max(currentSpeed - frenoActivo * dt, 0); 
+                currentSpeed = Math.max(currentSpeed - frenoActivo * dt, 0);
+            }
+            else {
+                let friccionNatural = 0.02 + (stats.frenos * 0.01);
+                currentSpeed = Math.max(currentSpeed - friccionNatural * dt, 0);
             }
             else {
                 let friccionNatural = 0.02 + (stats.frenos * 0.01);
@@ -1489,8 +1495,8 @@ try {
     window.reclamarMision = function(index) {
         let mision = garage.activeMissions[index];
         
-        // Verificamos por las dudas que no esté cobrada ya
-        if (!mision.cobrado && mision.progreso >= m.meta) {
+        // ACÁ ESTABA EL ERROR: decía m.meta en vez de mision.meta
+        if (!mision.cobrado && mision.progreso >= mision.meta) {
             playSound('coin');
             
             // Sumamos la plata
