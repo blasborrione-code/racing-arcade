@@ -170,11 +170,7 @@
             <button id="btn-login" class="btn-blue" style="background: #4285F4; margin-top: 10px;" onclick="loginGoogle()">☁️ CONECTAR CON GOOGLE</button>
             <p id="user-status" style="font-size: 10px; color: #bdc3c7; margin-top: 5px;">No conectado</p>
             
-            <a class="legal-link" onclick="window.open('https://www.google.com', '_blank')">Política de Privacidad</a>
-        </div>
-    </div>
-
-    <a class="legal-link" onclick="window.open('https://www.google.com', '_blank')">Política de Privacidad</a>
+           <a class="legal-link" onclick="window.open('https://www.google.com', '_blank')">Política de Privacidad</a>
         </div>
     </div>
 
@@ -190,8 +186,6 @@
             <button class="btn-red" onclick="closeDailyLogin()" style="background:transparent; border: 1px solid #e74c3c; color:#e74c3c; margin-top:10px;">CERRAR</button>
         </div>
     </div>
-
-    <div id="leaderboard-screen" class="overlay hidden">
 
     <div id="leaderboard-screen" class="overlay hidden">
         <div class="ui-card">
@@ -738,9 +732,6 @@ try {
         if(needsSave) save();
     }
 
-    if(needsSave) save();
-    }
-
     // --- SISTEMA DE LOGIN DIARIO ---
     const DAILY_REWARDS = [500, 1000, 1500, 2000, 3000, 5000, 10000]; // Premios del día 1 al 7
     let dailyRewardAvailable = false;
@@ -821,10 +812,8 @@ try {
         document.getElementById("daily-login-screen").classList.add("hidden");
     }
 
-   let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
-                
-   let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
-   let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, fuelsThisRun = 0, conesThisRun = 0, escapesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
+    let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
+    let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, fuelsThisRun = 0, conesThisRun = 0, escapesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
     let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
     
     // --- PUNTO A: VARIABLE DE ZOOM AGREGADA ---
