@@ -174,6 +174,25 @@
         </div>
     </div>
 
+    <a class="legal-link" onclick="window.open('https://www.google.com', '_blank')">Política de Privacidad</a>
+        </div>
+    </div>
+
+    <div id="daily-login-screen" class="overlay hidden" style="z-index: 500;">
+        <div class="ui-card" style="width: 340px;">
+            <h1 style="color:var(--accent); font-size:24px;">¡BONUS DIARIO!</h1>
+            <p style="font-size:12px; color:#bdc3c7; margin-top:-10px; margin-bottom:20px;">Entrá todos los días para ganar más</p>
+            
+            <div id="daily-days-container" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:20px;">
+                </div>
+            
+            <button id="btn-claim-daily" class="btn-green" style="animation:blink 1s infinite;" onclick="claimDailyLogin()">💰 RECLAMAR</button>
+            <button class="btn-red" onclick="closeDailyLogin()" style="background:transparent; border: 1px solid #e74c3c; color:#e74c3c; margin-top:10px;">CERRAR</button>
+        </div>
+    </div>
+
+    <div id="leaderboard-screen" class="overlay hidden">
+
     <div id="leaderboard-screen" class="overlay hidden">
         <div class="ui-card">
             <h1>TOP MUNDIAL</h1>
@@ -651,7 +670,7 @@ try {
         'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 }, 'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 }, 'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 }, 'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
     };
 
-   let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, activeMissions: [], lastMissionDate: "", lastWeeklyDate: "", fuelsThisRun: 0, conesThisRun: 0, escapesThisRun: 0, carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, ownedColors: {}, selectedColors: {} };
+   let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, activeMissions: [], lastMissionDate: "", lastWeeklyDate: "", loginStreak: 0, lastLoginDate: "", fuelsThisRun: 0, conesThisRun: 0, escapesThisRun: 0, carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, ownedColors: {}, selectedColors: {} };
 
     function save() { saveLocal(); saveToCloud(); }
     function saveLocal() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); updateShopCoinDisplays(); }
@@ -718,6 +737,92 @@ try {
 
         if(needsSave) save();
     }
+
+    if(needsSave) save();
+    }
+
+    // --- SISTEMA DE LOGIN DIARIO ---
+    const DAILY_REWARDS = [500, 1000, 1500, 2000, 3000, 5000, 10000]; // Premios del día 1 al 7
+    let dailyRewardAvailable = false;
+
+    window.checkDailyLogin = function() {
+        const hoy = new Date().toDateString();
+        
+        // Si no entró nunca o si hoy es distinto al último día registrado
+        if (garage.lastLoginDate !== hoy) {
+            dailyRewardAvailable = true;
+            
+            // Lógica para ver si perdió la racha (pasó más de 1 día)
+            if (garage.lastLoginDate !== "") {
+                const ayer = new Date();
+                ayer.setDate(ayer.getDate() - 1);
+                if (garage.lastLoginDate !== ayer.toDateString()) {
+                    garage.loginStreak = 0; // Perdió la racha, vuelve a cero
+                }
+            }
+            
+            // Si ya cobró el día 7, vuelve a empezar
+            if (garage.loginStreak >= 7) garage.loginStreak = 0;
+            
+            renderDailyLogin();
+            document.getElementById("daily-login-screen").classList.remove("hidden");
+            playSound('near'); // Sonidito para llamar la atención
+        }
+    }
+
+    function renderDailyLogin() {
+        const container = document.getElementById("daily-days-container");
+        container.innerHTML = "";
+        
+        for (let i = 0; i < 7; i++) {
+            let isPast = i < garage.loginStreak;
+            let isToday = i === garage.loginStreak;
+            let isFuture = i > garage.loginStreak;
+            
+            let bgCol = isPast ? 'rgba(46, 204, 113, 0.2)' : (isToday ? 'rgba(241, 196, 15, 0.2)' : 'rgba(255,255,255,0.05)');
+            let borderCol = isPast ? '#2ecc71' : (isToday ? '#f1c40f' : 'transparent');
+            let icon = isPast ? '✅' : (i === 6 ? '💎' : '💰');
+            
+            let d = document.createElement("div");
+            d.style.cssText = `background:${bgCol}; border: 2px solid ${borderCol}; border-radius:10px; width:70px; padding:10px 5px; text-align:center; position:relative; opacity: ${isFuture ? '0.5' : '1'};`;
+            
+            d.innerHTML = `
+                <div style="font-size:10px; color:#bdc3c7; font-weight:bold; margin-bottom:5px;">DÍA ${i+1}</div>
+                <div style="font-size:20px; margin-bottom:5px;">${icon}</div>
+                <div style="font-size:12px; color:${isPast ? '#2ecc71' : '#f1c40f'}; font-weight:bold;">$${DAILY_REWARDS[i]}</div>
+            `;
+            container.appendChild(d);
+        }
+        
+        const btn = document.getElementById("btn-claim-daily");
+        btn.innerText = `💰 RECLAMAR $${DAILY_REWARDS[garage.loginStreak].toLocaleString()}`;
+    }
+
+    window.claimDailyLogin = function() {
+        if (!dailyRewardAvailable) return;
+        
+        playSound('coin');
+        let premio = DAILY_REWARDS[garage.loginStreak];
+        garage.coins += premio;
+        garage.totalCoinsRec += premio;
+        
+        garage.loginStreak++;
+        garage.lastLoginDate = new Date().toDateString();
+        dailyRewardAvailable = false;
+        
+        save();
+        updateShopCoinDisplays();
+        showToast('BONUS DIARIO', `+💰${premio.toLocaleString()}`);
+        closeDailyLogin();
+    }
+
+    window.closeDailyLogin = function() {
+        playSound('click');
+        document.getElementById("daily-login-screen").classList.add("hidden");
+    }
+
+   let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
+                
    let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
    let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, fuelsThisRun = 0, conesThisRun = 0, escapesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
     let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
@@ -1307,9 +1412,10 @@ try {
 
     window.updateShopCoinDisplays = function() { document.querySelectorAll('.shop-coin-display').forEach(d => d.innerText = garage.coins.toLocaleString()); }
     
-    window.showMenu = function() { 
+   window.showMenu = function() { 
         clearInterval(reviveInterval); state = "MENU"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); 
-        stopSound('music_race'); stopSound('motor'); playSound('music_menu', true); updateUI(); actualizarEstructuraMisiones(); 
+        stopSound('music_race'); stopSound('motor'); playSound('music_menu', true); updateUI(); actualizarEstructuraMisiones();
+        checkDailyLogin(); // ESTO HACE QUE SALTE EL CARTEL
     }
     
     function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
