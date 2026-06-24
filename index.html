@@ -863,11 +863,19 @@ try {
         playSound('click');
         hideAll();
         
+        // PARCHE DE ACTUALIZACIÓN: Creamos las nuevas variables si el jugador no las tenía
+        if (typeof garage.dailyCommonAds === 'undefined') {
+            garage.dailyCommonAds = 0;
+            garage.dailyPremiumAds = 0;
+            garage.progressCommonBox = 0;
+            garage.progressPremiumBox = 0;
+        }
+
         // Reseteo de videos diarios si es un nuevo día
         const hoy = new Date().toDateString();
         if (garage.lastBoxDate !== hoy) {
-            garage.commonAdsWatched = 0;
-            garage.premiumAdsWatched = 0;
+            garage.dailyCommonAds = 0;
+            garage.dailyPremiumAds = 0;
             garage.lastBoxDate = hoy;
             save();
         }
@@ -883,38 +891,67 @@ try {
         const btnCommon = document.getElementById("btn-ad-common");
         const btnPremium = document.getElementById("btn-ad-premium");
         
-        // Manejamos los topes de videos (El límite de 10 comunes y 5 premium)
-        if (garage.commonAdsWatched >= 10) {
-            btnCommon.innerText = "📺 LÍMITE ALCANZADO";
+        // CAJA NORMAL: Límite diario de 15, requiere 5 para abrir
+        if (garage.dailyCommonAds >= 15) {
+            btnCommon.innerHTML = "📺 LÍMITE DIARIO ALCANZADO<br><small>Vuelve mañana</small>";
             btnCommon.style.opacity = "0.5";
         } else {
-            btnCommon.innerText = `📺 VER VIDEO (${garage.commonAdsWatched}/10)`;
+            btnCommon.innerHTML = `📺 VER VIDEO (${garage.dailyCommonAds}/15)<br><small style="color:#f1c40f;">Progreso Caja: ${garage.progressCommonBox}/5</small>`;
             btnCommon.style.opacity = "1";
         }
 
-        if (garage.premiumAdsWatched >= 5) {
-            btnPremium.innerText = "📺 LÍMITE ALCANZADO";
+        // CAJA PREMIUM: Límite diario de 5, requiere 10 para abrir
+        if (garage.dailyPremiumAds >= 5) {
+            btnPremium.innerHTML = "📺 LÍMITE DIARIO ALCANZADO<br><small>Vuelve mañana</small>";
             btnPremium.style.opacity = "0.5";
         } else {
-            btnPremium.innerText = `📺 VER VIDEO (${garage.premiumAdsWatched}/5)`;
+            btnPremium.innerHTML = `📺 VER VIDEO (${garage.dailyPremiumAds}/5)<br><small style="color:#f1c40f;">Progreso Caja: ${garage.progressPremiumBox}/10</small>`;
             btnPremium.style.opacity = "1";
         }
     }
 
     window.watchAdForBox = function(type) {
-        if (type === 'common' && garage.commonAdsWatched >= 10) { showToast("ERROR", "Límite diario alcanzado"); return; }
-        if (type === 'premium' && garage.premiumAdsWatched >= 5) { showToast("ERROR", "Límite diario alcanzado"); return; }
+        if (type === 'common' && garage.dailyCommonAds >= 15) { showToast("ERROR", "Límite diario alcanzado"); return; }
+        if (type === 'premium' && garage.dailyPremiumAds >= 5) { showToast("ERROR", "Límite diario alcanzado"); return; }
         
         playSound('click');
-        showToast("ANUNCIO", "Viendo anuncio...");
+        // Aviso temporal para que sepas que el simulador está corriendo
+        showToast("ANUNCIO", "Simulando video... (Espera 2 seg)");
         
-        // Simulamos que el anuncio dura 2 segundos por ahora
         setTimeout(() => {
-            if (type === 'common') garage.commonAdsWatched++;
-            if (type === 'premium') garage.premiumAdsWatched++;
-            save();
-            openBox(type, true); // True indica que es gratis por ver video
-        }, 2000);
+            if (type === 'common') {
+                garage.dailyCommonAds++;
+                garage.progressCommonBox++;
+                
+                // Si llegó a los 5 videos, reseteamos el progreso y le damos la caja
+                if (garage.progressCommonBox >= 5) {
+                    garage.progressCommonBox = 0; 
+                    save();
+                    openBox('common', true); 
+                } else {
+                    // Si no, solo le avisamos cuánto le falta
+                    save();
+                    updateBlackMarketUI();
+                    showToast("PROGRESO", `Video sumado. Te faltan ${5 - garage.progressCommonBox} para la caja.`);
+                }
+            } 
+            else if (type === 'premium') {
+                garage.dailyPremiumAds++;
+                garage.progressPremiumBox++;
+                
+                // Si llegó a los 10 videos, reseteamos el progreso y le damos la caja
+                if (garage.progressPremiumBox >= 10) {
+                    garage.progressPremiumBox = 0; 
+                    save();
+                    openBox('premium', true); 
+                } else {
+                    // Si no, solo le avisamos cuánto le falta
+                    save();
+                    updateBlackMarketUI();
+                    showToast("PROGRESO", `Video sumado. Te faltan ${10 - garage.progressPremiumBox} para la caja.`);
+                }
+            }
+        }, 2000); // 2 segundos de video simulado
     }
 
     window.openBox = function(type, isFree = false) {
