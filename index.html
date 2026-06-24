@@ -1043,11 +1043,12 @@ try {
                 }
             }
             
-            save();
+           save();
             updateBlackMarketUI();
             showToast("🎁 ¡PREMIO!", premio, true);
             
         }, 800);
+    } 
 
     let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
     let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, fuelsThisRun = 0, conesThisRun = 0, escapesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
