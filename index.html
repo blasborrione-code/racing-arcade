@@ -687,8 +687,8 @@ try {
 
     const MILESTONES = { totalDist: [1000, 5000, 10000, 50000, 100000], totalCoins: [500, 2000, 5000, 10000, 50000], totalPlays: [10, 50, 100, 250, 500], totalNear: [50, 200, 500, 1000, 5000] };
 
-    const NEONES = {
-        'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 }, 'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 }, 'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 }, 'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
+   const NEONES = {
+        'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 }, 'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 }, 'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 }, 'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }, 'orange': { name: 'NARANJA TÓXICO', color: [255, 100, 0], price: 10000 }, 'purple': { name: 'MORADO OSCURO', color: [128, 0, 128], price: 10000 }, 'cyan': { name: 'CIAN ELÉCTRICO', color: [0, 255, 255], price: 10000 }, 'emerald': { name: 'VERDE ESMERALDA', color: [0, 200, 100], price: 12000 }, 'uv': { name: 'ULTRAVIOLETA', color: [138, 43, 226], price: 20000 }
     };
 
   let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, activeMissions: [], lastMissionDate: "", lastWeeklyDate: "", loginStreak: 0, lastLoginDate: "", fuelsThisRun: 0, conesThisRun: 0, escapesThisRun: 0, carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, ownedColors: {}, selectedColors: {}, tickets: 0, lastBoxDate: "", commonAdsWatched: 0, premiumAdsWatched: 0 };
@@ -971,51 +971,74 @@ try {
         let premio = "";
         let roll = Math.random() * 100;
         
-        // Animación falsa de temblor (podés mejorarla después)
         screenShake = 15;
         playSound('explosion');
 
         setTimeout(() => {
             if (type === 'common') {
                 if (roll < 60) {
+                    // 60% Chance: Monedas
                     let plata = 500 + Math.floor(Math.random() * 1500);
                     garage.coins += plata;
                     premio = `+💰${plata}`;
-                } else if (roll < 90) {
-                    let vidas = 1 + Math.floor(Math.random() * 2);
-                    // Esto asume que tenés un inventario de vidas extra, si no lo tenés, podés dar mucha plata
-                    garage.coins += 2000; 
-                    premio = `+💰2000 (¡Piezas!)`;
+                } else if (roll < 85) {
+                    // 25% Chance: Buff de Vida Extra para la próxima carrera
+                    garage.nextRunBonusLife = true;
+                    premio = `+❤️ VIDA EXTRA (Próxima carrera)`;
+                } else if (roll < 95) {
+                    // 10% Chance: Mejora de auto gratis
+                    let randCar = garage.owned[Math.floor(Math.random() * garage.owned.length)];
+                    let st = garage.carStats[randCar];
+                    let upgKeys = Object.keys(st).filter(k => st[k] < 5);
+                    if (upgKeys.length > 0) {
+                        let randUpg = upgKeys[Math.floor(Math.random() * upgKeys.length)];
+                        garage.carStats[randCar][randUpg]++;
+                        premio = `¡PIEZA: ${MODELS[randCar].name}!`;
+                    } else {
+                        // Si ya tiene todo al máximo, le damos plata
+                        garage.coins += 2500; premio = `+💰2.500 (Venta de piezas)`;
+                    }
                 } else {
-                    // Premio raro de la común
+                    // 5% Chance: Jackpot
                     garage.coins += 5000;
-                    premio = `+💰5000 (¡Suerte!)`;
+                    premio = `+💰5.000 (¡SUERTE!)`;
                 }
             } else if (type === 'premium') {
                 if (roll < 50) {
+                    // 50% Chance: Pozo grande
                     garage.coins += 10000;
                     premio = `+💰10.000`;
-                } else if (roll < 85) {
-                    // Regalamos un neón al azar que no tenga
+                } else if (roll < 80) {
+                    // 30% Chance: Neón al azar
                     let missingNeons = Object.keys(NEONES).filter(k => !garage.neonOwned.includes(k));
                     if (missingNeons.length > 0) {
                         let winNeon = missingNeons[Math.floor(Math.random() * missingNeons.length)];
                         garage.neonOwned.push(winNeon);
                         premio = `¡NEÓN ${NEONES[winNeon].name}!`;
                     } else {
-                        garage.coins += 15000;
-                        premio = `+💰15.000`;
+                        garage.coins += 15000; premio = `+💰15.000 (Ya tienes todos los neones)`;
+                    }
+                } else if (roll < 98) {
+                    // 18% Chance: SKIN EXCLUSIVA (Mercado Negro)
+                    let randCar = garage.owned[Math.floor(Math.random() * garage.owned.length)];
+                    let skinName = 'oro_solido'; // A futuro podés agregar más nombres acá (lava, neon, etc)
+                    if (!garage.ownedColors[randCar]) garage.ownedColors[randCar] = [MODELS[randCar].colors[0]];
+                    
+                    if (!garage.ownedColors[randCar].includes(skinName)) {
+                        garage.ownedColors[randCar].push(skinName);
+                        premio = `¡SKIN ORO: ${MODELS[randCar].name}!`;
+                    } else {
+                        garage.coins += 20000; premio = `+💰20.000 (Skin repetida)`;
                     }
                 } else {
-                    // Premio recontra raro: Un auto al azar que no tenga
+                    // 2% Chance MÍTICA: Auto al azar
                     let missingCars = Object.keys(MODELS).filter(k => !garage.owned.includes(k));
                     if (missingCars.length > 0) {
                         let winCar = missingCars[Math.floor(Math.random() * missingCars.length)];
                         garage.owned.push(winCar);
-                        premio = `¡AUTO: ${MODELS[winCar].name}!`;
+                        premio = `¡AUTO ÉPICO: ${MODELS[winCar].name}!`;
                     } else {
-                        garage.coins += 25000;
-                        premio = `+💰25.000`;
+                        garage.coins += 50000; premio = `+💰50.000 (Ya tienes todos los autos)`;
                     }
                 }
             }
@@ -1024,8 +1047,7 @@ try {
             updateBlackMarketUI();
             showToast("🎁 ¡PREMIO!", premio, true);
             
-        }, 800); // Tarda 0.8s en abrirse la caja
-    }
+        }, 800);
 
     let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
     let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, fuelsThisRun = 0, conesThisRun = 0, escapesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
@@ -1062,7 +1084,9 @@ try {
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
         score = 0; fuel = 100; 
         // --- 🛡️ CHASIS: Si está al Nivel 5, suma 1 ❤️ Extra desde la largada
-        lives = car.lives + (stats.chasis === 5 ? 1 : 0); 
+        // --- 🛡️ SISTEMA DE VIDAS (Auto + Chasis + Buff de Caja) ---
+        lives = car.lives + (stats.chasis === 5 ? 1 : 0) + (garage.nextRunBonusLife ? 1 : 0); 
+        if (garage.nextRunBonusLife) { garage.nextRunBonusLife = false; save(); showToast("🎁 BONUS ACTIVO", "+1 Corazón Extra de la Caja"); }
         currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; fuelsThisRun = 0; conesThisRun = 0; escapesThisRun = 0; hasRevived = false; screenShake = 0;
