@@ -165,12 +165,39 @@
             
             <button class="btn-green" onclick="requestFullScreen(); startGame()">CORRER</button>
             <button class="btn-blue" onclick="openShop()">GARAJE</button>
+            <button class="btn-red" onclick="openBlackMarket()" style="background: #2c3e50; border: 1px solid #e74c3c; color: #e74c3c;">📦 MERCADO NEGRO</button>
             
             <button class="btn-orange" onclick="openRanking()" style="background: #9b59b6;">🏆 RÁNKING MUNDIAL</button>
             <button id="btn-login" class="btn-blue" style="background: #4285F4; margin-top: 10px;" onclick="loginGoogle()">☁️ CONECTAR CON GOOGLE</button>
             <p id="user-status" style="font-size: 10px; color: #bdc3c7; margin-top: 5px;">No conectado</p>
             
            <a class="legal-link" onclick="window.open('https://www.google.com', '_blank')">Política de Privacidad</a>
+        </div>
+    </div>
+
+    <div id="black-market-screen" class="overlay hidden">
+        <div class="ui-card">
+            <h1 style="color:#e74c3c;">MERCADO NEGRO</h1>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:15px;">
+                <span>💰 <b class="shop-coin-display">0</b></span>
+                <span>🎫 <b id="ui-tickets-display">0</b></span>
+            </div>
+            
+            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:15px; margin-bottom:10px; border-left: 4px solid #3498db;">
+                <h3 style="margin:0 0 5px; color:#3498db;">CAJA NORMAL</h3>
+                <p style="font-size:10px; color:#bdc3c7; margin:0 0 10px;">Piezas básicas y monedas.</p>
+                <button class="btn-blue" onclick="openBox('common')">COMPRAR ($2.500)</button>
+                <button class="btn-green" id="btn-ad-common" onclick="watchAdForBox('common')" style="font-size:10px; padding:8px;">📺 VER VIDEO (0/10)</button>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:15px; margin-bottom:15px; border-left: 4px solid #f1c40f;">
+                <h3 style="margin:0 0 5px; color:#f1c40f;">CAJA PREMIUM</h3>
+                <p style="font-size:10px; color:#bdc3c7; margin:0 0 10px;">Autos raros y neones exclusivos.</p>
+                <button class="btn-orange" onclick="openBox('premium')">USAR 1 TICKET</button>
+                <button class="btn-green" id="btn-ad-premium" onclick="watchAdForBox('premium')" style="font-size:10px; padding:8px;">📺 VER VIDEO (0/5)</button>
+            </div>
+
+            <button class="btn-red" onclick="showMenu()">VOLVER</button>
         </div>
     </div>
 
@@ -664,7 +691,7 @@ try {
         'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 }, 'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 }, 'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 }, 'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }
     };
 
-   let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, activeMissions: [], lastMissionDate: "", lastWeeklyDate: "", loginStreak: 0, lastLoginDate: "", fuelsThisRun: 0, conesThisRun: 0, escapesThisRun: 0, carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, ownedColors: {}, selectedColors: {} };
+  let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, activeMissions: [], lastMissionDate: "", lastWeeklyDate: "", loginStreak: 0, lastLoginDate: "", fuelsThisRun: 0, conesThisRun: 0, escapesThisRun: 0, carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, ownedColors: {}, selectedColors: {}, tickets: 0, lastBoxDate: "", commonAdsWatched: 0, premiumAdsWatched: 0 };
 
     function save() { saveLocal(); saveToCloud(); }
     function saveLocal() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); updateShopCoinDisplays(); }
@@ -830,6 +857,137 @@ try {
     window.closeDailyLogin = function() {
         playSound('click');
         document.getElementById("daily-login-screen").classList.add("hidden");
+    }
+    // --- MERCADO NEGRO (LOOT BOXES) ---
+    window.openBlackMarket = function() {
+        playSound('click');
+        hideAll();
+        
+        // Reseteo de videos diarios si es un nuevo día
+        const hoy = new Date().toDateString();
+        if (garage.lastBoxDate !== hoy) {
+            garage.commonAdsWatched = 0;
+            garage.premiumAdsWatched = 0;
+            garage.lastBoxDate = hoy;
+            save();
+        }
+        
+        updateBlackMarketUI();
+        document.getElementById("black-market-screen").classList.remove("hidden");
+    }
+
+    function updateBlackMarketUI() {
+        updateShopCoinDisplays();
+        document.getElementById("ui-tickets-display").innerText = (garage.tickets || 0);
+        
+        const btnCommon = document.getElementById("btn-ad-common");
+        const btnPremium = document.getElementById("btn-ad-premium");
+        
+        // Manejamos los topes de videos (El límite de 10 comunes y 5 premium)
+        if (garage.commonAdsWatched >= 10) {
+            btnCommon.innerText = "📺 LÍMITE ALCANZADO";
+            btnCommon.style.opacity = "0.5";
+        } else {
+            btnCommon.innerText = `📺 VER VIDEO (${garage.commonAdsWatched}/10)`;
+            btnCommon.style.opacity = "1";
+        }
+
+        if (garage.premiumAdsWatched >= 5) {
+            btnPremium.innerText = "📺 LÍMITE ALCANZADO";
+            btnPremium.style.opacity = "0.5";
+        } else {
+            btnPremium.innerText = `📺 VER VIDEO (${garage.premiumAdsWatched}/5)`;
+            btnPremium.style.opacity = "1";
+        }
+    }
+
+    window.watchAdForBox = function(type) {
+        if (type === 'common' && garage.commonAdsWatched >= 10) { showToast("ERROR", "Límite diario alcanzado"); return; }
+        if (type === 'premium' && garage.premiumAdsWatched >= 5) { showToast("ERROR", "Límite diario alcanzado"); return; }
+        
+        playSound('click');
+        showToast("ANUNCIO", "Viendo anuncio...");
+        
+        // Simulamos que el anuncio dura 2 segundos por ahora
+        setTimeout(() => {
+            if (type === 'common') garage.commonAdsWatched++;
+            if (type === 'premium') garage.premiumAdsWatched++;
+            save();
+            openBox(type, true); // True indica que es gratis por ver video
+        }, 2000);
+    }
+
+    window.openBox = function(type, isFree = false) {
+        if (!isFree) {
+            if (type === 'common') {
+                if (garage.coins < 2500) { showToast("ERROR", "No tienes suficientes monedas"); return; }
+                garage.coins -= 2500;
+            } else if (type === 'premium') {
+                if (!garage.tickets || garage.tickets < 1) { showToast("ERROR", "No tienes tickets"); return; }
+                garage.tickets--;
+            }
+            playSound('coin');
+            save();
+        }
+
+        // --- SISTEMA DE PROBABILIDADES ---
+        let premio = "";
+        let roll = Math.random() * 100;
+        
+        // Animación falsa de temblor (podés mejorarla después)
+        screenShake = 15;
+        playSound('explosion');
+
+        setTimeout(() => {
+            if (type === 'common') {
+                if (roll < 60) {
+                    let plata = 500 + Math.floor(Math.random() * 1500);
+                    garage.coins += plata;
+                    premio = `+💰${plata}`;
+                } else if (roll < 90) {
+                    let vidas = 1 + Math.floor(Math.random() * 2);
+                    // Esto asume que tenés un inventario de vidas extra, si no lo tenés, podés dar mucha plata
+                    garage.coins += 2000; 
+                    premio = `+💰2000 (¡Piezas!)`;
+                } else {
+                    // Premio raro de la común
+                    garage.coins += 5000;
+                    premio = `+💰5000 (¡Suerte!)`;
+                }
+            } else if (type === 'premium') {
+                if (roll < 50) {
+                    garage.coins += 10000;
+                    premio = `+💰10.000`;
+                } else if (roll < 85) {
+                    // Regalamos un neón al azar que no tenga
+                    let missingNeons = Object.keys(NEONES).filter(k => !garage.neonOwned.includes(k));
+                    if (missingNeons.length > 0) {
+                        let winNeon = missingNeons[Math.floor(Math.random() * missingNeons.length)];
+                        garage.neonOwned.push(winNeon);
+                        premio = `¡NEÓN ${NEONES[winNeon].name}!`;
+                    } else {
+                        garage.coins += 15000;
+                        premio = `+💰15.000`;
+                    }
+                } else {
+                    // Premio recontra raro: Un auto al azar que no tenga
+                    let missingCars = Object.keys(MODELS).filter(k => !garage.owned.includes(k));
+                    if (missingCars.length > 0) {
+                        let winCar = missingCars[Math.floor(Math.random() * missingCars.length)];
+                        garage.owned.push(winCar);
+                        premio = `¡AUTO: ${MODELS[winCar].name}!`;
+                    } else {
+                        garage.coins += 25000;
+                        premio = `+💰25.000`;
+                    }
+                }
+            }
+            
+            save();
+            updateBlackMarketUI();
+            showToast("🎁 ¡PREMIO!", premio, true);
+            
+        }, 800); // Tarda 0.8s en abrirse la caja
     }
 
     let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
