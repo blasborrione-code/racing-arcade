@@ -974,16 +974,16 @@ try {
             title = "CAJA NORMAL";
             content = `
                 <b style="color:#2ecc71;">60%</b> - Premio en Monedas ($500 a $2.000)<br>
-                <b style="color:#e74c3c;">25%</b> - +1 Vida Extra (Próxima Carrera)<br>
+                <b style="color:#e74c3c;">25%</b> - +1, +2 o +3 Vidas (Próxima Carrera)<br>
                 <b style="color:#3498db;">10%</b> - Pieza de Mejora Gratis<br>
                 <b style="color:#f1c40f;">5%</b> - ¡Premio Mayor! ($5.000)
             `;
         } else if (type === 'premium') {
             title = "CAJA PREMIUM";
             content = `
-                <b style="color:#2ecc71;">50%</b> - Pozo Gigante ($10.000)<br>
+                <b style="color:#2ecc71;">50%</b> - Pozo Aleatorio ($5.000 a $10.000)<br>
                 <b style="color:#9b59b6;">30%</b> - Neón Aleatorio (o $15.000)<br>
-                <b style="color:#e67e22;">18%</b> - <b>Skin Oro Sólido Exclusiva</b><br>
+                <b style="color:#e67e22;">18%</b> - <b>Skin Exclusiva</b><br>
                 <b style="color:#e74c3c;">2%</b> - <b>MÍTICO: Auto de la Tienda</b>
             `;
         }
@@ -1010,7 +1010,7 @@ try {
             save();
         }
 
-        // --- SISTEMA DE PROBABILIDADES ---
+       // --- SISTEMA DE PROBABILIDADES ---
         let premio = "";
         let roll = Math.random() * 100;
         
@@ -1025,9 +1025,15 @@ try {
                     garage.coins += plata;
                     premio = `+💰${plata}`;
                 } else if (roll < 85) {
-                    // 25% Chance: Buff de Vida Extra para la próxima carrera
-                    garage.nextRunBonusLife = true;
-                    premio = `+❤️ VIDA EXTRA (Próxima carrera)`;
+                    // 25% Chance: Buff de Vida Extra (1, 2 o 3 vidas al azar)
+                    let subRoll = Math.random() * 100;
+                    let vidasGanadas = 1; // Base 65% de que sea solo 1
+                    if (subRoll > 65 && subRoll <= 90) vidasGanadas = 2; // 25% chance de que sean 2
+                    else if (subRoll > 90) vidasGanadas = 3; // 10% chance de que sean 3
+                    
+                    garage.nextRunBonusLife = (garage.nextRunBonusLife || 0) + vidasGanadas;
+                    let textoVidas = vidasGanadas === 1 ? "VIDA EXTRA" : "VIDAS EXTRAS";
+                    premio = `+❤️ ${vidasGanadas} ${textoVidas} (Próxima carrera)`;
                 } else if (roll < 95) {
                     // 10% Chance: Mejora de auto gratis
                     let randCar = garage.owned[Math.floor(Math.random() * garage.owned.length)];
@@ -1038,7 +1044,6 @@ try {
                         garage.carStats[randCar][randUpg]++;
                         premio = `¡PIEZA: ${MODELS[randCar].name}!`;
                     } else {
-                        // Si ya tiene todo al máximo, le damos plata
                         garage.coins += 2500; premio = `+💰2.500 (Venta de piezas)`;
                     }
                 } else {
@@ -1048,9 +1053,10 @@ try {
                 }
             } else if (type === 'premium') {
                 if (roll < 50) {
-                    // 50% Chance: Pozo grande
-                    garage.coins += 10000;
-                    premio = `+💰10.000`;
+                    // 50% Chance: Pozo aleatorio de 5.000 a 10.000
+                    let plata = 5000 + Math.floor(Math.random() * 5001);
+                    garage.coins += plata;
+                    premio = `+💰${plata.toLocaleString()}`;
                 } else if (roll < 80) {
                     // 30% Chance: Neón al azar
                     let missingNeons = Object.keys(NEONES).filter(k => !garage.neonOwned.includes(k));
@@ -1062,14 +1068,14 @@ try {
                         garage.coins += 15000; premio = `+💰15.000 (Ya tienes todos los neones)`;
                     }
                 } else if (roll < 98) {
-                    // 18% Chance: SKIN EXCLUSIVA (Mercado Negro)
+                    // 18% Chance: SKIN EXCLUSIVA (Texto Oculto)
                     let randCar = garage.owned[Math.floor(Math.random() * garage.owned.length)];
-                    let skinName = 'oro_solido'; // A futuro podés agregar más nombres acá (lava, neon, etc)
+                    let skinName = 'oro_solido'; // La guardamos como oro, pero mostramos texto genérico
                     if (!garage.ownedColors[randCar]) garage.ownedColors[randCar] = [MODELS[randCar].colors[0]];
                     
                     if (!garage.ownedColors[randCar].includes(skinName)) {
                         garage.ownedColors[randCar].push(skinName);
-                        premio = `¡SKIN ORO: ${MODELS[randCar].name}!`;
+                        premio = `¡SKIN EXCLUSIVA: ${MODELS[randCar].name}!`;
                     } else {
                         garage.coins += 20000; premio = `+💰20.000 (Skin repetida)`;
                     }
@@ -1086,12 +1092,12 @@ try {
                 }
             }
             
-           save();
+            save();
             updateBlackMarketUI();
             showToast("🎁 ¡PREMIO!", premio, true);
             
         }, 800);
-    } 
+    }
 
     let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
     let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, fuelsThisRun = 0, conesThisRun = 0, escapesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
@@ -1127,10 +1133,17 @@ try {
         assets.player.src = getCarImg(garage.selected); 
         player = { x: 200 - car.w/2, y: 550, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
         score = 0; fuel = 100; 
-        // --- 🛡️ CHASIS: Si está al Nivel 5, suma 1 ❤️ Extra desde la largada
+        
         // --- 🛡️ SISTEMA DE VIDAS (Auto + Chasis + Buff de Caja) ---
-        lives = car.lives + (stats.chasis === 5 ? 1 : 0) + (garage.nextRunBonusLife ? 1 : 0); 
-        if (garage.nextRunBonusLife) { garage.nextRunBonusLife = false; save(); showToast("🎁 BONUS ACTIVO", "+1 Corazón Extra de la Caja"); }
+        let bonusLives = garage.nextRunBonusLife || 0;
+        lives = car.lives + (stats.chasis === 5 ? 1 : 0) + bonusLives; 
+        
+        if (bonusLives > 0) { 
+            garage.nextRunBonusLife = 0; 
+            save(); 
+            showToast("🎁 BONUS ACTIVO", `+${bonusLives} Vidas de la Caja`); 
+        }
+
         currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
         coinsThisRun = 0; nearMissesThisRun = 0; fuelsThisRun = 0; conesThisRun = 0; escapesThisRun = 0; hasRevived = false; screenShake = 0;
