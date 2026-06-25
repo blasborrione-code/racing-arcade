@@ -160,7 +160,13 @@
             <span class="ver-tag">v19.0 (Misiones System)</span>
             <h1>RACING ARCADE</h1>
             <div style="display:flex; justify-content:space-around; font-size:12px; margin-bottom:15px;"><span>RÉCORD: <b id="menu-high-score">0</b>m</span><span>💰 <b id="menu-total-coins">0</b></span></div>
-            
+            <div id="rank-display-menu" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:15px; margin-bottom:15px; display:flex; align-items:center; justify-content:center; gap:10px;">
+            <img id="rank-icon-menu" src="Items/rank_NOVATO.png" style="width:40px; height:40px; object-fit:contain;">
+            <div>
+                <div style="font-size:10px; color:#bdc3c7;">RANGO TEMPORADA</div>
+                <b id="rank-name-menu" style="font-size:16px; color:#bdc3c7;">NOVATO</b>
+            </div>
+        </div>
             <button class="btn-orange" onclick="openMissions()" style="background: var(--weekly-clr); margin-bottom: 15px; font-size: 16px;">📋 MISIONES</button>
             
             <button class="btn-green" onclick="requestFullScreen(); startGame()">CORRER</button>
@@ -702,7 +708,7 @@ try {
         'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'AZUL HIELO', color: [0, 200, 255], price: 5000 }, 'green': { name: 'VERDE NEON', color: [50, 255, 50], price: 5000 }, 'red': { name: 'ROJO FUEGO', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'PINK ARCADE', color: [255, 50, 255], price: 8000 }, 'gold': { name: 'ORO PURO', color: [255, 215, 0], price: 15000 }, 'orange': { name: 'NARANJA TÓXICO', color: [255, 100, 0], price: 10000 }, 'purple': { name: 'MORADO OSCURO', color: [128, 0, 128], price: 10000 }, 'cyan': { name: 'CIAN ELÉCTRICO', color: [0, 255, 255], price: 10000 }, 'emerald': { name: 'VERDE ESMERALDA', color: [0, 200, 100], price: 12000 }, 'uv': { name: 'ULTRAVIOLETA', color: [138, 43, 226], price: 20000 }
     };
 
-  let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, activeMissions: [], lastMissionDate: "", lastWeeklyDate: "", loginStreak: 0, lastLoginDate: "", fuelsThisRun: 0, conesThisRun: 0, escapesThisRun: 0, carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, ownedColors: {}, selectedColors: {}, tickets: 0, lastBoxDate: "", commonAdsWatched: 0, premiumAdsWatched: 0 };
+ let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, activeMissions: [], lastMissionDate: "", lastWeeklyDate: "", loginStreak: 0, lastLoginDate: "", fuelsThisRun: 0, conesThisRun: 0, escapesThisRun: 0, carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, ownedColors: {}, selectedColors: {}, tickets: 0, lastBoxDate: "", commonAdsWatched: 0, premiumAdsWatched: 0, lastSeason: "", bestRank: "NOVATO", seasonHigh: 0 };
 
     function save() { saveLocal(); saveToCloud(); }
     function saveLocal() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); updateShopCoinDisplays(); }
@@ -731,6 +737,51 @@ try {
     window.showToast = function(title, msg, isAchievement = false) {
         const container = document.getElementById("toast-container"); const t = document.createElement("div"); t.className = `toast ${isAchievement ? 'logro' : ''}`; t.innerHTML = `<b>${title}</b><p>${msg}</p>`; container.appendChild(t); setTimeout(() => t.remove(), 3200);
     }
+
+    // --- SISTEMA DE RANGOS ---
+window.getRankInfo = function(score) {
+    const ranks = [
+        { min: 0, name: "NOVATO", color: "#bdc3c7" },
+        { min: 2000, name: "BRONCE", color: "#cd7f32" },
+        { min: 5000, name: "PLATA", color: "#c0c0c0" },
+        { min: 10000, name: "ORO", color: "#f1c40f" },
+        { min: 20000, name: "PLATINO", color: "#3498db" },
+        { min: 40000, name: "DIAMANTE", color: "#34495e" },
+        { min: 75000, name: "GRAN_MAESTRO", color: "#9b59b6" },
+        { min: 120000, name: "LEYENDA", color: "#e74c3c" }
+    ];
+    let currentRank = ranks[0];
+    for (let r of ranks) { if (score >= r.min) currentRank = r; }
+    return currentRank;
+};
+
+window.checkSeasonReset = function() {
+    const now = new Date();
+    const currentSeason = `${now.getMonth()}-${now.getFullYear()}`; 
+    if (garage.lastSeason !== currentSeason) {
+        if (garage.lastSeason !== "") {
+            let lastMonthRank = window.getRankInfo(garage.seasonHigh || 0).name;
+            garage.bestRank = lastMonthRank; 
+            showToast("📅 TEMPORADA", "¡Nueva temporada! Rango reseteado.", true);
+        }
+        garage.seasonHigh = 0; 
+        garage.lastSeason = currentSeason; 
+        save();
+    }
+};
+
+window.updateMenuRankUI = function() {
+    const rankInfo = window.getRankInfo(garage.seasonHigh || 0);
+    const imgEl = document.getElementById("rank-icon-menu");
+    const nameEl = document.getElementById("rank-name-menu");
+    const container = document.getElementById("rank-display-menu");
+    if (imgEl && nameEl) {
+        nameEl.innerText = rankInfo.name.replace('_', ' ');
+        nameEl.style.color = rankInfo.color;
+        imgEl.src = `Items/rank_${rankInfo.name}.png`;
+        container.style.border = `1px solid ${rankInfo.color}`;
+    }
+};
 
     function getWeekNumber(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7)); return Math.ceil((((d - new Date(Date.UTC(d.getUTCFullYear(),0,1))) / 86400000) + 1)/7); }
 
@@ -1700,7 +1751,7 @@ try {
    window.showMenu = function() { 
         clearInterval(reviveInterval); state = "MENU"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "none"; document.getElementById("menu").classList.remove("hidden"); 
         stopSound('music_race'); stopSound('motor'); playSound('music_menu', true); updateUI(); actualizarEstructuraMisiones();
-        checkDailyLogin(); // ESTO HACE QUE SALTE EL CARTEL
+       updateMenuRankUI(); checkDailyLogin(); // ESTO HACE QUE SALTE EL CARTEL
     }
     
     function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
@@ -1856,6 +1907,7 @@ try {
    window.finishGame = function() {
         clearInterval(reviveInterval); state = "OVER"; hideAll(); 
         let newRec = score > garage.high; if(newRec) garage.high = score|0;
+        if (score > (garage.seasonHigh || 0)) garage.seasonHigh = score|0;
         garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; 
         
         // --- NUEVO SISTEMA DE PROGRESO DE MISIONES ---
