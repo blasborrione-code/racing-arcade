@@ -175,7 +175,7 @@
         </div>
     </div>
 
-    <div id="black-market-screen" class="overlay hidden">
+  <div id="black-market-screen" class="overlay hidden">
         <div class="ui-card">
             <h1 style="color:#e74c3c;">MERCADO NEGRO</h1>
             <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:15px;">
@@ -183,14 +183,16 @@
                 <span>🎫 <b id="ui-tickets-display">0</b></span>
             </div>
             
-            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:15px; margin-bottom:10px; border-left: 4px solid #3498db;">
+            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:15px; margin-bottom:10px; border-left: 4px solid #3498db; position: relative;">
+                <div onclick="showProbabilities('common')" style="position: absolute; top: 10px; right: 10px; width: 25px; height: 25px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; font-weight: bold; color: #3498db;">ⓘ</div>
                 <h3 style="margin:0 0 5px; color:#3498db;">CAJA NORMAL</h3>
                 <p style="font-size:10px; color:#bdc3c7; margin:0 0 10px;">Piezas básicas y monedas.</p>
                 <button class="btn-blue" onclick="openBox('common')">COMPRAR ($2.500)</button>
                 <button class="btn-green" id="btn-ad-common" onclick="watchAdForBox('common')" style="font-size:10px; padding:8px;">📺 VER VIDEO (0/10)</button>
             </div>
 
-            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:15px; margin-bottom:15px; border-left: 4px solid #f1c40f;">
+            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:15px; margin-bottom:15px; border-left: 4px solid #f1c40f; position: relative;">
+                <div onclick="showProbabilities('premium')" style="position: absolute; top: 10px; right: 10px; width: 25px; height: 25px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; font-weight: bold; color: #f1c40f;">ⓘ</div>
                 <h3 style="margin:0 0 5px; color:#f1c40f;">CAJA PREMIUM</h3>
                 <p style="font-size:10px; color:#bdc3c7; margin:0 0 10px;">Autos raros y neones exclusivos.</p>
                 <button class="btn-orange" onclick="openBox('premium')">USAR 1 TICKET</button>
@@ -340,6 +342,15 @@
             </div>
             <button class="btn-green" onclick="confirmUpgrade()">COMPRAR</button>
             <button class="btn-red" onclick="closeUpgradeModal()" style="background:transparent; border: 1px solid #e74c3c; color:#e74c3c; margin-top:10px;">CANCELAR</button>
+        </div>
+    </div>
+   
+    <div id="info-modal" class="overlay hidden" style="z-index: 400;">
+        <div class="ui-card">
+            <h1 id="info-title" style="color:var(--accent); font-size: 22px;">PROBABILIDADES</h1>
+            <div id="info-content" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; margin-bottom: 15px; text-align: left; font-size: 13px; line-height: 1.6; color: #bdc3c7;">
+                </div>
+            <button class="btn-red" onclick="closeInfoModal()">ENTENDIDO</button>
         </div>
     </div>
 
@@ -954,6 +965,38 @@ try {
         }, 2000); // 2 segundos de video simulado
     }
 
+    window.showProbabilities = function(type) {
+        playSound('click');
+        let title = "";
+        let content = "";
+
+        if (type === 'common') {
+            title = "CAJA NORMAL";
+            content = `
+                <b style="color:#2ecc71;">60%</b> - Premio en Monedas ($500 a $2.000)<br>
+                <b style="color:#e74c3c;">25%</b> - +1 Vida Extra (Próxima Carrera)<br>
+                <b style="color:#3498db;">10%</b> - Pieza de Mejora Gratis<br>
+                <b style="color:#f1c40f;">5%</b> - ¡Premio Mayor! ($5.000)
+            `;
+        } else if (type === 'premium') {
+            title = "CAJA PREMIUM";
+            content = `
+                <b style="color:#2ecc71;">50%</b> - Pozo Gigante ($10.000)<br>
+                <b style="color:#9b59b6;">30%</b> - Neón Aleatorio (o $15.000)<br>
+                <b style="color:#e67e22;">18%</b> - <b>Skin Oro Sólido Exclusiva</b><br>
+                <b style="color:#e74c3c;">2%</b> - <b>MÍTICO: Auto de la Tienda</b>
+            `;
+        }
+
+        document.getElementById("info-title").innerText = title;
+        document.getElementById("info-content").innerHTML = content;
+        document.getElementById("info-modal").classList.remove("hidden");
+    }
+
+    window.closeInfoModal = function() {
+        playSound('click');
+        document.getElementById("info-modal").classList.add("hidden");
+    }
     window.openBox = function(type, isFree = false) {
         if (!isFree) {
             if (type === 'common') {
