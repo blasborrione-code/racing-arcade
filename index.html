@@ -1054,9 +1054,9 @@ window.updateMenuRankUI = function() {
                 if (garage.coins < 2500) { showToast("ERROR", "No tienes suficientes monedas"); return; }
                 garage.coins -= 2500;
             } else if (type === 'premium') {
-                // --- TRAMPA DE PRUEBA: Comentamos estas dos líneas ---
-                // if (!garage.tickets || garage.tickets < 1) { showToast("ERROR", "No tienes tickets"); return; }
-                // garage.tickets--;
+                // VOLVEMOS A ACTIVAR ESTO (Sacamos las //):
+                if (!garage.tickets || garage.tickets < 1) { showToast("ERROR", "No tienes tickets"); return; }
+                garage.tickets--;
             }
             playSound('coin');
             save();
@@ -1104,7 +1104,7 @@ window.updateMenuRankUI = function() {
                     premio = `+💰5.000 (¡SUERTE!)`;
                 }
             } else if (type === 'premium') {
-                if (roll < 90) {
+                if (roll < 50) {
                     // 50% Chance: Pozo aleatorio de 5.000 a 10.000
                     let plata = 5000 + Math.floor(Math.random() * 5001);
                     garage.coins += plata;
@@ -1119,7 +1119,7 @@ window.updateMenuRankUI = function() {
                     } else {
                         garage.coins += 15000; premio = `+💰15.000 (Ya tienes todos los neones)`;
                     }
-               } else if (roll < 98) {
+                } else if (roll < 98) {
                     // 18% Chance: SKIN EXCLUSIVA DE ORO
                     const autosConSkinOro = [
                         'auto_rosa', 'camioneta4x4', 'compact_retro', 'furgoneta', 
