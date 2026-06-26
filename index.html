@@ -1118,17 +1118,22 @@ window.updateMenuRankUI = function() {
                     } else {
                         garage.coins += 15000; premio = `+💰15.000 (Ya tienes todos los neones)`;
                     }
-                } else if (roll < 98) {
-                    // 18% Chance: SKIN EXCLUSIVA (Texto Oculto)
-                    let randCar = garage.owned[Math.floor(Math.random() * garage.owned.length)];
-                    let skinName = 'oro_solido'; // La guardamos como oro, pero mostramos texto genérico
+               } else if (roll < 98) {
+                    // 18% Chance: SKIN EXCLUSIVA DE ORO
+                    const autosConSkinOro = [
+                        'auto_rosa', 'camioneta4x4', 'compact_retro', 'furgoneta', 
+                        'muscle_pony', 'luxury_white', 'sport_black', 'super_yellow'
+                    ];
+                    let randCar = autosConSkinOro[Math.floor(Math.random() * autosConSkinOro.length)];
+                    let skinName = 'oro'; 
+                    
                     if (!garage.ownedColors[randCar]) garage.ownedColors[randCar] = [MODELS[randCar].colors[0]];
                     
                     if (!garage.ownedColors[randCar].includes(skinName)) {
                         garage.ownedColors[randCar].push(skinName);
-                        premio = `¡SKIN EXCLUSIVA: ${MODELS[randCar].name}!`;
+                        premio = `¡SKIN ORO: ${MODELS[randCar].name}!`;
                     } else {
-                        garage.coins += 20000; premio = `+💰20.000 (Skin repetida)`;
+                        garage.coins += 20000; premio = `+💰20.000 (Skin Oro repetida)`;
                     }
                 } else {
                     // 2% Chance MÍTICA: Auto al azar
@@ -2075,19 +2080,45 @@ window.updateMenuRankUI = function() {
     window.renderColorSelector = function() {
         const ck = garage.selected, car = MODELS[ck], container = document.getElementById("color-selector-container");
         if (!container) return; container.innerHTML = "";
-        if(!car.colors || car.colors.length <= 1) { container.innerHTML = "<small style='color:rgba(255,255,255,0.3)'>Sin personalización</small>"; return; }
-        car.colors.forEach((col) => {
+        
+        // Armamos la lista: colores de fábrica + 'oro' SOLAMENTE si lo tiene desbloqueado
+        let coloresDisponibles = [...(car.colors || [])];
+        if (garage.ownedColors[ck] && garage.ownedColors[ck].includes('oro')) {
+            if (!coloresDisponibles.includes('oro')) coloresDisponibles.push('oro');
+        }
+
+        if(coloresDisponibles.length <= 1) { container.innerHTML = "<small style='color:rgba(255,255,255,0.3)'>Sin personalización</small>"; return; }
+        
+        coloresDisponibles.forEach((col) => {
             if (!garage.ownedColors[ck]) garage.ownedColors[ck] = [car.colors[0]];
-            const isOwned = garage.ownedColors[ck].includes(col), isSelected = (garage.selectedColors[ck] || car.colors[0]) === col;
+            
+            const isOwned = garage.ownedColors[ck].includes(col);
+            const isSelected = (garage.selectedColors[ck] || car.colors[0]) === col;
             const dot = document.createElement("div");
-            const colorMap = { 'rojo': '#e74c3c', 'azul': '#3498db', 'verde': '#2ecc71', 'amarillo': '#f1c40f', 'negro': '#111', 'blanco': '#fff', 'rosa': '#ff69b4', 'violeta': '#9b59b6', 'gris': '#95a5a6', 'plata': '#bdc3c7', 'naranja': '#e67e22', 'celeste': '#87ceeb' };
-            dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${colorMap[col] || col}; border: 2px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'}; cursor:pointer; position:relative;`;
+            
+            // Agregamos el degradado especial para el oro
+            const colorMap = { 'rojo': '#e74c3c', 'azul': '#3498db', 'verde': '#2ecc71', 'amarillo': '#f1c40f', 'negro': '#111', 'blanco': '#fff', 'rosa': '#ff69b4', 'violeta': '#9b59b6', 'gris': '#95a5a6', 'plata': '#bdc3c7', 'naranja': '#e67e22', 'celeste': '#87ceeb', 'oro': 'linear-gradient(135deg, #f1c40f, #d4ac0d, #f9e79f)' };
+            
+            dot.style.cssText = `width:25px; height:25px; border-radius:50%; background:${colorMap[col] || col}; border: 2px solid ${isSelected ? '#fff' : 'rgba(255,255,255,0.2)'}; cursor:pointer; position:relative;`;
+            
             if(!isOwned) dot.innerHTML = "<span style='position:absolute; bottom:-5px; right:-5px; font-size:8px;'>💰</span>";
+            
             dot.onclick = () => {
-                playSound('click'); const preview = (col === car.colors[0]) ? `Autos/${car.img}` : `Autos/car_${ck}_${col}.png`;
+                playSound('click'); 
+                const preview = (col === car.colors[0]) ? `Autos/${car.img}` : `Autos/car_${ck}_${col}.png`;
                 document.getElementById("upgrade-car-preview").src = preview;
-                if(isOwned) { garage.selectedColors[ck] = col; save(); renderColorSelector(); showToast("PINTURA", "Color equipado"); }
-                else { tempUpgrade = { type: 'color', color: col, carKey: ck, cost: 1500 }; document.getElementById("modal-title").innerText = "PINTAR AUTO"; document.getElementById("modal-desc").innerHTML = `¿Comprar este color por $1.500?`; document.getElementById("upgrade-modal").classList.remove("hidden"); }
+                
+                if(isOwned) { 
+                    garage.selectedColors[ck] = col; 
+                    save(); 
+                    renderColorSelector(); 
+                    showToast("PINTURA", "Color equipado"); 
+                } else { 
+                    tempUpgrade = { type: 'color', color: col, carKey: ck, cost: 1500 }; 
+                    document.getElementById("modal-title").innerText = "PINTAR AUTO"; 
+                    document.getElementById("modal-desc").innerHTML = `¿Comprar este color por $1.500?`; 
+                    document.getElementById("upgrade-modal").classList.remove("hidden"); 
+                }
             };
             container.appendChild(dot);
         });
