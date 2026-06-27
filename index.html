@@ -867,12 +867,14 @@ window.updateMenuRankUI = function() {
     ];
     let dailyRewardAvailable = false;
 
-    window.checkDailyLogin = function() {
+   window.checkDailyLogin = function() {
         const hoy = new Date().toDateString();
         
+        // Si no entró nunca o si hoy es distinto al último día registrado
         if (garage.lastLoginDate !== hoy) {
             dailyRewardAvailable = true;
             
+            // Lógica para ver si perdió la racha (pasó más de 1 día)
             if (garage.lastLoginDate !== "") {
                 const ayer = new Date();
                 ayer.setDate(ayer.getDate() - 1);
@@ -884,18 +886,7 @@ window.updateMenuRankUI = function() {
             // Si ya cobró el día 30, reseteamos a 0 para empezar otro mes
             if (garage.loginStreak >= 30) garage.loginStreak = 0;
             
-           window.checkDailyLogin = function() {
-        const hoy = new Date().toDateString();
-        if (garage.lastLoginDate !== hoy) {
-            dailyRewardAvailable = true;
-            if (garage.lastLoginDate !== "") {
-                const ayer = new Date();
-                ayer.setDate(ayer.getDate() - 1);
-                if (garage.lastLoginDate !== ayer.toDateString()) {
-                    garage.loginStreak = 0;
-                }
-            }
-            if (garage.loginStreak >= 30) garage.loginStreak = 0;
+            // Llamamos a las funciones necesarias
             renderDailyLogin();
             document.getElementById("daily-login-screen").classList.remove("hidden");
             playSound('near');
