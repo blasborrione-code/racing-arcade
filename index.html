@@ -733,8 +733,8 @@ try {
     function saveLocal() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); updateShopCoinDisplays(); }
 
     const saved = localStorage.getItem('borrione_racing_v3'); if(saved) garage = {...garage, ...JSON.parse(saved)};
-    if (!garage.underglowOwned) garage.underglowOwned = ['none'];
-    if (!garage.selectedUnderglow) garage.selectedUnderglow = 'none';
+   if (!garage.ownedUnderglows) garage.ownedUnderglows = {};
+    if (!garage.selectedUnderglows) garage.selectedUnderglows = {};
    Object.keys(MODELS).forEach(k => { 
         if(!garage.carStats[k]) garage.carStats[k] = {motor:0, tanque:0, frenos:0, chasis:0, aero:0, gomas:0}; 
         else {
@@ -1728,12 +1728,17 @@ window.updateMenuRankUI = function() {
        if(!expObj && assets.player.complete) { 
             if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night, sunset, rain);
             
-            // --- NEÓN DE PISO (UNDERGLOW) ---
-            if (garage.selectedUnderglow && garage.selectedUnderglow !== 'none') {
+           // --- NEÓN DE PISO (UNDERGLOW) ---
+            const ck = garage.selected;
+            const activeGlow = garage.selectedUnderglows ? garage.selectedUnderglows[ck] : 'none';
+
+            if (activeGlow && activeGlow !== 'none') {
                 ctx.save();
-                const uColor = UNDERGLOW[garage.selectedUnderglow].color;
-                ctx.shadowBlur = 30; // Qué tan difuminada es la luz en el asfalto
-                ctx.shadowColor = `rgba(${uColor[0]}, ${uColor[1]}, ${uColor[2]}, 0.8)`;
+                const uColor = UNDERGLOW[activeGlow].color;
+                
+                ctx.shadowBlur = 20; // ¡ACÁ ACHICAMOS EL RADIO! (Antes 30, ahora 12 queda mucho más pegado al auto)
+                ctx.shadowColor = `rgba(${uColor[0]}, ${uColor[1]}, ${uColor[2]}, 0.6)`; // Un poco menos de opacidad
+                
                 // Dibujamos el auto para que proyecte la sombra
                 ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
                 ctx.restore(); // Apagamos la sombra
@@ -1858,23 +1863,30 @@ window.updateMenuRankUI = function() {
         document.getElementById("upgrade-modal").classList.remove("hidden");
     }
 
-    window.confirmUpgrade = function() {
+   window.confirmUpgrade = function() {
         if(!tempUpgrade || garage.coins < tempUpgrade.cost) return;
         playSound('coin'); garage.coins -= tempUpgrade.cost;
         if(tempUpgrade.type === 'color') {
             if (!garage.ownedColors[tempUpgrade.carKey]) garage.ownedColors[tempUpgrade.carKey] = [MODELS[tempUpgrade.carKey].colors[0]];
             if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
             garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
-       } else if (tempUpgrade.type === 'neon') {
+        } else if (tempUpgrade.type === 'neon') {
             if (!garage.neonOwned.includes(tempUpgrade.key)) garage.neonOwned.push(tempUpgrade.key);
             garage.selectedNeon = tempUpgrade.key; openNeones();
         } else if (tempUpgrade.type === 'underglow') {
-            if (!garage.underglowOwned.includes(tempUpgrade.key)) garage.underglowOwned.push(tempUpgrade.key);
-            garage.selectedUnderglow = tempUpgrade.key; openUnderglow();
+            // Guardamos el neón de piso específicamente en el auto (carKey)
+            if (!garage.ownedUnderglows[tempUpgrade.carKey]) garage.ownedUnderglows[tempUpgrade.carKey] = ['none'];
+            if (!garage.ownedUnderglows[tempUpgrade.carKey].includes(tempUpgrade.key)) {
+                garage.ownedUnderglows[tempUpgrade.carKey].push(tempUpgrade.key);
+            }
+            garage.selectedUnderglows[tempUpgrade.carKey] = tempUpgrade.key; 
+            openUnderglow();
         } else if (tempUpgrade.type === 'car') {
             if (!garage.owned.includes(tempUpgrade.key)) garage.owned.push(tempUpgrade.key);
             garage.selected = tempUpgrade.key; updateShopUI();
-        } else { garage.carStats[garage.selected][tempUpgrade.type]++; }
+        } else { 
+            garage.carStats[garage.selected][tempUpgrade.type]++; 
+        }
         save(); updateUI(); closeUpgradeModal(); if(typeof renderColorSelector === 'function') renderColorSelector(); showToast("ÉXITO", "¡Compra realizada!");
     }
 
@@ -2064,13 +2076,34 @@ window.updateMenuRankUI = function() {
         document.getElementById("shop-neones").classList.remove("hidden"); 
     }
 
-    window.openUnderglow = function() { 
+window.openUnderglow = function() { 
         playSound('click'); hideAll(); updateShopCoinDisplays(); const container = document.getElementById("underglow-container"); container.innerHTML = ""; 
+        
+        const ck = garage.selected; // Vemos qué auto estamos tuneando
+        if (!garage.ownedUnderglows[ck]) garage.ownedUnderglows[ck] = ['none'];
+        if (!garage.selectedUnderglows[ck]) garage.selectedUnderglows[ck] = 'none';
+
         Object.keys(UNDERGLOW).forEach(k => { 
-            const n = UNDERGLOW[k], owned = garage.underglowOwned.includes(k), selected = garage.selectedUnderglow === k, btn = document.createElement("div"); 
+            const n = UNDERGLOW[k];
+            const owned = garage.ownedUnderglows[ck].includes(k);
+            const selected = garage.selectedUnderglows[ck] === k;
+            
+            const btn = document.createElement("div"); 
             btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; 
             btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; 
-            btn.onclick = () => { playSound('click'); if(owned) { garage.selectedUnderglow = k; save(); openUnderglow(); } else { if(garage.coins < n.price) { showToast("ERROR", "Faltan monedas"); return; } tempUpgrade = { type: 'underglow', key: k, cost: n.price }; document.getElementById("modal-title").innerText = "COMPRAR NEÓN"; document.getElementById("modal-desc").innerHTML = `¿Instalar ${n.name} por $${n.price.toLocaleString()}?`; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
+            btn.onclick = () => { 
+                playSound('click'); 
+                if(owned) { 
+                    garage.selectedUnderglows[ck] = k; save(); openUnderglow(); 
+                } else { 
+                    if(garage.coins < n.price) { showToast("ERROR", "Faltan monedas"); return; } 
+                    // Le pasamos el carKey (ck) para saber a quién se lo compramos
+                    tempUpgrade = { type: 'underglow', key: k, carKey: ck, cost: n.price }; 
+                    document.getElementById("modal-title").innerText = "COMPRAR NEÓN"; 
+                    document.getElementById("modal-desc").innerHTML = `¿Instalar ${n.name} por $${n.price.toLocaleString()}?`; 
+                    document.getElementById("upgrade-modal").classList.remove("hidden"); 
+                } 
+            }; 
             container.appendChild(btn); 
         }); 
         document.getElementById("shop-underglow").classList.remove("hidden"); 
