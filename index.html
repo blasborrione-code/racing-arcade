@@ -849,94 +849,111 @@ window.updateMenuRankUI = function() {
 
    // --- SISTEMA DE LOGIN DIARIO ---
     // El Día 7 da 1 Ticket en vez de monedas (el valor 1 representa el ticket)
-    const DAILY_REWARDS = [250, 500, 750, 1000, 1250, 1500, 1];
+   // --- 🗓️ CALENDARIO MENSUAL DE 30 DÍAS ---
+    const DAILY_REWARDS = [
+        { dia: 1, tipo: 'monedas', valor: 500 }, { dia: 2, tipo: 'monedas', valor: 600 }, { dia: 3, tipo: 'monedas', valor: 700 }, 
+        { dia: 4, tipo: 'monedas', valor: 800 }, { dia: 5, tipo: 'monedas', valor: 900 }, { dia: 6, tipo: 'monedas', valor: 1000 },
+        { dia: 7, tipo: 'ticket', valor: 1 }, // TICKET #1
+        { dia: 8, tipo: 'monedas', valor: 1200 }, { dia: 9, tipo: 'monedas', valor: 1400 }, { dia: 10, tipo: 'monedas', valor: 1600 },
+        { dia: 11, tipo: 'monedas', valor: 1800 }, { dia: 12, tipo: 'monedas', valor: 2000 }, { dia: 13, tipo: 'monedas', valor: 2200 },
+        { dia: 14, tipo: 'ticket', valor: 1 }, // TICKET #2
+        { dia: 15, tipo: 'skin', valor: 'neon_ray' }, // SKIN ÚNICA
+        { dia: 16, tipo: 'monedas', valor: 2500 }, { dia: 17, tipo: 'monedas', valor: 2800 }, { dia: 18, tipo: 'monedas', valor: 3100 },
+        { dia: 19, tipo: 'monedas', valor: 3400 }, { dia: 20, tipo: 'skin', valor: 'glitch' }, // SKIN/MEJORA ESPECIAL
+        { dia: 21, tipo: 'monedas', valor: 4500 }, { dia: 22, tipo: 'monedas', valor: 5000 }, { dia: 23, tipo: 'monedas', valor: 5500 },
+        { dia: 24, tipo: 'monedas', valor: 6000 }, { dia: 25, tipo: 'ticket', valor: 1 }, // TICKET #3
+        { dia: 26, tipo: 'monedas', valor: 10000 }, { dia: 27, tipo: 'monedas', valor: 11000 }, { dia: 28, tipo: 'monedas', valor: 12000 },
+        { dia: 29, tipo: 'monedas', valor: 13000 }, { dia: 30, tipo: 'auto', valor: 'prototipo_v30' } // AUTO ESPECIAL
+    ];
     let dailyRewardAvailable = false;
 
     window.checkDailyLogin = function() {
         const hoy = new Date().toDateString();
         
-        // Si no entró nunca o si hoy es distinto al último día registrado
         if (garage.lastLoginDate !== hoy) {
             dailyRewardAvailable = true;
             
-            // Lógica para ver si perdió la racha (pasó más de 1 día)
             if (garage.lastLoginDate !== "") {
                 const ayer = new Date();
                 ayer.setDate(ayer.getDate() - 1);
                 if (garage.lastLoginDate !== ayer.toDateString()) {
-                    garage.loginStreak = 0; // Perdió la racha, vuelve a cero
+                    garage.loginStreak = 0; // Se rompió la racha de 30 días
                 }
             }
             
-            // Si ya cobró el día 7, vuelve a empezar
-            if (garage.loginStreak >= 7) garage.loginStreak = 0;
+            // Si ya cobró el día 30, reseteamos a 0 para empezar otro mes
+            if (garage.loginStreak >= 30) garage.loginStreak = 0;
             
+           window.checkDailyLogin = function() {
+        const hoy = new Date().toDateString();
+        if (garage.lastLoginDate !== hoy) {
+            dailyRewardAvailable = true;
+            if (garage.lastLoginDate !== "") {
+                const ayer = new Date();
+                ayer.setDate(ayer.getDate() - 1);
+                if (garage.lastLoginDate !== ayer.toDateString()) {
+                    garage.loginStreak = 0;
+                }
+            }
+            if (garage.loginStreak >= 30) garage.loginStreak = 0;
             renderDailyLogin();
             document.getElementById("daily-login-screen").classList.remove("hidden");
-            playSound('near'); // Sonidito para llamar la atención
+            playSound('near');
         }
     }
 
-   function renderDailyLogin() {
+    window.renderDailyLogin = function() {
         const container = document.getElementById("daily-days-container");
         container.innerHTML = "";
+        document.getElementById("daily-login-screen").querySelector(".ui-card").style.width = "450px";
         
-        for (let i = 0; i < 7; i++) {
+        DAILY_REWARDS.forEach((premio, i) => {
             let isPast = i < garage.loginStreak;
             let isToday = i === garage.loginStreak;
-            let isFuture = i > garage.loginStreak;
             
             let bgCol = isPast ? 'rgba(46, 204, 113, 0.2)' : (isToday ? 'rgba(241, 196, 15, 0.2)' : 'rgba(255,255,255,0.05)');
             let borderCol = isPast ? '#2ecc71' : (isToday ? '#f1c40f' : 'transparent');
-            
-            // Si es el día 7 (índice 6), mostramos un Ticket. Si no, la bolsa de monedas.
-            let icon = isPast ? '✅' : (i === 6 ? '🎫' : '💰');
-            let rewardText = (i === 6) ? '1 TICKET' : `$${DAILY_REWARDS[i]}`;
+            let icon = isPast ? '✅' : (premio.tipo === 'ticket' ? '🎫' : (premio.tipo === 'monedas' ? '💰' : '🎁'));
             
             let d = document.createElement("div");
-            d.style.cssText = `background:${bgCol}; border: 2px solid ${borderCol}; border-radius:10px; width:70px; padding:10px 5px; text-align:center; position:relative; opacity: ${isFuture ? '0.5' : '1'};`;
-            
-            d.innerHTML = `
-                <div style="font-size:10px; color:#bdc3c7; font-weight:bold; margin-bottom:5px;">DÍA ${i+1}</div>
-                <div style="font-size:20px; margin-bottom:5px;">${icon}</div>
-                <div style="font-size:11px; color:${isPast ? '#2ecc71' : '#f1c40f'}; font-weight:bold;">${rewardText}</div>
-            `;
+            d.style.cssText = `background:${bgCol}; border: 2px solid ${borderCol}; border-radius:8px; width:60px; padding:5px; text-align:center; font-size:10px;`;
+            d.innerHTML = `<div>DÍA ${i+1}</div><div style="font-size:16px;">${icon}</div>`;
             container.appendChild(d);
-        }
+        });
         
         const btn = document.getElementById("btn-claim-daily");
-        // El botón también tiene que decir TICKET si es el último día
-        if (garage.loginStreak === 6) {
-            btn.innerText = `🎫 RECLAMAR 1 TICKET`;
-        } else {
-            btn.innerText = `💰 RECLAMAR $${DAILY_REWARDS[garage.loginStreak].toLocaleString()}`;
-        }
+        btn.innerText = `💰 RECLAMAR PREMIO DÍA ${garage.loginStreak + 1}`;
     }
 
     window.claimDailyLogin = function() {
         if (!dailyRewardAvailable) return;
-        
         let premio = DAILY_REWARDS[garage.loginStreak];
         
-        // Si es el Día 7, sumamos un Ticket
-        if (garage.loginStreak === 6) {
-            playSound('coin'); // Después le podemos poner un sonido épico de "nivel desbloqueado"
-            // Inicializamos la variable de tickets si el jugador no la tenía
-            if (typeof garage.tickets === 'undefined') garage.tickets = 0;
-            garage.tickets += premio; // Suma 1 ticket
-            showToast('BONUS DIARIO', `+🎫 1 TICKET DE CONTENEDOR`);
-        } else {
-            // Si es un día normal, sumamos monedas
-            playSound('coin');
-            garage.coins += premio;
-            garage.totalCoinsRec += premio;
-            showToast('BONUS DIARIO', `+💰${premio.toLocaleString()}`);
+        switch(premio.tipo) {
+            case 'monedas':
+                garage.coins += premio.valor;
+                garage.totalCoinsRec += premio.valor;
+                showToast('BONUS', `+💰 ${premio.valor.toLocaleString()}`);
+                break;
+            case 'ticket':
+                if (typeof garage.tickets === 'undefined') garage.tickets = 0;
+                garage.tickets += premio.valor;
+                showToast('BONUS', `+🎫 ${premio.valor} TICKET(S)`);
+                break;
+            case 'skin':
+                if (!garage.ownedColors['especiales']) garage.ownedColors['especiales'] = [];
+                garage.ownedColors['especiales'].push(premio.valor);
+                showToast('¡SKIN NUEVA!', `Desbloqueaste: ${premio.valor}`);
+                break;
+            case 'auto':
+                if (!garage.owned.includes(premio.valor)) garage.owned.push(premio.valor);
+                showToast('¡AUTO NUEVO!', `¡Recibiste: ${premio.valor}!`);
+                break;
         }
         
         garage.loginStreak++;
         garage.lastLoginDate = new Date().toDateString();
         dailyRewardAvailable = false;
-        
         save();
         updateShopCoinDisplays();
         closeDailyLogin();
