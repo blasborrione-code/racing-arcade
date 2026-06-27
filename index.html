@@ -719,12 +719,12 @@ try {
     };
    
     const UNDERGLOW = {
-        'none': { name: 'SIN NEÓN', color: null, price: 0 },
+       'none': { name: 'SIN NEÓN', color: [0, 0, 0], price: 0 },
         'green': { name: 'VERDE CALLEJERO', color: [50, 255, 50], price: 15000 },
         'blue': { name: 'AZUL NOCHE', color: [0, 200, 255], price: 15000 },
-        'purple': { name: 'MORADO VIP', color: [155, 89, 182], price: 20000 },
-        'red': { name: 'ROJO DIABLO', color: [255, 50, 50], price: 20000 },
-        'gold': { name: 'ORO SUPREMO', color: [255, 215, 0], price: 35000 }
+        'purple': { name: 'MORADO VIP', color: [155, 89, 182], price: 15000 },
+        'red': { name: 'ROJO DIABLO', color: [255, 50, 50], price: 15000 },
+        'gold': { name: 'ORO SUPREMO', color: [255, 215, 0], price: 25000 }
     };
 
  let garage = { owned: ['compact_retro'], selected: 'compact_retro', coins: 0, high: 0, activeMissions: [], lastMissionDate: "", lastWeeklyDate: "", loginStreak: 0, lastLoginDate: "", fuelsThisRun: 0, conesThisRun: 0, escapesThisRun: 0, carStats: {}, neonOwned: ['white'], selectedNeon: 'white', totalDist: 0, totalPlays: 0, totalNear: 0, totalCoinsRec: 0, unlockedLogros: {totalDist:0, totalCoins:0, totalPlays:0, totalNear:0}, ownedColors: {}, selectedColors: {}, tickets: 0, lastBoxDate: "", commonAdsWatched: 0, premiumAdsWatched: 0, lastSeason: "", bestRank: "NOVATO", seasonHigh: 0 };
@@ -2068,7 +2068,7 @@ window.updateMenuRankUI = function() {
         playSound('click'); hideAll(); updateShopCoinDisplays(); const container = document.getElementById("underglow-container"); container.innerHTML = ""; 
         Object.keys(UNDERGLOW).forEach(k => { 
             const n = UNDERGLOW[k], owned = garage.underglowOwned.includes(k), selected = garage.selectedUnderglow === k, btn = document.createElement("div"); 
-            btn.style.cssText = `background:${n.color ? 'rgba('+n.color[0]+','+n.color[1]+','+n.color[2]+',0.2)' : 'rgba(255,255,255,0.05)'}; padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; 
+            btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; 
             btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; 
             btn.onclick = () => { playSound('click'); if(owned) { garage.selectedUnderglow = k; save(); openUnderglow(); } else { if(garage.coins < n.price) { showToast("ERROR", "Faltan monedas"); return; } tempUpgrade = { type: 'underglow', key: k, cost: n.price }; document.getElementById("modal-title").innerText = "COMPRAR NEÓN"; document.getElementById("modal-desc").innerHTML = `¿Instalar ${n.name} por $${n.price.toLocaleString()}?`; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
             container.appendChild(btn); 
