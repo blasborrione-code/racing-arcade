@@ -73,7 +73,7 @@
         @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
         .ui-card { background: var(--bg-glass); border: 1px solid var(--border-glass); padding: 30px; border-radius: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 320px; position: relative; }
         h1 { margin: 0 0 20px; font-size: 28px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
-       button { padding: 16px; font-size: 14px; cursor: pointer; border: none; color: white; border-radius: 15px; font-weight: 800; min-width: 100%; margin: 8px 0; text-transform: uppercase; }
+        button { padding: 16px; font-size: 14px; cursor: pointer; border: none; color: white; border-radius: 15px; font-weight: 800; min-width: 100%; margin: 8px 0; text-transform: uppercase; }
         
         button:active, .touch-btn:active, .ui-card div[onclick]:active {
             transform: scale(0.92);
@@ -733,8 +733,13 @@ try {
     function saveLocal() { localStorage.setItem('borrione_racing_v3', JSON.stringify(garage)); updateShopCoinDisplays(); }
 
     const saved = localStorage.getItem('borrione_racing_v3'); if(saved) garage = {...garage, ...JSON.parse(saved)};
-   if (!garage.ownedUnderglows) garage.ownedUnderglows = {};
+    
+    // --- INICIALIZACIÓN DE VARIABLES POR AUTO ---
+    if (!garage.ownedUnderglows) garage.ownedUnderglows = {};
     if (!garage.selectedUnderglows) garage.selectedUnderglows = {};
+    if (!garage.ownedNeons) garage.ownedNeons = {};
+    if (!garage.selectedNeons) garage.selectedNeons = {};
+    
    Object.keys(MODELS).forEach(k => { 
         if(!garage.carStats[k]) garage.carStats[k] = {motor:0, tanque:0, frenos:0, chasis:0, aero:0, gomas:0}; 
         else {
@@ -1279,8 +1284,8 @@ window.updateMenuRankUI = function() {
         }
         
        if(isS) { currentSpeed = Math.max(currentSpeed * 0.9, mSpd * 0.1); player.vx = 0; }
-        else { 
-           if(keys["ArrowUp"] || keys["GAS"]) {
+        else { 
+           if(keys["ArrowUp"] || keys["GAS"]) {
                 // 1. Definimos el límite de velocidad dinámico
                 let limiteActual = rebufoActivo ? (mSpd + 0.2 + (stats.aero * 0.1)) : mSpd;
 
@@ -1318,11 +1323,11 @@ window.updateMenuRankUI = function() {
                 let friccionNatural = 0.02 + (stats.frenos * 0.01);
                 currentSpeed = Math.max(currentSpeed - friccionNatural * dt, 0);
             }
-            
-            let adaptiveHandling = hndl * (1 / (1 + (currentSpeed / 15)));
-            if(keys["ArrowLeft"]) player.vx -= adaptiveHandling * dt; 
-            if(keys["ArrowRight"]) player.vx += adaptiveHandling * dt; 
-        }
+            
+            let adaptiveHandling = hndl * (1 / (1 + (currentSpeed / 15)));
+            if(keys["ArrowLeft"]) player.vx -= adaptiveHandling * dt; 
+            if(keys["ArrowRight"]) player.vx += adaptiveHandling * dt; 
+        }
        player.vx *= Math.pow(turnInertia, dt); player.x += player.vx * dt; 
         if(player.x < 35) player.x = 35; if(player.x > 365 - player.w) player.x = 365 - player.w; 
         roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
@@ -1656,7 +1661,12 @@ window.updateMenuRankUI = function() {
         if (!isNight && !sunset && !rain) return;
         const length = isPlayer ? 260 : 160, spread = isPlayer ? 50 : 35, lightY = y + 5;
         const lx = x + w * 0.2, rx = x + w * 0.8;
-        let c = isPlayer ? (NEONES[garage.selectedNeon].color) : [255, 240, 200];
+        
+        // --- LEER EL FARO DEL AUTO ACTUAL ---
+        const ck = garage.selected;
+        const activeNeon = (garage.selectedNeons && garage.selectedNeons[ck]) ? garage.selectedNeons[ck] : 'white';
+        let c = isPlayer ? (NEONES[activeNeon].color) : [255, 240, 200];
+        
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
         function drawSingleBeam(srcX, srcY) {
             let grad = ctx.createLinearGradient(srcX, srcY, srcX, srcY - length);
@@ -1736,7 +1746,7 @@ window.updateMenuRankUI = function() {
                 ctx.save();
                 const uColor = UNDERGLOW[activeGlow].color;
                 
-                ctx.shadowBlur = 20; // ¡ACÁ ACHICAMOS EL RADIO! (Antes 30, ahora 12 queda mucho más pegado al auto)
+                ctx.shadowBlur = 12; // ¡ACÁ ACHICAMOS EL RADIO! (Antes 30, ahora 12 queda mucho más pegado al auto)
                 ctx.shadowColor = `rgba(${uColor[0]}, ${uColor[1]}, ${uColor[2]}, 0.6)`; // Un poco menos de opacidad
                 
                 // Dibujamos el auto para que proyecte la sombra
@@ -1871,10 +1881,15 @@ window.updateMenuRankUI = function() {
             if (!garage.ownedColors[tempUpgrade.carKey].includes(tempUpgrade.color)) garage.ownedColors[tempUpgrade.carKey].push(tempUpgrade.color);
             garage.selectedColors[tempUpgrade.carKey] = tempUpgrade.color;
         } else if (tempUpgrade.type === 'neon') {
-            if (!garage.neonOwned.includes(tempUpgrade.key)) garage.neonOwned.push(tempUpgrade.key);
-            garage.selectedNeon = tempUpgrade.key; openNeones();
+            // Faros específicos por auto
+            if (!garage.ownedNeons[tempUpgrade.carKey]) garage.ownedNeons[tempUpgrade.carKey] = ['white'];
+            if (!garage.ownedNeons[tempUpgrade.carKey].includes(tempUpgrade.key)) {
+                garage.ownedNeons[tempUpgrade.carKey].push(tempUpgrade.key);
+            }
+            garage.selectedNeons[tempUpgrade.carKey] = tempUpgrade.key; 
+            openNeones();
         } else if (tempUpgrade.type === 'underglow') {
-            // Guardamos el neón de piso específicamente en el auto (carKey)
+            // Neón de piso específico por auto
             if (!garage.ownedUnderglows[tempUpgrade.carKey]) garage.ownedUnderglows[tempUpgrade.carKey] = ['none'];
             if (!garage.ownedUnderglows[tempUpgrade.carKey].includes(tempUpgrade.key)) {
                 garage.ownedUnderglows[tempUpgrade.carKey].push(tempUpgrade.key);
@@ -2066,11 +2081,31 @@ window.updateMenuRankUI = function() {
     
   window.openNeones = function() { 
         playSound('click'); hideAll(); updateShopCoinDisplays(); const container = document.getElementById("neon-container"); container.innerHTML = ""; 
+        
+        const ck = garage.selected; // Vemos qué auto estamos tuneando
+        if (!garage.ownedNeons[ck]) garage.ownedNeons[ck] = ['white']; // 'white' es el color de fábrica
+        if (!garage.selectedNeons[ck]) garage.selectedNeons[ck] = 'white';
+
         Object.keys(NEONES).forEach(k => { 
-            const n = NEONES[k], owned = garage.neonOwned.includes(k), selected = garage.selectedNeon === k, btn = document.createElement("div"); 
+            const n = NEONES[k];
+            const owned = garage.ownedNeons[ck].includes(k);
+            const selected = garage.selectedNeons[ck] === k;
+            
+            const btn = document.createElement("div"); 
             btn.style.cssText = `background:rgba(${n.color[0]},${n.color[1]},${n.color[2]},0.2); padding:10px; border-radius:15px; border: 2px solid ${selected ? '#fff' : 'transparent'}; cursor:pointer; font-size:11px; font-weight:bold;`; 
             btn.innerHTML = `${n.name}<br>${owned ? (selected ? 'EQUIPADO' : 'EQUIPAR') : '$' + n.price.toLocaleString()}`; 
-            btn.onclick = () => { playSound('click'); if(owned) { garage.selectedNeon = k; save(); openNeones(); } else { if(garage.coins < n.price) { showToast("ERROR", "Faltan monedas"); return; } tempUpgrade = { type: 'neon', key: k, cost: n.price }; document.getElementById("modal-title").innerText = "COMPRAR LUZ"; document.getElementById("modal-desc").innerHTML = `¿Instalar neón ${n.name} por $${n.price.toLocaleString()}?`; document.getElementById("upgrade-modal").classList.remove("hidden"); } }; 
+            btn.onclick = () => { 
+                playSound('click'); 
+                if(owned) { 
+                    garage.selectedNeons[ck] = k; save(); openNeones(); 
+                } else { 
+                    if(garage.coins < n.price) { showToast("ERROR", "Faltan monedas"); return; } 
+                    tempUpgrade = { type: 'neon', key: k, carKey: ck, cost: n.price }; 
+                    document.getElementById("modal-title").innerText = "COMPRAR LUZ"; 
+                    document.getElementById("modal-desc").innerHTML = `¿Instalar ${n.name} por $${n.price.toLocaleString()}?`; 
+                    document.getElementById("upgrade-modal").classList.remove("hidden"); 
+                } 
+            }; 
             container.appendChild(btn); 
         }); 
         document.getElementById("shop-neones").classList.remove("hidden"); 
