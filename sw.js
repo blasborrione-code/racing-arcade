@@ -1,4 +1,4 @@
-const CACHE_NAME = 'racing-game-v20.3.18'; 
+const CACHE_NAME = 'racing-game-v20.3.19'; 
 
 const urlsToCache = [
   'index.html',
@@ -19,8 +19,6 @@ const urlsToCache = [
   'Items/valla.png',
   'Items/cono.png',
 
-  // --- ENTORNO ---
-  'Entorno/arbol_1.png',
 
   // --- NPCS (TRÁFICO) Y POLICÍA ---
   'Autos/camion_cisterna.png',
