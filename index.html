@@ -450,7 +450,7 @@ try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let soundEnabled = true;
     
-    const sonidos = {
+   const sonidos = {
         motor: { url: 'sonidos/motor.m4a', buffer: null, source: null },
         music_menu: { url: 'sonidos/music_menu.m4a', buffer: null, source: null },
         music_race: { url: 'sonidos/music_race.m4a', buffer: null, source: null },
@@ -462,7 +462,8 @@ try {
         game_over: { url: 'sonidos/game_over.mp3', buffer: null },
         near: { url: 'sonidos/near.mp3', buffer: null },
         heart: { url: 'sonidos/heart.mp3', buffer: null },
-        fuel: { url: 'sonidos/fuel.m4a', buffer: null }
+        fuel: { url: 'sonidos/fuel.m4a', buffer: null },
+        siren: { url: 'sonidos/siren.mp3', buffer: null, source: null } // <--- NUEVO
     };
 
     async function cargarSonidos() {
@@ -707,6 +708,7 @@ try {
         { id: 'fuel', descBase: "Agarra Bidones de Nafta", prop: 'fuelsThisRun', baseGoal: 3, baseReward: 150 },
         { id: 'cones', descBase: "Choca Conos de Obra", prop: 'conesThisRun', baseGoal: 5, baseReward: 100 },
         { id: 'police', descBase: "Escapa de la Policía (Estrellas)", prop: 'escapesThisRun', baseGoal: 1, baseReward: 300 }
+        { id: 'speed', descBase: "Mantén Vel. Máxima (Segs)", prop: 'speedTimeThisRun', baseGoal: 15, baseReward: 200 }
     ];
 
     // Función para generar una misión con dificultad aleatoria
@@ -731,7 +733,12 @@ try {
         };
     }
 
-    const MILESTONES = { totalDist: [1000, 5000, 10000, 50000, 100000], totalCoins: [500, 2000, 5000, 10000, 50000], totalPlays: [10, 50, 100, 250, 500], totalNear: [50, 200, 500, 1000, 5000] };
+  const MILESTONES = { 
+        totalDist: [1000, 5000, 10000, 50000, 100000, 250000, 500000, 1000000, 2500000, 5000000], 
+        totalCoins: [500, 2000, 5000, 10000, 50000, 100000, 250000, 500000, 1000000, 5000000], 
+        totalPlays: [10, 50, 100, 250, 500, 1000, 2000, 5000, 10000, 25000], 
+        totalNear: [50, 200, 500, 1000, 5000, 10000, 25000, 50000, 100000, 250000] 
+    };
 
    const NEONES = {
         'white': { name: 'BLANCO', color: [255, 250, 200], price: 0 }, 'blue': { name: 'AZUL', color: [0, 200, 255], price: 5000 }, 'green': { name: 'VERDE', color: [50, 255, 50], price: 5000 }, 'red': { name: 'ROJO', color: [255, 50, 50], price: 5000 }, 'pink': { name: 'ROSA', color: [255, 50, 255], price: 5000 }, 'gold': { name: 'ORO', color: [255, 215, 0], price: 10000 }, 'orange': { name: 'NARANJA', color: [255, 100, 0], price: 5000 }, 'purple': { name: 'MORADO OSCURO', color: [128, 0, 128], price: 5000 }, 'cyan': { name: 'CIAN', color: [0, 255, 255], price: 5000 }, 'emerald': { name: 'VERDE CLARO', color: [0, 200, 100], price: 5000 }, 'uv': { name: 'ULTRAVIOLETA', color: [138, 43, 226], price: 15000 }
@@ -1229,6 +1236,7 @@ window.updateMenuRankUI = function() {
 
     let state = "LOADING", currentSpeed = 0, roadY = 0, score = 0, fuel = 100, lives = 3, level = 1, shopIndex = 0, lastTime = 0, puntosSospecha = 0, estrellas = 0, arresto = 0, isArresting = false;
     let player = { x: 0, y: 0, vx: 0, w: 0, h: 0 }, enemies = [], items = [], scenery = [], keys = {}, nmT = null, isS = false, expObj = null, coinsThisRun = 0, nearMissesThisRun = 0, fuelsThisRun = 0, conesThisRun = 0, escapesThisRun = 0, heartSpawnedInLevel = false, hasRevived = false, lastReason = "", reviveCounter = 5, reviveInterval = null, screenShake = 0, magnetTimer = 0;
+    let speedTimeThisRun = 0, comboTimer = 0, comboCount = 0, comboMultiplier = 1;
     let constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
     
     // --- PUNTO A: VARIABLE DE ZOOM AGREGADA ---
@@ -1274,7 +1282,8 @@ window.updateMenuRankUI = function() {
 
         currentSpeed = 0; roadY = 0; level = 1; puntosSospecha = 0; estrellas = 0; arresto = 0; isArresting = false;
         enemies = []; items = []; scenery = []; expObj = null; heartSpawnedInLevel = true; 
-        coinsThisRun = 0; nearMissesThisRun = 0; fuelsThisRun = 0; conesThisRun = 0; escapesThisRun = 0; hasRevived = false; screenShake = 0;
+       coinsThisRun = 0; nearMissesThisRun = 0; fuelsThisRun = 0; conesThisRun = 0; escapesThisRun = 0; hasRevived = false; screenShake = 0;
+        speedTimeThisRun = 0; comboTimer = 0; comboCount = 0; comboMultiplier = 1;
         magnetTimer = 0; constEvent = { active: false, lane: -1, remaining: 0, spawnTimer: 0, isFirst: true, coneDist: 0 };
         state = "PLAYING"; hideAll(); document.getElementById("btn-pause-trigger").style.display = "flex"; 
         lastTime = performance.now(); if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1384,6 +1393,22 @@ window.updateMenuRankUI = function() {
         fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
         if(screenShake > 0.1) screenShake *= 0.85; if(magnetTimer > 0) magnetTimer -= dt;
         actualizarMotor(currentSpeed);
+        // --- 1. Misión de Velocidad Máxima ---
+        if (currentSpeed >= mSpd * 0.95) speedTimeThisRun += (dt / 60);
+
+        // --- 2. Temporizador de Combos ---
+        if (comboTimer > 0) {
+            comboTimer -= dt;
+            if (comboTimer <= 0) { comboCount = 0; comboMultiplier = 1; }
+        }
+
+        // --- 3. Sirena de Policía Dinámica ---
+        let hayPolicia = enemies.some(e => e.type === 'police' && e.isChaser);
+        if (hayPolicia && soundEnabled && (!sonidos.siren || !sonidos.siren.source)) {
+            playSound('siren', true);
+        } else if (!hayPolicia && sonidos.siren && sonidos.siren.source) {
+            stopSound('siren');
+        }
         
         if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
             constEvent.active = true; constEvent.lane = Math.random() < 0.5 ? 0 : 3; 
@@ -1549,9 +1574,22 @@ window.updateMenuRankUI = function() {
             if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
             if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
 
-            if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
+           if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
                 en.nm = true; playSound('near'); if (navigator.vibrate) navigator.vibrate([10, 30, 10]); 
-                garage.coins += 10; nearMissesThisRun++; puntosSospecha -= 5; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
+                
+                // LÓGICA DE COMBO NEAR MISS
+                comboTimer = 180; // 3 segundos aprox
+                comboCount++;
+                comboMultiplier = Math.min(5, comboCount); // Tope máximo de multiplicador x5
+                
+                let ganancia = 10 * comboMultiplier;
+                garage.coins += ganancia; 
+                coinsThisRun += ganancia;
+                nearMissesThisRun++; puntosSospecha -= 5; fuel = Math.min(100, fuel + 7.5); nmT = {y: player.y, t: 40}; screenShake = 1.5; 
+                
+                if (comboMultiplier > 1) {
+                    showToast("🔥 ¡COMBO x" + comboMultiplier + "!", "+" + ganancia + " Monedas");
+                }
             }
 
             if (checkCollision(player, en)) {
@@ -1856,13 +1894,14 @@ window.updateMenuRankUI = function() {
         document.getElementById("menu").classList.remove("hidden"); 
         stopSound('music_race'); 
         stopSound('motor'); 
+        stopSound('siren'); // <--- NUEVA LÍNEA: Apaga la sirena al volver al menú
         playSound('music_menu', true); 
         updateUI(); 
         actualizarEstructuraMisiones();
         updateMenuRankUI(); 
         checkDailyLogin(); // ESTO HACE QUE SALTE EL CARTEL
         
-        updateMissionsNotification(); // <--- AGREGÁ ESTA LÍNEA ACÁ
+        updateMissionsNotification();
     }
     
     function hideAll() { document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden')); }
@@ -1984,9 +2023,13 @@ window.updateMenuRankUI = function() {
 
     function spawnScenery() { let s = Math.random() < 0.5 ? 2 : 365; if(!scenery.some(obj => Math.abs(obj.y - (-120)) < 200)) scenery.push({ x: s, y: -120, w: 35, h: 55, img: sceneryAssets.arboles[0] }); }
 
-    function endGame(r) { 
+   function endGame(r) { 
         state = "PAUSED"; lastReason = r; document.getElementById("btn-pause-trigger").style.display = "none"; 
-        stopSound('motor'); stopSound('music_race'); playSound('crash'); playSound('game_over');
+        stopSound('motor'); 
+        stopSound('music_race'); 
+        stopSound('siren'); // <--- NUEVA LÍNEA: Apaga la sirena al perder
+        playSound('crash'); 
+        playSound('game_over');
         if (navigator.vibrate) navigator.vibrate([100, 50, 150]);
         if (!hasRevived && r !== "OBRAS: MUERTE INSTANTÁNEA") startReviveCountdown(); 
         else finishGame(); 
@@ -2047,6 +2090,7 @@ window.updateMenuRankUI = function() {
                 else if (m.prop === 'fuelsThisRun' && typeof fuelsThisRun !== 'undefined') m.progreso += fuelsThisRun;
                 else if (m.prop === 'conesThisRun' && typeof conesThisRun !== 'undefined') m.progreso += conesThisRun;
                 else if (m.prop === 'escapesThisRun' && typeof escapesThisRun !== 'undefined') m.progreso += escapesThisRun;
+                else if (m.prop === 'speedTimeThisRun' && typeof speedTimeThisRun !== 'undefined') m.progreso += Math.floor(speedTimeThisRun);
                 
                 // Topeamos en la meta para que no se pase del 100%
                 if (m.progreso >= m.meta) {
@@ -2060,7 +2104,7 @@ window.updateMenuRankUI = function() {
             showToast("¡MISIÓN LISTA!", `Tenés ${misionesCompletadas} premio(s) por cobrar en el menú`, true);
         }
 
-        Object.keys(MILESTONES).forEach(k => { let c = garage.unlockedLogros[k]; if(c < 5 && ((k === 'totalDist' ? garage.totalDist : k === 'totalCoins' ? garage.totalCoinsRec : k === 'totalNear' ? garage.totalNear : garage.totalPlays) >= MILESTONES[k][c])) { garage.unlockedLogros[k]++; garage.coins += 1000; showToast("LOGRO!", `Nivel ${c+1} de ${k}`, true); } });
+        Object.keys(MILESTONES).forEach(k => { let c = garage.unlockedLogros[k]; if(c < MILESTONES[k].length && ((k === 'totalDist' ? garage.totalDist : k === 'totalCoins' ? garage.totalCoinsRec : k === 'totalNear' ? garage.totalNear : garage.totalPlays) >= MILESTONES[k][c])) { garage.unlockedLogros[k]++; garage.coins += 1000; showToast("LOGRO!", `Nivel ${c+1} de ${k}`, true); } });
         save(); document.getElementById("game-over").classList.remove("hidden");
         document.getElementById("over-title").innerText = newRec ? "¡NUEVO RÉCORD!" : "FIN";
         document.getElementById("over-reason").innerText = lastReason;
@@ -2072,7 +2116,7 @@ window.updateMenuRankUI = function() {
     window.openShop = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-main").classList.remove("hidden"); }
     window.openConcesionario = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-cars").classList.remove("hidden"); shopIndex = Object.keys(MODELS).indexOf(garage.selected); updateShopUI(); }
    window.openMejoras = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); document.getElementById("shop-upgrades").classList.remove("hidden"); document.getElementById("upgrade-car-preview").src = getCarImg(garage.selected); currentUpgradeIndex = 0; updateUpgradeUI(); renderColorSelector(); }
-    window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(k => { let cur = garage.unlockedLogros[k], val = (k === 'totalDist') ? garage.totalDist : (k === 'totalCoins') ? garage.totalCoinsRec : (k === 'totalNear') ? garage.totalNear : garage.totalPlays; const d = document.createElement("div"); d.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; d.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${k.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < 5 ? val.toLocaleString() + ' / ' + MILESTONES[k][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(d); }); document.getElementById("shop-logros").classList.remove("hidden"); }
+   window.openLogros = function() { playSound('click'); hideAll(); updateShopCoinDisplays(); const cont = document.getElementById("logros-container"); cont.innerHTML = ""; Object.keys(MILESTONES).forEach(k => { let cur = garage.unlockedLogros[k], val = (k === 'totalDist') ? garage.totalDist : (k === 'totalCoins') ? garage.totalCoinsRec : (k === 'totalNear') ? garage.totalNear : garage.totalPlays; const d = document.createElement("div"); d.style.cssText = "background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; margin-bottom:10px; border-left: 4px solid var(--weekly-clr);"; d.innerHTML = `<small style="color:var(--weekly-clr); font-weight:800;">${k.toUpperCase()} - NIVEL ${cur}</small><br><b>${cur < MILESTONES[k].length ? val.toLocaleString() + ' / ' + MILESTONES[k][cur].toLocaleString() : 'MAX'}</b>`; cont.appendChild(d); }); document.getElementById("shop-logros").classList.remove("hidden"); }
     
 // --- FUNCIÓN PARA COBRAR LAS MISIONES ---
     window.reclamarMision = function(index) {
