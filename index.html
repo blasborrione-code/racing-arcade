@@ -664,9 +664,16 @@ try {
 
     window.requestFullScreen = function() {
         let elem = document.documentElement;
-        if (elem.requestFullscreen) elem.requestFullscreen();
-        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-        else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+        try {
+            if (elem.requestFullscreen) {
+                let req = elem.requestFullscreen();
+                if (req !== undefined) req.catch(e => console.warn("Fullscreen API:", e));
+            }
+            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+            else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+        } catch (err) {
+            console.warn("Fullscreen no soportada", err);
+        }
     }
 
     const assets = { 
@@ -1795,8 +1802,10 @@ window.updateMenuRankUI = function() {
         ctx.fillStyle = "#2c3e50"; ctx.fillRect(35, 0, 330, 750); 
         ctx.fillStyle = "#34495e"; for(let ay = (roadY%100)-100; ay < 750; ay+=50) { ctx.fillRect(100, ay, 2, 10); ctx.fillRect(300, ay+25, 2, 10); } 
         ctx.fillStyle = "rgba(255,255,255,0.1)"; for(let i = -150; i < 900; i += 150) { ctx.fillRect(115, i + (roadY % 150), 2, 50); ctx.fillRect(200, i + (roadY % 150), 2, 50); ctx.fillRect(285, i + (roadY % 150), 2, 50); } 
-        scenery.forEach(s => { if(s.img.complete) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
-        items.forEach(it => { if(it.img.complete) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
+        
+        // FIX: Agregado naturalWidth > 0 a escenario e ítems
+        scenery.forEach(s => { if(s.img && s.img.complete && s.img.naturalWidth > 0) ctx.drawImage(s.img, s.x, s.y, s.w, s.h); }); 
+        items.forEach(it => { if(it.img && it.img.complete && it.img.naturalWidth > 0) ctx.drawImage(it.img, it.x, it.y, it.w, it.h); }); 
         if(night) { ctx.fillStyle = "rgba(0, 0, 0, 0.70)"; ctx.fillRect(0,0,400,750); } 
         
         enemies.forEach(en => {
@@ -1808,7 +1817,11 @@ window.updateMenuRankUI = function() {
                 if (en.type === 'obs') { 
                     let sc = Math.max(0.1, 1 - (en.y - 550) * 0.003); ctx.scale(sc, sc); 
                 }
-                ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h); 
+                
+                // FIX: Verificación de imagen rota para los choques
+                if (en.img && en.img.complete && en.img.naturalWidth > 0) {
+                    ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h); 
+                }
                 
                 // Efecto de humo animado para autos destruidos
                 if (en.crashed) {
@@ -1820,7 +1833,9 @@ window.updateMenuRankUI = function() {
             } 
            else {
                 if (en.type !== 'obs' && (sunset || rain || night)) drawProHeadlights(en.x, en.y, en.w, en.h, false, night, sunset, rain);
-                if (en.img.complete) ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
+                
+                // FIX: Verificación de imagen rota para el tráfico normal
+                if (en.img && en.img.complete && en.img.naturalWidth > 0) ctx.drawImage(en.img, en.x, en.y, en.w, en.h);
                 
                 // --- CUENTA REGRESIVA VISUAL SOBRE EL AUTO ---
                 if (en.type === 'racer' && !en.isRacing && en.raceTimer > 0) {
@@ -1873,7 +1888,9 @@ window.updateMenuRankUI = function() {
                 ctx.beginPath(); ctx.arc(player.x + player.w/2 - 5, humoY, 12 + Math.random()*6, 0, Math.PI * 2); ctx.fill();
                 ctx.beginPath(); ctx.arc(player.x + player.w/2 + 5, humoY + 12, 10 + Math.random()*6, 0, Math.PI * 2); ctx.fill();
             }
-        if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
+        
+        // FIX: Protegemos la animación de la explosión si el archivo falta
+        if(expObj && assets.exp && assets.exp.complete && assets.exp.naturalWidth > 0) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
         if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } 
         if (estrellas >= 1) {
             ctx.fillStyle = (Math.floor(performance.now() / 300) % 2 === 0) ? "rgba(255, 0, 0, 0.15)" : "rgba(0, 0, 255, 0.15)";
