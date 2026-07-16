@@ -505,17 +505,22 @@ try {
         source.buffer = sonidos[name].buffer;
         source.loop = loop;
         const gainNode = audioCtx.createGain();
+        
         if (name === 'motor') gainNode.gain.value = 0.6;        
         else if (name.includes('music')) gainNode.gain.value = 0.25; 
         else if (name === 'coin') gainNode.gain.value = 0.2;    
         else if (name === 'near') gainNode.gain.value = 0.5; 
         else if (name === 'heart') gainNode.gain.value = 0.6;
         else if (name === 'fuel') gainNode.gain.value = 0.4;
+        else if (name === 'siren') gainNode.gain.value = 0.3; // Volumen base de la sirena
         else gainNode.gain.value = 0.8;                        
+        
         source.connect(gainNode);
         gainNode.connect(audioCtx.destination);
         source.start(0);
         sonidos[name].source = source;
+        // Guardamos el control de volumen para poder alterarlo mientras suena
+        sonidos[name].gainNode = gainNode; 
     }
 
     function stopSound(name) {
@@ -1403,11 +1408,27 @@ window.updateMenuRankUI = function() {
         }
 
         // --- 3. Sirena de Policía Dinámica ---
-        let hayPolicia = enemies.some(e => e.type === 'police' && e.isChaser);
-        if (hayPolicia && soundEnabled && (!sonidos.siren || !sonidos.siren.source)) {
-            playSound('siren', true);
-        } else if (!hayPolicia && sonidos.siren && sonidos.siren.source) {
-            stopSound('siren');
+        if (soundEnabled && sonidos.siren && sonidos.siren.buffer) {
+            if (estrellas >= 1) {
+                // Si la sirena no está sonando, la prendemos
+                if (!sonidos.siren.source) {
+                    playSound('siren', true);
+                }
+                
+                // Regulamos el volumen según el nivel de búsqueda
+                if (sonidos.siren.gainNode) {
+                    if (estrellas === 1) {
+                        // A lo lejos (Volumen súper bajito)
+                        sonidos.siren.gainNode.gain.value = 0.04; 
+                    } else {
+                        // Persecución intensa (Volumen normal/fuerte)
+                        sonidos.siren.gainNode.gain.value = 0.3; 
+                    }
+                }
+            } else {
+                // 0 Estrellas: apagamos la sirena
+                if (sonidos.siren.source) stopSound('siren');
+            }
         }
         
         if(!constEvent.active && level >= 3 && Math.random() < 0.0005 * dt) {
@@ -1852,7 +1873,6 @@ window.updateMenuRankUI = function() {
                 ctx.beginPath(); ctx.arc(player.x + player.w/2 - 5, humoY, 12 + Math.random()*6, 0, Math.PI * 2); ctx.fill();
                 ctx.beginPath(); ctx.arc(player.x + player.w/2 + 5, humoY + 12, 10 + Math.random()*6, 0, Math.PI * 2); ctx.fill();
             }
-        }
         if(expObj) ctx.drawImage(assets.exp, expObj.x, expObj.y, 140, 140); 
         if(sunset) { ctx.fillStyle = "rgba(255, 100, 0, 0.2)"; ctx.fillRect(0,0,400,750); } 
         if (estrellas >= 1) {
