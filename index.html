@@ -463,7 +463,7 @@ try {
         near: { url: 'sonidos/near.mp3', buffer: null },
         heart: { url: 'sonidos/heart.mp3', buffer: null },
         fuel: { url: 'sonidos/fuel.m4a', buffer: null },
-        siren: { url: 'sonidos/siren.mp3', buffer: null, source: null } // <--- NUEVO
+        //siren: { url: 'sonidos/siren.mp3', buffer: null, source: null } // <--- NUEVO
     };
 
     async function cargarSonidos() {
@@ -1818,27 +1818,32 @@ window.updateMenuRankUI = function() {
             }
             ctx.restore();
         });
-       if(!expObj && assets.player.complete) { 
-            if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night, sunset, rain);
-            
-           // --- NEÓN DE PISO (UNDERGLOW) ---
-            const ck = garage.selected;
-            const activeGlow = garage.selectedUnderglows ? garage.selectedUnderglows[ck] : 'none';
+      if(!expObj) { 
+            // Primero verificamos si la imagen cargó bien
+            if (assets.player.complete && assets.player.naturalWidth > 0) {
+                if(sunset || rain || night) drawProHeadlights(player.x, player.y, player.w, player.h, true, night, sunset, rain);
+                
+                // --- NEÓN DE PISO (UNDERGLOW) ---
+                const ck = garage.selected;
+                const activeGlow = garage.selectedUnderglows ? garage.selectedUnderglows[ck] : 'none';
 
-            if (activeGlow && activeGlow !== 'none') {
-                ctx.save();
-                const uColor = UNDERGLOW[activeGlow].color;
+                if (activeGlow && activeGlow !== 'none') {
+                    ctx.save();
+                    const uColor = UNDERGLOW[activeGlow].color;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = `rgba(${uColor[0]}, ${uColor[1]}, ${uColor[2]}, 0.6)`;
+                    ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
+                    ctx.restore();
+                }
                 
-                ctx.shadowBlur = 12; // ¡ACÁ ACHICAMOS EL RADIO! (Antes 30, ahora 12 queda mucho más pegado al auto)
-                ctx.shadowColor = `rgba(${uColor[0]}, ${uColor[1]}, ${uColor[2]}, 0.6)`; // Un poco menos de opacidad
-                
-                // Dibujamos el auto para que proyecte la sombra
-                ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h); 
-                ctx.restore(); // Apagamos la sombra
+                // Dibujamos el auto real
+                ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h);
+            } else {
+                // Si la imagen falla, dibujamos un cuadrado rojo de emergencia
+                ctx.fillStyle = "red";
+                ctx.fillRect(player.x, player.y, player.w, player.h);
             }
-            
-            // Dibujamos el auto real (chasis)
-            ctx.drawImage(assets.player, player.x|0, player.y|0, player.w, player.h);
+        }
          
             // --- EFECTO DE DAÑO CRÍTICO (1 Vida restante) ---
             if (lives === 1) {
