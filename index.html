@@ -284,7 +284,46 @@ button{
 #menu #user-status{order:11;grid-column:1/-1;margin:0 !important;text-align:center}
 #menu .legal-link{order:12;grid-column:1/-1;margin:0 !important;text-align:center}
 #menu .ver-tag{order:13;grid-column:1/-1;position:static !important;text-align:center;opacity:.6}   
-</style>
+/* ===== AJUSTES: centrado + notificaciones + rango tocable (pegar al final, antes del cierre del style) ===== */
+
+/* 1) Centrar el menú */
+#menu .ui-card{
+  width:100% !important;
+  max-width:380px;
+  box-sizing:border-box;
+}
+
+/* 2) Notificación flotante nueva */
+#toast-container{
+  width:min(92vw,340px) !important;
+  top:calc(env(safe-area-inset-top,0px) + 70px) !important;
+}
+.toast{
+  --tc:#f1c40f;
+  position:relative;overflow:hidden;text-align:left;
+  padding:12px 16px 15px 18px;border-radius:16px;
+  border:1px solid rgba(255,255,255,.12);border-left:5px solid var(--tc);
+  background:linear-gradient(135deg,rgba(38,44,66,.97),rgba(10,12,22,.97));
+  box-shadow:0 10px 26px rgba(0,0,0,.55),0 0 18px rgba(241,196,15,.25);
+  animation:toastIn .45s cubic-bezier(.2,1.4,.4,1),fadeOut .4s 2.6s forwards;
+}
+.toast.logro{--tc:var(--weekly-clr);box-shadow:0 10px 26px rgba(0,0,0,.55),0 0 18px rgba(155,89,182,.4)}
+.toast b{display:block;color:var(--tc);font-size:11px;letter-spacing:2px;text-transform:uppercase}
+.toast b::before{content:"◆";margin-right:6px;font-size:9px;vertical-align:middle}
+.toast p{margin:4px 0 0;font-size:15px;font-weight:700;color:#fff;line-height:1.25}
+.toast::after{
+  content:"";position:absolute;left:0;bottom:0;height:3px;width:100%;
+  background:var(--tc);box-shadow:0 0 8px var(--tc);
+  animation:toastBar 3s linear forwards;
+}
+@keyframes toastIn{from{transform:translateY(-30px) scale(.92);opacity:0}to{transform:none;opacity:1}}
+@keyframes toastBar{to{width:0}}
+
+/* 3) El cuadro de rango se nota que se puede tocar */
+#menu #rank-display-menu{cursor:pointer;position:relative}
+#menu #rank-display-menu::after{content:"›";position:absolute;right:16px;top:50%;transform:translateY(-52%);font-size:30px;color:#fff;opacity:.6}
+#menu #rank-display-menu:active{filter:brightness(1.3)}
+    </style>
 </head>
 <body>
 
@@ -642,6 +681,71 @@ try {
         }
     }
 
+    // ===== PANTALLA DE RANGOS (pegar justo ANTES de la línea: function playSound(name, loop = false) {) =====
+window.openRanks = function () {
+    playSound('click');
+    // Si cambiás los metros en getRankInfo, cambialos también acá
+    const RANKS = [
+        { min: 0,      name: "NOVATO",       color: "#bdc3c7" },
+        { min: 2000,   name: "BRONCE",       color: "#cd7f32" },
+        { min: 5000,   name: "PLATA",        color: "#c0c0c0" },
+        { min: 10000,  name: "ORO",          color: "#f1c40f" },
+        { min: 20000,  name: "PLATINO",      color: "#3498db" },
+        { min: 40000,  name: "DIAMANTE",     color: "#5dade2" },
+        { min: 75000,  name: "GRAN_MAESTRO", color: "#9b59b6" },
+        { min: 120000, name: "LEYENDA",      color: "#e74c3c" }
+    ];
+    const mine = garage.seasonHigh || 0;
+    const cur = window.getRankInfo(mine);
+    const now = new Date();
+    const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+
+    let html = `<div style="text-align:center;font-size:11px;margin-bottom:12px;color:#bdc3c7;line-height:1.5;">
+        Tu mejor marca esta temporada: <b style="color:#fff">${Math.floor(mine).toLocaleString()}m</b><br>
+        La temporada termina en <b style="color:#f1c40f">${daysLeft}</b> día(s)</div>`;
+
+    RANKS.forEach((r, i) => {
+        const done = mine >= r.min;
+        const isCur = r.name === cur.name;
+        const next = RANKS[i + 1];
+        const nombre = r.name.replace('_', ' ');
+        let estado;
+        if (isCur) estado = `<span style="color:${r.color}">◀ TU RANGO</span>`;
+        else if (done) estado = `<span style="color:#2ecc71">✅ Logrado</span>`;
+        else estado = `<span style="color:#e67e22">🔒 Faltan ${Math.ceil(r.min - mine).toLocaleString()}m</span>`;
+
+        let barra = '';
+        if (isCur && next) {
+            const p = Math.min(100, ((mine - r.min) / (next.min - r.min)) * 100);
+            barra = `<div style="height:6px;background:rgba(255,255,255,.12);border-radius:4px;margin-top:6px;overflow:hidden">
+                <div style="width:${p}%;height:100%;background:${r.color}"></div></div>
+                <div style="font-size:10px;color:#bdc3c7;margin-top:3px">Próximo: ${next.name.replace('_', ' ')} en ${Math.ceil(next.min - mine).toLocaleString()}m</div>`;
+        }
+
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;border-radius:12px;
+            background:${isCur ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.04)'};
+            border:1px solid ${isCur ? r.color : 'transparent'};opacity:${(done || isCur) ? 1 : 0.65}">
+            <img src="Items/rank_${r.name}.png" style="width:36px;height:36px;object-fit:contain;${done ? '' : 'filter:grayscale(1);'}" onerror="this.style.visibility='hidden'">
+            <div style="flex:1">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <b style="color:${r.color};font-size:14px">${nombre}</b><span style="font-size:10px">${estado}</span>
+                </div>
+                <div style="font-size:11px;color:#bdc3c7">Desde ${r.min.toLocaleString()}m</div>
+                ${barra}
+            </div></div>`;
+    });
+
+    document.getElementById("info-title").innerText = "RANGOS";
+    const c = document.getElementById("info-content");
+    c.innerHTML = html;
+    c.style.maxHeight = "55vh";
+    c.style.overflowY = "auto";
+    document.getElementById("info-modal").classList.remove("hidden");
+};
+(function () {
+    const rk = document.getElementById("rank-display-menu");
+    if (rk) rk.addEventListener("click", window.openRanks);
+})();
     function playSound(name, loop = false) {
         if (state === "PLAYING") fxFromSound(name);
         if (!soundEnabled) return;
