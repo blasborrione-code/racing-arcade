@@ -1933,13 +1933,13 @@ function drawSpeedLines() {
 // ---------- AUTOS / ITEMS ----------
 function carShadow(x, y, w, h) {
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath();
-    ctx.ellipse(x + w / 2 + 3, y + h / 2 + 5, w * 0.55, h * 0.52, 0, 0, 6.283); ctx.fill();
+    ctx.ellipse(x + w / 2 + 3, y + h / 2 + 5, w * 0.42, h * 0.45, 0, 0, 6.283); ctx.fill();
 }
 function tailLights(x, y, w, h, brake) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    [x + w * 0.2, x + w * 0.8].forEach(cx => {
-        ctx.fillStyle = `rgba(255,30,30,${brake ? 0.35 : 0.15})`; ctx.beginPath(); ctx.arc(cx, y + h - 3, brake ? 12 : 8, 0, 6.283); ctx.fill();
-        ctx.fillStyle = `rgba(255,80,80,${brake ? 1 : 0.6})`; ctx.beginPath(); ctx.arc(cx, y + h - 3, brake ? 4 : 3, 0, 6.283); ctx.fill();
+    [x + w * 0.3, x + w * 0.7].forEach(cx => {
+        ctx.fillStyle = `rgba(255,30,30,${brake ? 0.35 : 0.15})`; ctx.beginPath(); ctx.arc(cx, y + h - 9, brake ? 8 : 5, 0, 6.283); ctx.fill();
+        ctx.fillStyle = `rgba(255,80,80,${brake ? 1 : 0.6})`; ctx.beginPath(); ctx.arc(cx, y + h - 9, brake ? 3 : 2, 0, 6.283); ctx.fill();
     });
     ctx.restore();
 }
@@ -1949,8 +1949,8 @@ function drawItem(it, t) {
     const cx = it.x + it.w / 2, cy = it.y + it.h / 2, pulse = 1 + 0.12 * Math.sin(t / 160 + it.x);
     if (glow) {
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = `rgba(${glow},0.12)`; ctx.beginPath(); ctx.arc(cx, cy, it.w * 1.3 * pulse, 0, 6.283); ctx.fill();
-        ctx.fillStyle = `rgba(${glow},0.2)`; ctx.beginPath(); ctx.arc(cx, cy, it.w * 0.8 * pulse, 0, 6.283); ctx.fill();
+        ctx.fillStyle = `rgba(${glow},0.12)`; ctx.beginPath(); ctx.arc(cx, cy, it.w * 0.85 * pulse, 0, 6.283); ctx.fill();
+        ctx.fillStyle = `rgba(${glow},0.2)`; ctx.beginPath(); ctx.arc(cx, cy, it.w * 0.5 * pulse, 0, 6.283); ctx.fill();
         ctx.restore();
     }
     ctx.save(); ctx.translate(cx, cy);
@@ -2033,10 +2033,10 @@ function draw() {
             if (activeGlow && activeGlow !== 'none') {
                 const u = UNDERGLOW[activeGlow].color;
                 ctx.save(); ctx.globalCompositeOperation = 'lighter';
-                ctx.translate(player.x + player.w / 2, player.y + player.h / 2); ctx.scale(1.3, 1);
-                const g = ctx.createRadialGradient(0, 0, 4, 0, 0, player.h * 0.7);
+                ctx.translate(player.x + player.w / 2, player.y + player.h / 2); ctx.scale(1.1, 1);
+                const g = ctx.createRadialGradient(0, 0, 4, 0, 0, player.h * 0.5);
                 g.addColorStop(0, `rgba(${u[0]},${u[1]},${u[2]},0.6)`); g.addColorStop(1, `rgba(${u[0]},${u[1]},${u[2]},0)`);
-                ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, player.h * 0.7, 0, 6.283); ctx.fill(); ctx.restore();
+                ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, player.h * 0.5, 0, 6.283); ctx.fill(); ctx.restore();
             }
             ctx.drawImage(assets.player, player.x | 0, player.y | 0, player.w, player.h);
             tailLights(player.x, player.y, player.w, player.h, !!keys["ArrowDown"]);
