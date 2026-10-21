@@ -3336,9 +3336,9 @@ const pu = document.createElement('div'); pu.id = 'pu-bar'; $('game-container').
 const cb = document.createElement('div'); cb.id = 'combo-box'; $('game-container').appendChild(cb);
 
 // ---------- ESTADO DE LA CARRERA ----------
-let cd = 0, cdLast = -1, shield = 0, x2 = 0, combo = 0, comboT = 0, nmCoins = 0, comboBonus = 0, bestMult = 1, capWarned = false, pups = [];
+let puClock = 0, puNext = 15, cd = 0, cdLast = -1, shield = 0, x2 = 0, combo = 0, comboT = 0, nmCoins = 0, comboBonus = 0, bestMult = 1, capWarned = false, pups = [];
 const mult = n => Math.min(MAX_MULT, 1 + Math.floor(n / 3));
-function resetRun() { shield = x2 = combo = comboT = nmCoins = comboBonus = 0; bestMult = 1; capWarned = false; pups = []; render(true); }
+function resetRun() { shield = x2 = combo = comboT = nmCoins = comboBonus = 0; bestMult = 1; capWarned = false; pups = []; puClock = 0; puNext = 12 + Math.random() * 8; render(true); }
 
 function render(clear) {
     let h = '';
@@ -3373,12 +3373,12 @@ function spawnPU() {
 const _up = update;
 update = function (dt) {
     if (cd > 0) {
-        cd -= dt / 60;
+        nmT = null; updateHUD(); cd -= dt / 60;
         const k = cd > 0.6 ? Math.ceil(cd - 0.6) : 0;
         if (k !== cdLast) { cdLast = k; playSound(k ? 'click' : 'near'); }
         return;
     }
-    if (level >= 2 && pups.length === 0 && Math.random() < PU_CHANCE * dt) spawnPU();
+    puClock += dt / 60; if (pups.length === 0 && puClock >= puNext) { spawnPU(); if (pups.length) { puClock = 0; puNext = 20 + Math.random() * 25; } }
     const l0 = lives, nm0 = nearMissesThisRun, tc0 = garage.totalCoinsRec, sh = shield > 0;
     if (sh) lives = l0 + 1;                 // vida temporal: el escudo absorbe 1 choque
     _up(dt);
