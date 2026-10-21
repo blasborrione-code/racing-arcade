@@ -3462,6 +3462,137 @@ window.finishGame = function () {
     } catch (e) { }
 };
 } catch (e) { console.error('Mejoras5:', e); } })();
+// ===== MEJORAS 6 - FASE 2, ENTREGA A (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras5) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+const nombre = n => n.replace('_', ' ');
+
+// ---------- PERILLAS ----------
+const PROBAR_TEMPORADA = '';   // Para probar el cartel de fin de temporada poné un rango entre las comillas, ej: 'LEYENDA'. Después volvé a dejarlo vacío ''.
+const NEON_ID = 's_arcoiris';
+const PREMIOS = {   // monedas y tickets según el mejor rango de la temporada
+    NOVATO: { coins: 500, tickets: 0 },        BRONCE: { coins: 1000, tickets: 0 },
+    PLATA: { coins: 3000, tickets: 1 },        ORO: { coins: 8000, tickets: 1 },
+    PLATINO: { coins: 15000, tickets: 2 },     DIAMANTE: { coins: 30000, tickets: 3 },
+    GRAN_MAESTRO: { coins: 50000, tickets: 4 }, LEYENDA: { coins: 80000, tickets: 6, neon: true }
+};
+
+// ---------- ESTILOS ----------
+const st = document.createElement('style');
+st.textContent = `
+#go-actions{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+#go-actions button{margin:0;padding:13px;font-size:12px;letter-spacing:1px}
+#go-actions b{color:#fff3b0}
+#season-reward{position:fixed;inset:0;z-index:3600;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,rgba(90,60,10,.6),rgba(0,0,0,.95))}
+#season-reward.show{display:flex;animation:screenIn .3s ease-out}
+.sr-card{width:min(90vw,340px);box-sizing:border-box;padding:24px 20px;text-align:center;border-radius:26px;background:linear-gradient(160deg,rgba(40,36,60,.97),rgba(8,10,16,.98));border:1px solid rgba(241,196,15,.6);box-shadow:0 0 50px rgba(241,196,15,.3)}
+.sr-card small{letter-spacing:3px;font-weight:900;color:#f1c40f;font-size:11px}
+.sr-card img{width:90px;height:90px;object-fit:contain;margin:10px 0 0;filter:drop-shadow(0 0 14px rgba(255,255,255,.4))}
+.sr-card h2{margin:4px 0;font-size:30px;font-style:italic;font-weight:900}
+.sr-card p{margin:0 0 14px;color:#bdc3c7;font-size:12px}
+.sr-list{background:rgba(255,255,255,.06);border-radius:16px;padding:10px;margin-bottom:16px;text-align:left;font-size:14px;font-weight:700;line-height:1.9}`;
+document.head.appendChild(st);
+
+// ---------- NEÓN EXCLUSIVO "ARCOÍRIS LEYENDA" (cambia de color solo) ----------
+const hsl = h => { const f = n => { const k = (n + h / 30) % 12; return Math.round(255 * (0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); }; return [f(0), f(8), f(4)]; };
+UNDERGLOW[NEON_ID] = { name: 'ARCOÍRIS LEYENDA', price: 0, get color() { return hsl((performance.now() / 20) % 360); } };
+const _ou = window.openUnderglow;   // en la tienda de neones: no se vende, solo aparece en los autos que lo ganaron
+window.openUnderglow = function () {
+    _ou.apply(this, arguments);
+    try { [...$('underglow-container').children].forEach(el => { if (el.textContent.includes('ARCOÍRIS') && el.textContent.includes('$')) el.style.display = 'none'; }); } catch (e) { }
+};
+
+// ---------- RECOMPENSA DE FIN DE TEMPORADA ----------
+const _cs = window.checkSeasonReset;
+window.checkSeasonReset = function () {
+    const now = new Date(), cur = `${now.getMonth()}-${now.getFullYear()}`;
+    if (garage.lastSeason && garage.lastSeason !== cur && (garage.seasonHigh || 0) > 0 && !garage.pendingSeasonReward)
+        garage.pendingSeasonReward = { rank: window.getRankInfo(garage.seasonHigh).name, meters: Math.floor(garage.seasonHigh) };
+    return _cs.apply(this, arguments);
+};
+const sr = document.createElement('div'); sr.id = 'season-reward'; document.body.appendChild(sr);
+function showSeasonReward() {
+    const p = garage.pendingSeasonReward; if (!p) return;
+    const r = PREMIOS[p.rank] || PREMIOS.NOVATO;
+    const color = { NOVATO: '#bdc3c7', BRONCE: '#cd7f32', PLATA: '#c0c0c0', ORO: '#f1c40f', PLATINO: '#3498db', DIAMANTE: '#5dade2', GRAN_MAESTRO: '#9b59b6', LEYENDA: '#e74c3c' }[p.rank] || '#fff';
+    sr.innerHTML = `<div class="sr-card"><small>🏆 TEMPORADA FINALIZADA</small>
+        <img src="Items/rank_${p.rank}.png" onerror="this.style.visibility='hidden'">
+        <h2 style="color:${color}">${nombre(p.rank)}</h2><p>${p.meters.toLocaleString()} m acumulados</p>
+        <div class="sr-list">💰 ${r.coins.toLocaleString()} monedas${r.tickets ? `<br>🎫 ${r.tickets} ticket${r.tickets > 1 ? 's' : ''} premium` : ''}${r.neon ? '<br>🌈 Neón exclusivo ARCOÍRIS LEYENDA<br><span style="font-size:11px;color:#bdc3c7;font-weight:400">para un auto al azar de tu garaje</span>' : ''}</div>
+        <button class="btn-green" id="sr-claim" style="margin:0">🎁 RECLAMAR</button></div>`;
+    sr.className = 'show'; playSound('near');
+    $('sr-claim').onclick = claimSeason;
+}
+function claimSeason() {
+    const p = garage.pendingSeasonReward; if (!p) return;
+    const r = PREMIOS[p.rank] || PREMIOS.NOVATO;
+    garage.coins += r.coins; garage.totalCoinsRec += r.coins; garage.tickets = (garage.tickets || 0) + r.tickets;
+    let msg = `+💰${r.coins.toLocaleString()}` + (r.tickets ? ` +🎫${r.tickets}` : '');
+    if (r.neon) {
+        const cand = garage.owned.filter(k => MODELS[k] && !(garage.ownedUnderglows[k] || []).includes(NEON_ID));
+        if (cand.length) {
+            const k = cand[(Math.random() * cand.length) | 0];
+            if (!garage.ownedUnderglows[k]) garage.ownedUnderglows[k] = ['none'];
+            garage.ownedUnderglows[k].push(NEON_ID); msg += ` · 🌈 ${MODELS[k].name}`;
+        } else { garage.coins += 20000; msg += ' +💰20.000 (ya tenés el neón en todos tus autos)'; }
+    }
+    garage.pendingSeasonReward = null; save(); updateUI(); playSound('coin');
+    sr.className = ''; showToast('🏆 RECOMPENSA DE TEMPORADA', msg, true);
+}
+const _sm = window.showMenu;
+window.showMenu = function () {
+    _sm.apply(this, arguments);
+    if (PROBAR_TEMPORADA && !garage.pendingSeasonReward) garage.pendingSeasonReward = { rank: PROBAR_TEMPORADA, meters: 1234567 };
+    if (garage.pendingSeasonReward) setTimeout(showSeasonReward, 700);
+};
+
+// ---------- GAME OVER: duplicar monedas + compartir ----------
+window.mostrarAnuncioRecompensado = function (cb) { showToast('ANUNCIO', 'Viendo video...'); setTimeout(cb, 2000); };   // más adelante acá va AdMob
+
+const loadImg = src => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+async function compartir(dist) {
+    const W = 800, H = 420, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+    const rk = window.getRankInfo(garage.seasonHigh || 0);
+    const [icon, car] = await Promise.all([loadImg(`Items/rank_${rk.name}.png`), loadImg(getCarImg(garage.selected))]);
+    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#4a1d8f'); bg.addColorStop(1, '#07040f'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(255,60,172,.35)'; g.lineWidth = 2; for (let x = 0; x <= W; x += 50) { g.beginPath(); g.moveTo(x, H); g.lineTo(W / 2 + (x - W / 2) * 0.35, H - 110); g.stroke(); }
+    g.textBaseline = 'alphabetic'; g.font = 'italic 900 44px Arial'; g.fillStyle = '#ffe259'; g.fillText('RACING ARCADE', 40, 70);
+    g.font = '700 20px Arial'; g.fillStyle = '#cfd6dd'; g.fillText('DISTANCIA', 40, 150);
+    g.font = 'italic 900 96px Arial'; g.lineWidth = 8; g.strokeStyle = '#000'; g.strokeText(dist.toLocaleString() + ' m', 40, 245); g.fillStyle = '#fff'; g.fillText(dist.toLocaleString() + ' m', 40, 245);
+    if (icon) g.drawImage(icon, 40, 285, 80, 80);
+    g.font = '900 38px Arial'; g.fillStyle = rk.color; g.fillText(nombre(rk.name), 135, 338);
+    g.font = '600 18px Arial'; g.fillStyle = '#cfd6dd'; g.fillText('¿Me superás?', 135, 366);
+    if (car) { const h = 300, w = car.width * h / car.height; g.drawImage(car, 600 - w / 2 + 60, 80, w, h); }
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    const text = `🏎️ Hice ${dist.toLocaleString()} m en Racing Arcade (rango ${nombre(rk.name)}). ¿Me superás? ${location.href}`;
+    try {
+        const file = new File([blob], 'racing-arcade.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], text });
+        else if (navigator.share) await navigator.share({ text });
+        else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'racing-arcade.png'; a.click(); }
+    } catch (e) { /* el usuario canceló */ }
+}
+const _fg = window.finishGame;
+window.finishGame = function () {
+    _fg.apply(this, arguments);
+    try {
+        const card = $('game-over').querySelector('.ui-card'), old = $('go-actions'); if (old) old.remove();
+        const gain = coinsThisRun, dist = Math.floor(score), row = document.createElement('div'); row.id = 'go-actions';
+        row.innerHTML = (gain > 0 ? `<button id="go-double" class="btn-orange">📺 DUPLICAR MONEDAS <b>+${gain.toLocaleString()}</b></button>` : '') + `<button id="go-share" class="btn-blue">📤 COMPARTIR RESULTADO</button>`;
+        card.insertBefore(row, card.querySelector('.btn-green'));
+        const d = $('go-double');
+        if (d) d.onclick = () => {
+            d.disabled = true; d.style.opacity = '.6';
+            window.mostrarAnuncioRecompensado(() => {
+                garage.coins += gain; save(); window.updateShopCoinDisplays(); playSound('coin');
+                d.innerHTML = '✅ MONEDAS DUPLICADAS'; showToast('📺 BONUS', `+💰${gain.toLocaleString()}`);
+                const t = document.querySelectorAll('.go-tile b')[1]; if (t) t.innerText = (gain * 2).toLocaleString();
+            });
+        };
+        $('go-share').onclick = () => compartir(dist);
+    } catch (e) { console.error(e); }
+};
+} catch (e) { console.error('Mejoras6:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
