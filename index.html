@@ -3593,6 +3593,143 @@ window.finishGame = function () {
     } catch (e) { console.error(e); }
 };
 } catch (e) { console.error('Mejoras6:', e); } })();
+// ===== MEJORAS 7 - FASE 2, ENTREGA B (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras6) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---------- PERILLAS ----------
+const PROBAR_PODIO = 0;   // Para probar el cartel del podio poné 1, 2 o 3. Después volvé a dejarlo en 0.
+const PODIO = { 1: { coins: 50000, tickets: 5, medal: '🥇' }, 2: { coins: 30000, tickets: 3, medal: '🥈' }, 3: { coins: 15000, tickets: 2, medal: '🥉' } };
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const mesId = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const lastToId = s => { const [m, y] = s.split('-'); return `${y}-${String(+m + 1).padStart(2, '0')}`; };
+
+// ---------- ESTILOS ----------
+const st = document.createElement('style');
+st.textContent = `
+.rk-tabs{display:flex;gap:6px;margin:0 0 10px}
+.rk-tabs button{margin:0;padding:10px;font-size:12px;opacity:.5}
+.rk-tabs button.on{opacity:1}
+.rk-info{font-size:10px;color:#bdc3c7;margin-bottom:8px;line-height:1.5;text-align:center}
+.rk-row{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;border-bottom:1px solid rgba(255,255,255,.05)}
+.rk-me{background:rgba(241,196,15,.15);color:#f1c40f}
+.rk-prizes{font-size:10px;color:#bdc3c7;margin-top:10px;line-height:1.6;text-align:left}
+#podio-reward{position:fixed;inset:0;z-index:3700;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,rgba(90,60,10,.6),rgba(0,0,0,.95))}
+#podio-reward.show{display:flex;animation:screenIn .3s ease-out}
+.pd-medal{font-size:84px;line-height:1;margin:8px 0}`;
+document.head.appendChild(st);
+
+// ---------- SINCRONIZAR CON FIREBASE ----------
+let lastSync = 0;
+async function syncRankings(force) {
+    if (!currentUser || !db) return;
+    if (!force && Date.now() - lastSync < 20000) return;
+    lastSync = Date.now();
+    const name = (currentUser.displayName || 'Piloto').slice(0, 40);
+    try {
+        if ((garage.high || 0) > 0)
+            await setDoc(doc(db, 'ranking_historico', currentUser.uid), { name, high: Math.min(300000, Math.floor(garage.high)), updated: Date.now() });
+        if ((garage.seasonHigh || 0) > 0)
+            await setDoc(doc(db, 'ranking_mensual', mesId(new Date()), 'jugadores', currentUser.uid),
+                { name, metros: Math.min(3000000, Math.floor(garage.seasonHigh)), coronas: Math.min(100, garage.coronas || 0), updated: Date.now() });
+    } catch (e) { console.warn('Ranking sync:', e); }
+}
+
+// ---------- PANTALLA DE RÁNKING (2 pestañas) ----------
+let tab = 'mes';
+const tabs = document.createElement('div'); tabs.className = 'rk-tabs';
+tabs.innerHTML = `<button class="btn-blue on" data-t="mes">📅 MES</button><button class="btn-orange" data-t="hist">🏆 RÉCORD</button>`;
+$('leaderboard-screen').querySelector('h1').after(tabs);
+tabs.querySelectorAll('button').forEach(b => b.onclick = () => { playSound('click'); cargar(b.dataset.t); });
+
+async function cargar(t) {
+    tab = t; tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+    const list = $('leaderboard-list'); list.innerHTML = 'Cargando...';
+    if (!db) { list.innerHTML = 'Error de DB'; return; }
+    const now = new Date(), mes = t === 'mes';
+    const campo = mes ? 'metros' : 'high', mine = mes ? (garage.seasonHigh || 0) : (garage.high || 0);
+    const col = mes ? collection(db, 'ranking_mensual', mesId(now), 'jugadores') : collection(db, 'ranking_historico');
+    try {
+        const snap = await getDocs(query(col, orderBy(campo, 'desc'), limit(20)));
+        if (tab !== t) return;
+        const dias = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+        let html = `<div class="rk-info">${mes ? `📅 ${MESES[now.getMonth()]} ${now.getFullYear()} · metros acumulados · termina en ${dias} día(s)` : 'Mejor distancia en una sola carrera'}</div>`;
+        let enTop = false, i = 0;
+        snap.forEach(d => {
+            const x = d.data(), me = currentUser && d.id === currentUser.uid; i++; if (me) enTop = true;
+            const pos = (mes && i <= 3) ? PODIO[i].medal : '#' + i;
+            html += `<div class="rk-row ${me ? 'rk-me' : ''}"><span>${pos} ${esc(x.name || 'Anónimo')}${x.coronas ? ` 👑×${x.coronas}` : ''}</span><b>${(x[campo] || 0).toLocaleString()}m</b></div>`;
+        });
+        if (!i) html += '<div class="rk-info">Todavía no hay nadie. ¡Sé el primero!</div>';
+        if (!currentUser) html += '<div class="rk-info" style="color:#f1c40f;margin-top:8px">Conectate con Google para aparecer en el ránking</div>';
+        else if (!enTop && mine > 0) {
+            let pos = '—';
+            try {
+                const { getCountFromServer, where } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                pos = '#' + ((await getCountFromServer(query(col, where(campo, '>', mine)))).data().count + 1);
+            } catch (e) { }
+            html += `<div class="rk-row rk-me" style="margin-top:6px"><span>${pos} Vos</span><b>${Math.floor(mine).toLocaleString()}m</b></div>`;
+        }
+        if (mes) html += `<div class="rk-prizes"><b style="color:#f1c40f">PREMIOS DEL PODIO (al cerrar el mes)</b><br>🥇 ${PODIO[1].coins.toLocaleString()} 💰 + ${PODIO[1].tickets} 🎫 + corona 👑<br>🥈 ${PODIO[2].coins.toLocaleString()} 💰 + ${PODIO[2].tickets} 🎫<br>🥉 ${PODIO[3].coins.toLocaleString()} 💰 + ${PODIO[3].tickets} 🎫</div>`;
+        list.innerHTML = html;
+    } catch (e) { console.warn(e); list.innerHTML = 'No se pudo cargar. Revisá tu conexión.'; }
+}
+const oldOpen = window.openRanking;
+window.openRanking = async function () {
+    playSound('click'); hideAll(); $('leaderboard-screen').classList.remove('hidden');
+    $('my-cloud-high').innerText = (garage.high || 0).toLocaleString();
+    await syncRankings(true); cargar(tab);
+};
+const rb = document.querySelector("#menu [onclick*='openRanking']") || $('menu').querySelectorAll('.ui-card > button')[5];
+if (rb) { if (oldOpen) rb.removeEventListener('click', oldOpen); rb.addEventListener('click', window.openRanking); }
+
+// ---------- PREMIOS DEL PODIO ----------
+const _cs = window.checkSeasonReset;
+window.checkSeasonReset = function () {
+    const now = new Date();
+    if (garage.lastSeason && garage.lastSeason !== `${now.getMonth()}-${now.getFullYear()}` && (garage.seasonHigh || 0) > 0 && !garage.pendingPodio)
+        garage.pendingPodio = lastToId(garage.lastSeason);
+    return _cs.apply(this, arguments);
+};
+async function evaluarPodio() {
+    const mes = garage.pendingPodio; if (!mes || !currentUser || !db) return;
+    try {
+        const snap = await getDocs(query(collection(db, 'ranking_mensual', mes, 'jugadores'), orderBy('metros', 'desc'), limit(3)));
+        let pos = 0; snap.docs.forEach((d, i) => { if (d.id === currentUser.uid) pos = i + 1; });
+        garage.pendingPodio = null; if (pos) garage.pendingPodioReward = { pos, mes }; save();
+    } catch (e) { console.warn('Podio:', e); }
+}
+const pd = document.createElement('div'); pd.id = 'podio-reward'; document.body.appendChild(pd);
+function showPodio() {
+    const p = garage.pendingPodioReward; if (!p) return;
+    if ($('season-reward') && $('season-reward').classList.contains('show')) { setTimeout(showPodio, 1200); return; }
+    const r = PODIO[p.pos], [y, m] = p.mes.split('-');
+    pd.innerHTML = `<div class="sr-card"><small>🏅 PODIO DE ${MESES[+m - 1].toUpperCase()} ${y}</small>
+        <div class="pd-medal">${r.medal}</div><h2 style="color:#f1c40f">PUESTO #${p.pos}</h2><p>del ránking mensual</p>
+        <div class="sr-list">💰 ${r.coins.toLocaleString()} monedas<br>🎫 ${r.tickets} tickets premium${p.pos === 1 ? '<br>👑 Corona de campeón (se muestra en el ránking)' : ''}</div>
+        <button class="btn-green" id="pd-claim" style="margin:0">🎁 RECLAMAR</button></div>`;
+    pd.className = 'show'; playSound('near');
+    $('pd-claim').onclick = () => {
+        const q = garage.pendingPodioReward; if (!q) return; const w = PODIO[q.pos];
+        garage.coins += w.coins; garage.totalCoinsRec += w.coins; garage.tickets = (garage.tickets || 0) + w.tickets;
+        if (q.pos === 1) garage.coronas = (garage.coronas || 0) + 1;
+        garage.pendingPodioReward = null; save(); updateUI(); playSound('coin'); pd.className = '';
+        showToast('🏅 PODIO', `+💰${w.coins.toLocaleString()} +🎫${w.tickets}` + (q.pos === 1 ? ' +👑' : ''), true);
+        syncRankings(true);
+    };
+}
+
+// ---------- ENGANCHES ----------
+const _sm = window.showMenu;
+window.showMenu = function () {
+    _sm.apply(this, arguments);
+    if (PROBAR_PODIO && !garage.pendingPodioReward) garage.pendingPodioReward = { pos: PROBAR_PODIO, mes: mesId(new Date()) };
+    setTimeout(async () => { await syncRankings(); await evaluarPodio(); if (garage.pendingPodioReward) showPodio(); }, 1500);
+};
+const _fg = window.finishGame;
+window.finishGame = function () { _fg.apply(this, arguments); syncRankings(true); };
+} catch (e) { console.error('Mejoras7:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
