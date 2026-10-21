@@ -3305,6 +3305,163 @@ $('shop-cars').querySelector('h1').innerText = 'AUTOS';   // para que no haya do
 const _st = window.showToast;
 window.showToast = function (t, m, a) { return _st.call(this, t, typeof m === 'string' ? m.replace('Mercado Negro', 'Tienda') : m, a); };
 } catch (e) { console.error('Mejoras4:', e); } })();
+// ===== MEJORAS 5 - FASE 1 (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras4) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+
+// ---------- PERILLAS (ajustá a gusto) ----------
+const COMBO_TIME = 3;      // segundos para encadenar el próximo near miss
+const MAX_MULT   = 4;      // multiplicador máximo del combo
+const BONUS_M    = 15;     // metros de bonus por near miss (se multiplica por el combo)
+const NM_COIN_CAP = 250;   // tope de monedas por near miss en UNA carrera
+const SHIELD_MAX = 20;     // segundos máximos del escudo (se gasta antes si absorbe un choque)
+const X2_TIME    = 15;     // segundos del x2 monedas
+const PU_CHANCE  = 0.0003; // probabilidad por cuadro de que aparezca un power-up (~1 cada 55 s)
+
+// ---------- ESTILOS (se inyectan solos) ----------
+const st = document.createElement('style');
+st.textContent = `
+#pu-bar{position:absolute;top:112px;left:14px;z-index:12;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.pu{position:relative;display:flex;align-items:center;gap:8px;padding:4px 12px 7px 8px;border-radius:999px;background:rgba(0,0,0,.6);border:1px solid var(--c);font-weight:900;font-size:13px;overflow:hidden}
+.pu i{position:absolute;left:0;bottom:0;height:3px;background:var(--c);box-shadow:0 0 6px var(--c)}
+#combo-box{position:absolute;top:116px;left:50%;transform:translateX(-50%);z-index:12;text-align:center;pointer-events:none;display:none;width:120px}
+#combo-box small{display:block;letter-spacing:3px;font-size:10px;font-weight:900;color:#ffd166}
+#combo-box b{display:block;font-size:46px;line-height:1;font-style:italic;font-weight:900;color:#fff;text-shadow:0 0 18px #ff7a3d,0 3px 6px rgba(0,0,0,.6)}
+#combo-box span{font-size:11px;color:#cfd6dd}
+#combo-box i{display:block;height:4px;border-radius:3px;background:linear-gradient(90deg,#ff7a3d,#ffd166);margin:4px auto 0}
+#combo-box.pop b{animation:cbPop .28s ease-out}
+@keyframes cbPop{0%{transform:scale(1.6)}100%{transform:scale(1)}}`;
+document.head.appendChild(st);
+const pu = document.createElement('div'); pu.id = 'pu-bar'; $('game-container').appendChild(pu);
+const cb = document.createElement('div'); cb.id = 'combo-box'; $('game-container').appendChild(cb);
+
+// ---------- ESTADO DE LA CARRERA ----------
+let cd = 0, cdLast = -1, shield = 0, x2 = 0, combo = 0, comboT = 0, nmCoins = 0, comboBonus = 0, bestMult = 1, capWarned = false, pups = [];
+const mult = n => Math.min(MAX_MULT, 1 + Math.floor(n / 3));
+function resetRun() { shield = x2 = combo = comboT = nmCoins = comboBonus = 0; bestMult = 1; capWarned = false; pups = []; render(true); }
+
+function render(clear) {
+    let h = '';
+    if (!clear && shield > 0) h += `<div class="pu" style="--c:#6fd0ff">🛡️ ESCUDO<i style="width:${shield / SHIELD_MAX * 100}%"></i></div>`;
+    if (!clear && x2 > 0) h += `<div class="pu" style="--c:#ffc83d">💰 x2 · ${Math.ceil(x2)}s<i style="width:${x2 / X2_TIME * 100}%"></i></div>`;
+    if (pu.dataset.h !== h) { pu.innerHTML = h; pu.dataset.h = h; }
+    if (clear || combo < 2) { cb.style.display = 'none'; return; }
+    cb.style.display = 'block';
+    cb.innerHTML = `<small>COMBO</small><b>x${mult(combo)}</b><span>${combo} cerca</span><i style="width:${comboT / COMBO_TIME * 100}%"></i>`;
+}
+
+// ---------- CUENTA REGRESIVA 3-2-1 ----------
+const _sgl = startGameLogic;
+startGameLogic = function () { resetRun(); cd = 3.6; cdLast = -1; _sgl(); };
+const _cr = window.confirmRevive;
+window.confirmRevive = function () { cd = 2.6; cdLast = -1; _cr.apply(this, arguments); };
+
+// ---------- POWER-UPS ----------
+function grant(t) {
+    const x = player.x + player.w / 2, y = player.y;
+    if (t === 'shield') { shield = SHIELD_MAX; showToast('🛡️ ESCUDO', 'Aguanta un choque'); playSound('heart'); fxBurst('magnet', x, y); }
+    else { x2 = X2_TIME; showToast('💰 x2 MONEDAS', X2_TIME + ' segundos'); playSound('fuel'); fxBurst('coin', x, y); }
+}
+function spawnPU() {
+    const tipos = []; if (shield <= 0) tipos.push('shield'); if (x2 <= 0) tipos.push('x2');
+    if (!tipos.length) return;
+    let lanes = [76.25, 158.75, 241.25, 323.75]; if (constEvent.active) lanes = lanes.filter((_, i) => i !== constEvent.lane);
+    pups.push({ x: lanes[(Math.random() * lanes.length) | 0] - 17, y: -50, w: 34, h: 34, t: tipos[(Math.random() * tipos.length) | 0] });
+}
+
+// ---------- UPDATE: countdown + combo + power-ups ----------
+const _up = update;
+update = function (dt) {
+    if (cd > 0) {
+        cd -= dt / 60;
+        const k = cd > 0.6 ? Math.ceil(cd - 0.6) : 0;
+        if (k !== cdLast) { cdLast = k; playSound(k ? 'click' : 'near'); }
+        return;
+    }
+    if (level >= 2 && pups.length === 0 && Math.random() < PU_CHANCE * dt) spawnPU();
+    const l0 = lives, nm0 = nearMissesThisRun, tc0 = garage.totalCoinsRec, sh = shield > 0;
+    if (sh) lives = l0 + 1;                 // vida temporal: el escudo absorbe 1 choque
+    _up(dt);
+    if (sh) {
+        if (lives >= l0 + 1) lives -= 1;
+        else { shield = 0; showToast('🛡️ ESCUDO', '¡Absorbió el choque!'); emit(player.x + player.w / 2, player.y + player.h / 2, 24, { speed: 6, life: 24, size: 3, color: '120,210,255', add: true }); }
+        updateHUD();
+    }
+    if (state !== 'PLAYING') return;
+
+    // x2 monedas (solo monedas recogidas, no near miss)
+    const d = garage.totalCoinsRec - tc0;
+    if (x2 > 0 && d > 0) { garage.coins += d; coinsThisRun += d; garage.totalCoinsRec += d; }
+
+    // combo + tope de monedas por near miss
+    for (let k = nearMissesThisRun - nm0; k > 0; k--) {
+        if (nmCoins + 10 > NM_COIN_CAP) {
+            garage.coins -= 10; coinsThisRun -= 10;
+            if (!capWarned) { capWarned = true; showToast('TOPE', 'Máximo de monedas por near miss en esta carrera'); }
+        } else nmCoins += 10;
+        combo++; comboT = COMBO_TIME;
+        const m = mult(combo), b = BONUS_M * m; score += b; comboBonus += b; bestMult = Math.max(bestMult, m);
+        cb.classList.remove('pop'); void cb.offsetWidth; cb.classList.add('pop');
+    }
+    if (comboT > 0) { comboT -= dt / 60; if (comboT <= 0) combo = 0; }
+    if (shield > 0) { shield -= dt / 60; if (shield < 0) shield = 0; }
+    if (x2 > 0) { x2 -= dt / 60; if (x2 < 0) x2 = 0; }
+
+    // power-ups en pista
+    for (let i = pups.length - 1; i >= 0; i--) {
+        const p = pups[i]; p.y += currentSpeed * dt;
+        if (checkCollision(player, p)) { pups.splice(i, 1); grant(p.t); }
+        else if (p.y > 800) pups.splice(i, 1);
+    }
+    render(false);
+};
+
+// un choque corta el combo
+const _ff = fxFromSound;
+fxFromSound = function (name) { if (name === 'crash') { combo = 0; } _ff(name); };
+
+// ---------- DIBUJO: power-ups, escudo y cuenta regresiva ----------
+const _dr = draw;
+draw = function () {
+    _dr();
+    const t = performance.now();
+    pups.forEach(p => {
+        const cx = p.x + p.w / 2, cy = p.y + p.h / 2, k = 0.5 + 0.5 * Math.sin(t / 200), col = p.t === 'shield' ? '90,190,255' : '255,200,40';
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        const g = ctx.createRadialGradient(cx, cy, 3, cx, cy, 34); g.addColorStop(0, `rgba(${col},${0.35 + 0.2 * k})`); g.addColorStop(1, `rgba(${col},0)`);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 34, 0, 6.283); ctx.fill(); ctx.restore();
+        ctx.fillStyle = '#0d1320'; ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, 16, 0, 6.283); ctx.fill(); ctx.stroke();
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+        if (p.t === 'shield') { ctx.font = '18px Arial'; ctx.fillText('🛡️', cx, cy + 1); }
+        else { ctx.font = '900 15px Arial'; ctx.fillStyle = '#ffc83d'; ctx.fillText('x2', cx, cy + 1); }
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    });
+    if (shield > 0 && (shield > 3 || Math.floor(t / 120) % 2)) {
+        const cx = player.x + player.w / 2, cy = player.y + player.h / 2, r = Math.max(player.w, player.h) * 0.72, k = 0.5 + 0.5 * Math.sin(t / 150);
+        ctx.fillStyle = 'rgba(80,180,255,.14)'; ctx.strokeStyle = `rgba(130,215,255,${0.6 + 0.4 * k})`; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.fill(); ctx.stroke();
+    }
+    if (cd > 0) {
+        const x = cd - 0.6, big = x > 0, num = Math.ceil(x), txt = big ? String(num) : '¡YA!';
+        const frac = big ? num - x : 1 - cd / 0.6, sc = 1.5 - 0.5 * Math.min(1, frac * 4), al = frac > 0.8 ? (1 - frac) / 0.2 : 1;
+        ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, 400, 750);
+        ctx.translate(200, 330); ctx.scale(sc, sc); ctx.globalAlpha = Math.max(0, al); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = big ? 'italic 900 150px Arial' : 'italic 900 90px Arial'; ctx.lineWidth = 10; ctx.strokeStyle = '#000'; ctx.strokeText(txt, 0, 0);
+        ctx.fillStyle = !big ? '#5dff9d' : num === 3 ? '#ff4d4d' : num === 2 ? '#ffd400' : '#5dff9d'; ctx.fillText(txt, 0, 0); ctx.restore();
+    }
+};
+
+// ---------- GAME OVER: resumen del combo ----------
+const _fg = window.finishGame;
+window.finishGame = function () {
+    const bm = bestMult, cbn = comboBonus;
+    _fg.apply(this, arguments); render(true);
+    try {
+        const ex = $('go-extra');
+        if (ex && cbn > 0) ex.insertAdjacentHTML('beforeend', `<div style="font-size:11px;color:#bdc3c7;margin:-2px 0 10px">🔥 Mejor combo: <b style="color:#f1c40f">x${bm}</b> · Bonus: <b style="color:#2ecc71">+${Math.floor(cbn)} m</b></div>`);
+    } catch (e) { }
+};
+} catch (e) { console.error('Mejoras5:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
