@@ -3271,6 +3271,40 @@ const rv = document.createElement('div'); rv.id = 'rv-dist'; rs.querySelector('h
 const _src = startReviveCountdown;
 startReviveCountdown = function () { _src(); rv.innerHTML = `Llevás <b>${Math.floor(score).toLocaleString()} m</b>`; };
 } catch (e) { console.error('Mejoras3:', e); } })();
+// ===== MEJORAS 4 (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo del bloque de mejoras3) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+
+// ---------- BOMBAS: inconfundibles con las monedas ----------
+const _di = drawItem;
+drawItem = function (it, t) {
+    if (it.t !== 'bomb') return _di(it, t);
+    if (!(it.img && it.img.complete && it.img.naturalWidth > 0)) return;
+    const cx = it.x + it.w / 2, cy = it.y + it.h / 2, k = 0.5 + 0.5 * Math.sin(t / 90);
+    // halo rojo que late rápido
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(cx, cy, 3, cx, cy, 40);
+    g.addColorStop(0, `rgba(255,30,20,${0.35 + 0.3 * k})`); g.addColorStop(1, 'rgba(255,30,20,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 6.283); ctx.fill(); ctx.restore();
+    // anillo punteado giratorio
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t / 500); ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = `rgba(255,${(50 + k * 90) | 0},30,0.95)`; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(0, 0, it.w * 0.9, 0, 6.283); ctx.stroke(); ctx.restore();
+    ctx.drawImage(it.img, it.x, it.y, it.w, it.h);
+    // triángulo de peligro parpadeante arriba de la bomba
+    const ty = it.y - 20;
+    ctx.fillStyle = k > 0.5 ? '#ff3b30' : '#ffd400'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, ty - 9); ctx.lineTo(cx + 10, ty + 8); ctx.lineTo(cx - 10, ty + 8); ctx.closePath(); ctx.stroke(); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.font = '900 12px Arial'; ctx.textAlign = 'center'; ctx.fillText('!', cx, ty + 6); ctx.textAlign = 'left';
+};
+
+// ---------- "MERCADO NEGRO" -> "TIENDA" ----------
+document.querySelectorAll('button').forEach(b => { if (b.textContent.includes('MERCADO NEGRO')) b.innerHTML = b.innerHTML.replace('MERCADO NEGRO', 'TIENDA'); });
+const bh = $('black-market-screen').querySelector('h1'); bh.innerText = 'TIENDA'; bh.style.color = '';
+$('shop-cars').querySelector('h1').innerText = 'AUTOS';   // para que no haya dos pantallas llamadas "Tienda"
+const _st = window.showToast;
+window.showToast = function (t, m, a) { return _st.call(this, t, typeof m === 'string' ? m.replace('Mercado Negro', 'Tienda') : m, a); };
+} catch (e) { console.error('Mejoras4:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
