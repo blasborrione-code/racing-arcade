@@ -3609,7 +3609,7 @@ const lastToId = s => { const [m, y] = s.split('-'); return `${y}-${String(+m + 
 const st = document.createElement('style');
 st.textContent = `
 .rk-tabs{display:flex;gap:6px;margin:0 0 10px}
-.rk-tabs button{margin:0;padding:10px;font-size:12px;opacity:.5}
+.rk-tabs button{margin:0;padding:10px;font-size:12px;opacity:.5;min-width:0;flex:1}
 .rk-tabs button.on{opacity:1}
 .rk-info{font-size:10px;color:#bdc3c7;margin-bottom:8px;line-height:1.5;text-align:center}
 .rk-row{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;border-bottom:1px solid rgba(255,255,255,.05)}
