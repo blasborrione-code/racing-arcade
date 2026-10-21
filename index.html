@@ -8,6 +8,35 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: gap: https://ssl.gstatic.com https://apis.google.com https://*.firebaseapp.com https://*.firebaseio.com; style-src * 'self' 'unsafe-inline'; media-src *; img-src * data: content:; script-src * 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com;">
+    /* ===== MEJORAS 3: cartel de revivir (pegar al final, antes del cierre del style) ===== */
+@property --ang{syntax:'<angle>';inherits:false;initial-value:360deg}
+@keyframes rvRing{from{--ang:360deg}to{--ang:0deg}}
+
+#revive-screen{background:radial-gradient(circle at 50% 35%,rgba(170,30,40,.5),rgba(0,0,0,.93) 70%) !important}
+#revive-screen .ui-card{
+  width:min(90vw,340px) !important;box-sizing:border-box;
+  border-color:rgba(231,76,60,.5);
+  box-shadow:0 0 40px rgba(231,76,60,.25),0 25px 50px rgba(0,0,0,.6);
+}
+#revive-screen h1{font-size:30px;margin-bottom:6px}
+#rv-dist{font-size:12px;letter-spacing:2px;color:#bdc3c7;margin-bottom:12px}
+#rv-dist b{color:#f1c40f;font-size:15px}
+
+#timer-display{
+  position:relative;isolation:isolate;
+  width:120px;height:120px;margin:8px auto 16px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:56px;font-weight:900;color:#fff;text-shadow:0 0 16px #f1c40f;
+  background:conic-gradient(#f1c40f var(--ang),rgba(255,255,255,.1) 0);
+  box-shadow:0 0 28px rgba(241,196,15,.35);
+}
+#timer-display::before{content:"";position:absolute;inset:9px;border-radius:50%;background:#0d111a;z-index:-1}
+#revive-screen:not(.hidden) #timer-display{animation:rvRing 5s linear forwards}
+
+#revive-screen p{font-size:13px !important;line-height:1.5;margin:0 0 18px !important;color:#cfd6dd !important}
+#revive-screen p b{color:#fff}
+#revive-screen .btn-green{min-height:64px;font-size:16px !important;letter-spacing:1px;animation:heroPulse 1.6s ease-in-out infinite}
+#revive-screen .btn-red{opacity:.85;font-size:12px !important;padding:10px !important}
     <style>
         :root {
             --accent: #f1c40f;
@@ -1921,7 +1950,7 @@ window.updateMenuRankUI = function() {
             if(en.blink && en.type !== 'obs') { en.bTimer += dt; if(en.bTimer > 20) { en.bTimer = 0; en.bCount++; if(en.bCount >= 6) { en.blink = false; en.chg = true; } } }
             if(en.chg && en.type !== 'obs') { en.x += (en.x < en.tx ? 2.8 : -2.8) * dt; if(Math.abs(en.x - en.tx) < 4) { en.x = en.tx; en.chg = false; en.l = en.tl; } }
 
-           if(!en.nm && en.type !== 'obs' && Math.abs(player.x - en.x) < 48 && Math.abs(player.y - en.y) < 55) { 
+           if(!en.nm && en.type !== 'obs' && (en.x > player.x ? en.x - (player.x + player.w) : player.x - (en.x + en.w)) < 6 && Math.abs(player.y - en.y) < 55) { 
                 en.nm = true; playSound('near'); if (navigator.vibrate) navigator.vibrate([10, 30, 10]); 
                 
                 let ganancia = 10; 
@@ -2693,7 +2722,7 @@ function draw() {
    window.finishGame = function() {
         clearInterval(reviveInterval); state = "OVER"; hideAll(); 
         let newRec = score > garage.high; if(newRec) garage.high = score|0;
-        if (score > (garage.seasonHigh || 0)) garage.seasonHigh = score|0;
+     window.seasonAcumular(score|0);
         garage.totalDist += score|0; garage.totalPlays += 1; garage.totalNear += nearMissesThisRun; 
         
         // --- NUEVO SISTEMA DE PROGRESO DE MISIONES ---
@@ -2994,7 +3023,6 @@ window.openUnderglow = function() {
     const btnRank = document.querySelector(".btn-orange[onclick*='openRanking']");
     if (btnRank) { btnRank.onclick = null; btnRank.addEventListener("click", openRanking); }
 
-// ===== MEJORAS 2 (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); } ) =====
 (function () { try {
 const $ = id => document.getElementById(id);
 const RANGOS = [
@@ -3130,6 +3158,119 @@ draw = function () {
     $('game-container').classList.toggle('lowfuel', state === 'PLAYING' && fuel < 20);
 };
 } catch (e) { console.error('Mejoras2:', e); } })();
+// ===== MEJORAS 3 (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo del bloque de mejoras2) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+const nombre = n => n.replace('_', ' ');
+
+// ---------- RANGOS: metros ACUMULADOS en la temporada (se reinicia cada mes) ----------
+// min = metros acumulados para llegar a ese rango
+// exige = si en UNA carrera hacés menos de esos metros, te penalizan (0 = sin penalización)
+const RANGOS = [
+    { min: 0,       name: "NOVATO",       color: "#bdc3c7", exige: 0 },
+    { min: 15000,   name: "BRONCE",       color: "#cd7f32", exige: 0 },
+    { min: 50000,   name: "PLATA",        color: "#c0c0c0", exige: 1000 },
+    { min: 120000,  name: "ORO",          color: "#f1c40f", exige: 2000 },
+    { min: 250000,  name: "PLATINO",      color: "#3498db", exige: 3000 },
+    { min: 450000,  name: "DIAMANTE",     color: "#5dade2", exige: 4000 },
+    { min: 700000,  name: "GRAN_MAESTRO", color: "#9b59b6", exige: 5000 },
+    { min: 1000000, name: "LEYENDA",      color: "#e74c3c", exige: 6000 }
+];
+const PENALIDAD = 0.5; // por cada metro que te falte para "exige" se restan 0.5 m
+
+window.getRankInfo = m => { let r = RANGOS[0]; for (const x of RANGOS) if (m >= x.min) r = x; return r; };
+const sig = m => RANGOS[RANGOS.findIndex(x => x.name === window.getRankInfo(m).name) + 1];
+
+window.checkSeasonReset = function () {
+    const now = new Date(), cur = `${now.getMonth()}-${now.getFullYear()}`;
+    if (garage.lastSeason === cur) return;
+    if (garage.lastSeason !== "") {
+        garage.bestRank = window.getRankInfo(garage.seasonHigh || 0).name;
+        garage.seasonHigh = 0;
+        showToast("📅 NUEVA TEMPORADA", "Rangos reiniciados. ¡A escalar de nuevo!", true);
+    }
+    garage.lastSeason = cur; save();
+};
+
+// Se llama desde finishGame (cambio de 1 línea en tu código)
+window.seasonAcumular = function (metros) {
+    window.checkSeasonReset();
+    const antes = garage.seasonHigh || 0, r = window.getRankInfo(antes);
+    const castigo = metros < r.exige ? Math.ceil((r.exige - metros) * PENALIDAD) : 0;
+    garage.seasonHigh = Math.max(0, antes + metros - castigo);
+    window.__rankDelta = { neto: garage.seasonHigh - antes, castigo };
+};
+
+// Menú: metros acumulados + cuánto falta
+const _um = window.updateMenuRankUI;
+window.updateMenuRankUI = function () {
+    _um.apply(this, arguments);
+    try {
+        const sh = garage.seasonHigh || 0, nx = sig(sh);
+        let s = $('rank-sub');
+        if (!s) { s = document.createElement('div'); s.id = 'rank-sub'; s.style.cssText = 'font-size:10px;color:#bdc3c7;margin-top:2px'; $('rank-name-menu').after(s); }
+        s.innerText = Math.floor(sh).toLocaleString() + ' m' + (nx ? ' · faltan ' + Math.ceil(nx.min - sh).toLocaleString() : ' · MÁXIMO');
+    } catch (e) { }
+};
+const _sm = window.showMenu;
+window.showMenu = function () { try { window.checkSeasonReset(); } catch (e) { } return _sm.apply(this, arguments); };
+
+// Game Over: rango nuevo + metros ganados/perdidos
+const _fg = window.finishGame;
+window.finishGame = function () {
+    try { window.checkSeasonReset(); } catch (e) { }
+    const a = window.getRankInfo(garage.seasonHigh || 0).name;
+    _fg.apply(this, arguments);
+    try {
+        const ex = $('go-extra'); if (!ex) return;
+        ex.querySelectorAll('.go-rank,.go-up,.go-delta').forEach(e => e.remove());
+        const sh = garage.seasonHigh || 0, r = window.getRankInfo(sh), nx = sig(sh), d = window.__rankDelta || { neto: 0, castigo: 0 };
+        const ia = RANGOS.findIndex(x => x.name === a), ir = RANGOS.findIndex(x => x.name === r.name);
+        const p = nx ? Math.min(100, (sh - r.min) / (nx.min - r.min) * 100) : 100;
+        ex.insertAdjacentHTML('beforeend', `
+            <div class="go-rank" style="border-color:${r.color}"><img src="Items/rank_${r.name}.png" onerror="this.style.visibility='hidden'">
+            <div><b style="color:${r.color}">${nombre(r.name)}</b><div class="go-bar"><i style="width:${p}%;background:${r.color}"></i></div>
+            <small>${Math.floor(sh).toLocaleString()} m · ${nx ? 'faltan ' + Math.ceil(nx.min - sh).toLocaleString() + ' m para ' + nombre(nx.name) : '¡RANGO MÁXIMO!'}</small></div></div>
+            <div class="go-delta" style="font-size:12px;font-weight:800;margin:-4px 0 12px;color:${d.neto >= 0 ? '#2ecc71' : '#e74c3c'}">
+            ${d.neto >= 0 ? '+' : '−'}${Math.abs(Math.floor(d.neto)).toLocaleString()} m de temporada
+            ${d.castigo > 0 ? `<br><span style="font-size:10px;color:#e67e22">Carrera corta: penalización de −${d.castigo.toLocaleString()} m</span>` : ''}</div>
+            ${ir > ia ? `<div class="go-up">⬆ ¡SUBISTE A ${nombre(r.name)}!</div>` : ir < ia ? `<div class="go-up" style="color:#e74c3c">⬇ BAJASTE A ${nombre(r.name)}</div>` : ''}`);
+    } catch (e) { console.error(e); }
+};
+
+// Ventana de rangos (reemplaza a la anterior)
+const oldOpen = window.openRanks, rk = $('rank-display-menu');
+window.openRanks = function () {
+    playSound('click');
+    const mine = garage.seasonHigh || 0, cur = window.getRankInfo(mine), now = new Date();
+    const dias = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+    let html = `<div style="text-align:center;font-size:11px;margin-bottom:12px;color:#bdc3c7;line-height:1.5;">
+        Metros acumulados: <b style="color:#fff">${Math.floor(mine).toLocaleString()}m</b><br>
+        La temporada termina en <b style="color:#f1c40f">${dias}</b> día(s) y los rangos vuelven a NOVATO
+        ${cur.exige ? `<br><span style="color:#e67e22">⚠ En ${nombre(cur.name)}, una carrera de menos de ${cur.exige.toLocaleString()} m te resta puntos</span>` : ''}</div>`;
+    RANGOS.forEach((r, i) => {
+        const done = mine >= r.min, isCur = r.name === cur.name, nx = RANGOS[i + 1];
+        const estado = isCur ? `<span style="color:${r.color}">◀ TU RANGO</span>` : done ? `<span style="color:#2ecc71">✅ Logrado</span>` : `<span style="color:#e67e22">🔒 Faltan ${Math.ceil(r.min - mine).toLocaleString()}m</span>`;
+        const barra = (isCur && nx) ? `<div style="height:6px;background:rgba(255,255,255,.12);border-radius:4px;margin-top:6px;overflow:hidden"><div style="width:${Math.min(100, (mine - r.min) / (nx.min - r.min) * 100)}%;height:100%;background:${r.color}"></div></div>` : '';
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;border-radius:12px;background:${isCur ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.04)'};border:1px solid ${isCur ? r.color : 'transparent'};opacity:${(done || isCur) ? 1 : 0.65}">
+            <img src="Items/rank_${r.name}.png" style="width:36px;height:36px;object-fit:contain;${done ? '' : 'filter:grayscale(1);'}" onerror="this.style.visibility='hidden'">
+            <div style="flex:1"><div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${r.color};font-size:14px">${nombre(r.name)}</b><span style="font-size:10px">${estado}</span></div>
+            <div style="font-size:11px;color:#bdc3c7">Desde ${r.min.toLocaleString()} m acumulados</div>${barra}</div></div>`;
+    });
+    $("info-title").innerText = "RANGOS";
+    const c = $("info-content"); c.innerHTML = html; c.style.maxHeight = "55vh"; c.style.overflowY = "auto";
+    $("info-modal").classList.remove("hidden");
+};
+if (rk) { if (oldOpen) rk.removeEventListener('click', oldOpen); rk.addEventListener('click', window.openRanks); }
+
+// ---------- CARTEL DE REVIVIR ----------
+const rs = $('revive-screen');
+rs.querySelector('p').innerHTML = 'Mirá un video corto y volvé con <b>❤️ 1 vida</b> y <b>⛽ tanque lleno</b>';
+const rb = rs.querySelectorAll('button'); rb[0].innerText = '📺 VER VIDEO Y CONTINUAR'; rb[1].innerText = 'NO, GRACIAS';
+const rv = document.createElement('div'); rv.id = 'rv-dist'; rs.querySelector('h1').after(rv);
+const _src = startReviveCountdown;
+startReviveCountdown = function () { _src(); rv.innerHTML = `Llevás <b>${Math.floor(score).toLocaleString()} m</b>`; };
+} catch (e) { console.error('Mejoras3:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
