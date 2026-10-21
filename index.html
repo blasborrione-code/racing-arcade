@@ -1680,7 +1680,7 @@ window.updateMenuRankUI = function() {
         let nextLvl = (score < 4000) ? Math.floor(score / 500) + 1 : 9 + Math.floor((score - 4000) / 1000);
         if(nextLvl > level) heartSpawnedInLevel = false;
         level = nextLvl;
-        let mSpd = car.maxSpeed + (stats.motor * 0.4); let hndl = car.handling; 
+        let mSpd = car.maxSpeed + (stats.motor * 0.3); let hndl = car.handling; 
       let rain = (level >= 6 && (level - 6) % 4 === 1); 
         let turnInertia = 0.85; 
         
@@ -1855,8 +1855,8 @@ window.updateMenuRankUI = function() {
                 if (score - en.startDist >= 1000) {
                     en.isRacing = false; en.baseSpeed = 5.5; 
                     let ganador = (player.y < en.y) ? "¡GANASTE!" : "PERDISTE...";
-                    if (player.y < en.y) { garage.coins += 1000; playSound('coin'); }
-                    showToast("🏁 FIN DE CARRERA", ganador + (player.y < en.y ? " +💰1000" : ""));
+                    if (player.y < en.y) { garage.coins += 300; playSound('coin'); }
+                    showToast("🏁 FIN DE CARRERA", ganador + (player.y < en.y ? " +💰300" : ""));
                 }
             }
 
@@ -2031,8 +2031,8 @@ window.updateMenuRankUI = function() {
                 if(en.y > 900 || en.y < -600) { 
                     // Victoria por paliza
                     if (en.type === 'racer' && en.isRacing && en.y > 900) {
-                        garage.coins += 1000; playSound('coin');
-                        showToast("🏁 ¡VICTORIA POR PALIZA!", "Lo dejaste comiendo polvo +💰1000", true);
+                        garage.coins += 300; playSound('coin');
+                        showToast("🏁 ¡VICTORIA POR PALIZA!", "Lo dejaste comiendo polvo +💰300", true);
                     }
                     enemies.splice(i,1); 
                 }
@@ -3730,6 +3730,53 @@ window.showMenu = function () {
 const _fg = window.finishGame;
 window.finishGame = function () { _fg.apply(this, arguments); syncRankings(true); };
 } catch (e) { console.error('Mejoras7:', e); } })();
+// ===== MEJORAS 8 - ECONOMÍA Y AUTOS (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras7) =====
+(function () { try {
+
+// ---------- AUTOS: [velocidad máx, aceleración, manejo, vidas, precio] ----------
+// velocidad en km/h = valor x 12
+const AUTOS = {
+    compact_retro:   [7.0, 0.10, 1.3, 3, 0],        // equilibrado, inicial
+    furgoneta:       [6.6, 0.08, 0.9, 5, 3000],     // lento pero aguanta
+    auto_rosa:       [7.6, 0.13, 1.6, 4, 6000],     // ágil de ciudad
+    camioneta4x4:    [8.0, 0.10, 1.0, 5, 12000],    // duro, manejo pesado
+    muscle_pony:     [8.8, 0.22, 0.9, 3, 20000],    // explosivo, gira mal
+    rally_blue:      [8.4, 0.17, 2.3, 4, 28000],    // el que mejor gira
+    super_yellow:    [9.9, 0.20, 1.6, 3, 40000],    // velocidad punta
+    sport_black:     [9.3, 0.25, 1.9, 4, 48000],    // deportivo completo
+    tuner_night:     [9.5, 0.30, 2.4, 3, 60000],    // aceleración + manejo
+    tuner_legend:    [10.3, 0.22, 1.7, 3, 70000],   // casi la mayor punta
+    luxury_white:    [9.0, 0.18, 1.8, 5, 85000],    // cómodo y resistente
+    formula_classic: [10.0, 0.28, 2.5, 2, 110000],  // muy rápido, frágil
+    formula_modern:  [10.5, 0.30, 2.6, 2, 150000]   // lo mejor, 2 vidas
+};
+for (const k in AUTOS) if (MODELS[k]) {
+    const a = AUTOS[k], m = MODELS[k];
+    m.maxSpeed = a[0]; m.accel = a[1]; m.handling = a[2]; m.lives = a[3]; m.price = a[4];
+}
+
+// ---------- MONEDAS DEL PISO: valen según el nivel, con tope ----------
+const coinVal = l => Math.min(6, 2 + Math.floor(l / 4));   // nivel 1-3: 2 | 4-7: 3 | 8-11: 4 | 12-15: 5 | 16+: 6
+const _up = update;
+update = function (dt) {
+    const t0 = garage.totalCoinsRec;
+    _up(dt);
+    const D = garage.totalCoinsRec - t0;           // monedas de piso recogidas en este cuadro
+    if (D > 0 && level > 0) {
+        const adj = Math.round(D * (coinVal(level) / level - 1));
+        if (adj) { garage.coins += adj; coinsThisRun += adj; garage.totalCoinsRec += adj; }
+    }
+};
+
+// ---------- CALENDARIO: menos generoso al final + arreglos ----------
+const R = (i, tipo, valor) => { DAILY_REWARDS[i] = { dia: i + 1, tipo, valor }; };
+R(11, 'monedas', 2000);   // día 12 (tenía 'type' en vez de 'tipo')
+R(14, 'ticket', 2);       // día 15 (premio inexistente)
+R(19, 'ticket', 2);       // día 20 (premio inexistente)
+R(20, 'monedas', 2500); R(21, 'monedas', 3000); R(22, 'monedas', 3500); R(23, 'monedas', 4000);
+R(25, 'monedas', 4000); R(26, 'monedas', 4500); R(27, 'monedas', 5000); R(28, 'monedas', 6000);
+R(29, 'ticket', 3);       // día 30 (auto inexistente)
+} catch (e) { console.error('Mejoras8:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
