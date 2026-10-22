@@ -4019,6 +4019,12 @@ update = function (dt) {
     enemies.forEach(e => {
         if (e.onc && !e.crashed && !e.hit) { e.blink = false; e.chg = false; e.tl = e.l; e.x = LANE_X[e.l] - e.w / 2; }
         if (e.onc && e.crashed) e.rotation = Math.PI + 0.25;
+        // contramano permitido SOLO a: rival de carrera mientras corre, y policía en persecución
+        if (e.onc || e.type === 'obs' || e.crashed || e.hit) return;
+        const puede = (e.type === 'racer' && e.isRacing) || (e.type === 'police' && e.isChaser);
+        if (puede) return;
+        if (e.l >= 2 && e.tl < 2) { e.blink = false; e.chg = false; e.tl = e.l; e.x = LANE_X[e.l] - e.w / 2; }   // quería meterse: se cancela
+        else if (e.l < 2 && !e.chg) { e.blink = false; e.chg = true; e.tl = 2; e.tx = LANE_X[2] - e.w / 2; }      // quedó en contramano (terminó la carrera): vuelve a su mano
     });
 
     // choque de frente: la 2ª vida se descuenta acá (el escudo y el chasis ya lo resolvió el juego)
@@ -4087,11 +4093,13 @@ draw = function () {
         ctx.restore();
     });
     warns.forEach(w => {
-        if (Math.floor(t / 110) % 2) return;
-        const cx = LANE_X[w.l];
-        ctx.save(); ctx.fillStyle = 'rgba(255,60,40,.22)'; ctx.fillRect(cx - 38, 0, 76, 90);
-        ctx.fillStyle = '#ff4d3a'; ctx.beginPath(); ctx.moveTo(cx, 62); ctx.lineTo(cx - 20, 22); ctx.lineTo(cx + 20, 22); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.font = '900 24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', cx, 40);
+        const cx = LANE_X[w.l], cy = 150, k = 0.5 + 0.5 * Math.sin(t / 90);
+        ctx.save();
+        ctx.fillStyle = `rgba(255,50,40,${0.10 + 0.10 * k})`; ctx.fillRect(cx - 38, 0, 76, 330);
+        ctx.shadowColor = 'rgba(255,40,30,.9)'; ctx.shadowBlur = 10 + 10 * k;
+        ctx.fillStyle = '#c0261b'; ctx.beginPath(); ctx.arc(cx, cy, 24, 0, 6.283); ctx.fill();
+        ctx.shadowBlur = 0; ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = '900 30px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', cx, cy + 1);
         ctx.restore();
     });
 };
