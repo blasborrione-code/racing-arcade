@@ -4859,6 +4859,168 @@ if (L) {
     };
 }
 } catch (e) { console.error('Mejoras20:', e); } })();
+// ===== MEJORAS 21 - AUTOS, MEJORAS, FAROS Y NEÓN DE PISO EN ESTILO "CARRERA DEPORTIVA" (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras20) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+const kit = window.sbKit; if (!kit) { console.error('Mejoras21: falta mejoras19'); return; }
+
+const st = document.createElement('style');
+st.textContent = `
+.sb .sb-scroll>*{flex-shrink:0}
+.sb .sb-carrow{display:flex;align-items:center;gap:8px;margin-right:6px}
+.sb .sb-arrow{width:46px;height:78px;min-width:0;padding:0;margin:0;flex-shrink:0;transform:skewX(-12deg);background:#0a0a0c;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sb .sb-arrow svg{transform:skewX(12deg)}
+.sb .sb-arrow:active{background:#e10600}
+.sb .sb-show{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;padding:2px 0;text-align:center}
+.sb .sb-show::before{content:"";position:absolute;left:50%;top:42%;width:min(95%,250px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),rgba(255,255,255,0) 68%)}
+.sb .sb-show img{position:relative;height:clamp(110px,22vh,200px) !important;max-width:100%;object-fit:contain;transform:rotate(-8deg);filter:drop-shadow(0 12px 10px rgba(0,0,0,.6)) !important;image-rendering:pixelated}
+.sb .sb-show.lock img{filter:grayscale(.75) brightness(.65) drop-shadow(0 12px 10px rgba(0,0,0,.6)) !important}
+.sb .sb-show h4{position:relative;margin:6px 0 2px;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:26px;letter-spacing:1px;line-height:1;color:#fff !important;text-shadow:2px 2px 0 #e10600}
+.sb .sb-show .meta{position:relative;display:flex;gap:10px;justify-content:center;font-weight:800;font-size:14px;letter-spacing:2px;color:#ffc400}
+.sb .sb-show .meta span{font-size:14px !important;color:#ffc400 !important}
+.sb .sb-show .idx{position:absolute;right:4px;top:0;font-weight:800;font-size:13px;letter-spacing:2px;color:#9a9aa3}
+.sb #car-stats{margin:0 8px 0 0;padding:10px 14px;background:#17171b;border-left:6px solid #fff;transform:skewX(-4deg)}
+.sb #car-stats .cs-row{transform:skewX(4deg);margin:6px 0;gap:10px;font-weight:800;font-size:12px;letter-spacing:2px;color:#c9c9d0}
+.sb #car-stats .cs-row span{width:104px}
+.sb #car-stats .cs-bar{height:9px;background:#000;border-radius:0;transform:skewX(-20deg)}
+.sb #car-stats .cs-bar i{background:#e10600;border-radius:0}
+.sb #shop-car-btn,.sb #upg-btn{margin:0 8px 0 0;width:calc(100% - 8px);height:54px;font-size:24px}
+.sb #shop-car-btn.is-own{background:#fff;color:#0a0a0c}
+.sb #shop-car-btn.is-sel,.sb #upg-btn.is-max{background:#17171b;color:#2fd17a;border:2px solid #2fd17a;cursor:default}
+.sb .sb-sec{font-family:'Racing Sans One',sans-serif;font-size:18px;letter-spacing:3px;color:#ffc400;margin-top:2px}
+.sb .sb-upg{position:relative;box-sizing:border-box;margin-right:6px;padding:12px 14px;background:#17171b;border-left:8px solid #e10600;transform:skewX(-4deg)}
+.sb .sb-upg>.in{transform:skewX(4deg)}
+.sb .sb-upg .urow{display:flex;align-items:center;gap:8px}
+.sb .sb-upg .umid{flex:1;min-width:0;text-align:center}
+.sb .sb-upg .u-ic{width:54px;height:54px;margin:0 auto 6px;background:#26262c;display:flex;align-items:center;justify-content:center;font-size:0}
+.sb .sb-upg .umid b#upg-name{display:block;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:21px;letter-spacing:.5px;line-height:1.05;color:#fff !important}
+.sb .sb-upg .u-lvl{margin-top:4px;font-weight:800;font-size:13px;letter-spacing:2px;color:#c9c9d0}
+.sb .sb-upg .u-lvl b{color:#ffc400}
+.sb #upg-pips{display:flex;gap:5px;justify-content:center;margin-top:7px}
+.sb #upg-pips i{width:30px;height:8px;border-radius:0;transform:skewX(-20deg);background:#000}
+.sb #upg-pips i.on{background:#e10600 !important;box-shadow:none !important}
+.sb .sb-upg p{margin:10px 0 12px;font-weight:600;font-size:14px;line-height:1.3;color:#c9c9d0;text-align:center}
+.sb .sb-upg .sb-arrow{height:70px}
+.sb #color-selector-container{display:flex;flex-wrap:wrap;gap:12px;padding:12px 14px;margin:0 8px 0 0;background:#17171b;border-left:6px solid #ffc400;transform:none !important;background-image:none}
+.sb #color-selector-container>div{width:36px !important;height:36px !important;border-radius:0 !important;transform:skewX(-12deg)}
+.sb #color-selector-container small{color:#9a9aa3 !important;font-weight:700;letter-spacing:1px}
+.sb .sb-hero.mini{height:clamp(96px,16vh,150px)}
+.sb #upgrade-car-preview{position:relative;height:88%;max-width:60%;object-fit:contain;transform:rotate(-8deg);filter:drop-shadow(0 10px 8px rgba(0,0,0,.6));image-rendering:pixelated}
+.sb .sb-hero.mini{justify-content:center}
+.sb .sb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding-right:8px}
+.sb .sb-opt{position:relative;box-sizing:border-box;min-width:0;padding:12px 10px 10px 14px;background:#17171b;border-left:6px solid var(--oc,#fff);transform:skewX(-6deg);cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.sb .sb-opt>*{transform:skewX(6deg)}
+.sb .sb-opt .sw{width:30px;height:30px;border-radius:50%;background:var(--oc,#fff);box-shadow:0 0 14px var(--oc,#fff)}
+.sb .sb-opt .sw.rb{animation:sbRb 3s linear infinite;background:conic-gradient(#ff3b3b,#ffd400,#2fd17a,#22e6ff,#8b5cff,#ff3bd6,#ff3b3b)}
+@keyframes sbRb{to{filter:hue-rotate(360deg)}}
+.sb .sb-opt b{font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:17px;letter-spacing:.5px;line-height:1.05;color:#fff;overflow-wrap:anywhere}
+.sb .sb-opt small{font-weight:800;font-size:13px;letter-spacing:1.5px;color:#ffc400}
+.sb .sb-opt.own small{color:#c9c9d0}
+.sb .sb-opt.sel{background:#f2f2f2;box-shadow:5px 5px 0 #e10600}
+.sb .sb-opt.sel b{color:#0a0a0c}
+.sb .sb-opt.sel small{color:#e10600}
+.sb .sb-opt:active{filter:brightness(.85)}
+.sb .sb-carname{font-weight:800;font-size:13px;letter-spacing:2px;color:#9a9aa3}
+.sb .sb-carname b{color:#ffc400}`;
+document.head.appendChild(st);
+
+const AR = d => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="${d}"/></svg>`;
+const UI = {
+    motor: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e10600" stroke-width="2"><path d="M3 9h3l2-3h6l2 3h3v7h-3l-2 2H8l-2-2H3zM21 12h2"/><path d="M10 11h4"/></svg>',
+    tanque: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e10600" stroke-width="2"><path d="M5 21V5a2 2 0 012-2h6a2 2 0 012 2v16M3 21h14M15 9h2a2 2 0 012 2v5a1.5 1.5 0 003 0V9l-3-3M8 7h4"/></svg>',
+    frenos: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e10600" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>',
+    chasis: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e10600" stroke-width="2"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+    aero: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e10600" stroke-width="2"><path d="M3 8h11a3 3 0 100-3M3 13h16a3 3 0 110 3M3 18h8"/></svg>',
+    gomas: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e10600" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3v5.5M12 15.5V21M3 12h5.5M15.5 12H21"/></svg>'
+};
+const NAVI = {
+    far: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M3 9c0-2 2-4 5-4h3v14H8c-3 0-5-2-5-4zM14 8l7-2M14 12h7M14 16l7 2"/></svg>',
+    piso: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M3 12l2-5h14l2 5v4H3z"/><path d="M2 20h20" stroke-dasharray="3 3"/></svg>'
+};
+
+// ---------- AUTOS (concesionario) ----------
+const A = kit.mount('shop-cars', { title: 'AUTOS', back: 'openShop()', volver: 'ATRÁS' });
+if (A) {
+    A.body.innerHTML = `<div class="sb-scroll">
+      <div class="sb-carrow">
+        <button class="sb-arrow" aria-label="Anterior" onclick="prevCar()">${AR('M15 5l-7 7 7 7')}</button>
+        <div class="sb-show" id="ac-show"><span class="idx" id="ac-idx"></span><img id="shop-car-img" alt=""><h4 id="shop-car-name"></h4><div class="meta"><span id="shop-car-speed"></span><span id="shop-car-lives"></span></div></div>
+        <button class="sb-arrow" aria-label="Siguiente" onclick="nextCar()">${AR('M9 5l7 7-7 7')}</button>
+      </div>
+      <button id="shop-car-btn" class="sb-buy"></button>
+    </div>`;
+    const _us = updateShopUI;
+    updateShopUI = function () {
+        _us.apply(this, arguments);
+        try {
+            const keys = Object.keys(MODELS), k = keys[shopIndex], owned = garage.owned.includes(k), sel = garage.selected === k, btn = $('shop-car-btn');
+            btn.className = 'sb-buy ' + (sel ? 'is-sel' : owned ? 'is-own' : 'is-buy');
+            $('ac-show').classList.toggle('lock', !owned);
+            $('ac-idx').textContent = (shopIndex + 1) + ' / ' + keys.length;
+            const L = $('shop-car-lives'); if (L) L.textContent = L.textContent.replace('❤️', '♥');
+        } catch (e) { }
+    };
+}
+
+// ---------- MEJORAS ----------
+const U = kit.mount('shop-upgrades', { title: 'MEJORAS', back: 'openShop()', volver: 'ATRÁS' });
+if (U) {
+    U.body.innerHTML = `<div class="sb-scroll">
+      <div class="sb-hero mini"><small>TU AUTO</small><b id="up-car-name"></b><img id="upgrade-car-preview" alt=""></div>
+      <div class="sb-upg"><div class="in">
+        <div class="urow">
+          <button class="sb-arrow" aria-label="Anterior" onclick="prevUpgrade()">${AR('M15 5l-7 7 7 7')}</button>
+          <div class="umid"><div class="u-ic" id="upg-icon"></div><b id="upg-name"></b><div class="u-lvl">NIVEL <b id="upg-lvl">0</b> / 5</div></div>
+          <button class="sb-arrow" aria-label="Siguiente" onclick="nextUpgrade()">${AR('M9 5l7 7-7 7')}</button>
+        </div>
+        <p id="upg-desc"></p>
+        <button class="sb-buy" id="upg-btn" onclick="buyCurrentUpgrade()"></button>
+      </div></div>
+      <div class="sb-sec">PINTURA DEL AUTO</div>
+      <div id="color-selector-container"></div>
+      <button class="sb-nav" style="--bc:#ffc400" onclick="openNeones()"><div class="ni">${NAVI.far}</div><div class="nt"><b>FAROS</b><small>Color de las luces de adelante</small></div></button>
+      <button class="sb-nav" style="--bc:#e10600" onclick="openUnderglow()"><div class="ni">${NAVI.piso}</div><div class="nt"><b>NEÓN DE PISO</b><small>Luz de abajo del auto</small></div></button>
+    </div>`;
+    const _uu = window.updateUpgradeUI;
+    window.updateUpgradeUI = function () {
+        _uu.apply(this, arguments);
+        try {
+            const up = UPGRADE_DATA[currentUpgradeIndex];
+            $('upg-icon').innerHTML = UI[up.id] || '';
+            $('upg-desc').textContent = up.desc;
+            $('upg-btn').className = 'sb-buy' + ($('upg-btn').textContent.indexOf('MÁXIMO') >= 0 ? ' is-max' : '');
+        } catch (e) { }
+    };
+}
+
+// ---------- FAROS y NEÓN DE PISO (se reutiliza la lógica original y se cambia solo el aspecto) ----------
+function opciones(screenId, contId, title, fnName) {
+    const S = kit.mount(screenId, { title, back: 'openMejoras()', volver: 'ATRÁS' });
+    if (!S) return;
+    if (title.length > 8) S.screen.querySelector('.sb-title').style.fontSize = 'clamp(18px,5.4vw,22px)';
+    S.body.innerHTML = `<div class="sb-carname">AUTO: <b id="${contId}-car"></b></div><div class="sb-scroll"><div class="sb-grid" id="${contId}"></div></div>`;
+    const orig = window[fnName];
+    window[fnName] = function () {
+        const r = orig.apply(this, arguments);
+        try {
+            $(contId + '-car').textContent = MODELS[garage.selected].name;
+            [...$(contId).children].forEach(c => {
+                const rgb = (c.style.background.match(/\d+/g) || [255, 255, 255]).slice(0, 3).join(',');
+                const sel = /255,\s*255,\s*255/.test(c.style.borderColor);
+                const parts = c.innerHTML.split('<br>'), name = parts[0], state = (parts[1] || '').trim();
+                const owned = state === 'EQUIPADO' || state === 'EQUIPAR';
+                c.removeAttribute('style');
+                c.className = 'sb-opt' + (sel ? ' sel' : owned ? ' own' : '');
+                c.style.setProperty('--oc', `rgb(${rgb})`);
+                c.innerHTML = `<i class="sw${/ARCO/i.test(name) ? ' rb' : ''}"></i><b>${name}</b><small>${state}</small>`;
+            });
+        } catch (e) { console.error('Mejoras21 opciones:', e); }
+        return r;
+    };
+}
+opciones('shop-neones', 'neon-container', 'FAROS', 'openNeones');
+opciones('shop-underglow', 'underglow-container', 'NEÓN DE PISO', 'openUnderglow');
+} catch (e) { console.error('Mejoras21:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
