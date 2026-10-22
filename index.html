@@ -3395,7 +3395,7 @@ update = function (dt) {
 
     // combo + tope de monedas por near miss
     for (let k = nearMissesThisRun - nm0; k > 0; k--) {
-        if (nmCoins + 10 > NM_COIN_CAP + Math.floor(score * 0.06) {
+        if (nmCoins + 10 > NM_COIN_CAP + Math.floor(score * 0.06)) {
             garage.coins -= 10; coinsThisRun -= 10;
             if (!capWarned) { capWarned = true; showToast('TOPE', 'Máximo de monedas por near miss en esta carrera'); }
         } else nmCoins += 10;
