@@ -3942,6 +3942,173 @@ st.textContent = `
 document.head.appendChild(st);
 setInterval(() => document.body.classList.toggle('jugando', state === 'PLAYING'), 200);
 } catch (e) { console.error('Mejoras12:', e); } })();
+// ===== MEJORAS 13 - FASE 3, ENTREGAS 2 y 3: MODO DIFÍCIL (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras12) =====
+(function () { try {
+
+// ---------- PERILLAS ----------
+const GAP_MIN = 800, GAP_MAX = 1500;  // distancia de ruta entre autos de frente (más chico = más tráfico en contramano)
+const VEL_FRENTE = [2, 4];            // velocidad propia de los autos que vienen de frente (se suma a la tuya)
+const AVISO = 45;                     // cuadros (60 = 1 seg) que parpadea la alerta antes de que aparezca un auto de frente
+const COSTO_VIDAS = 2;                // vidas que saca un choque de frente
+const MULT_METROS = 1.5;              // multiplicador de metros del ránking en Difícil
+const MULT_MONEDAS = 2;               // monedas del piso en contramano
+
+const LANE_X = [75, 157.5, 242.5, 325];
+let hardRun = false, acc = 0, nextGap = 1000, warns = [];
+
+const st = document.createElement('style');
+st.textContent = '#md-note{display:none !important}';
+document.head.appendChild(st);
+
+// ---------- INICIO DE CARRERA ----------
+const _sgl = startGameLogic;
+startGameLogic = function () {
+    hardRun = (window.gameMode === 'dificil');
+    _sgl();
+    acc = 0; nextGap = GAP_MIN; warns = [];
+    if (hardRun) player.x = LANE_X[3] - player.w / 2;     // arrancás en tu carril de la derecha
+};
+
+// ---------- TRÁNSITO COMÚN: solo en los 2 carriles de la derecha ----------
+const _st = spawnTraffic;
+spawnTraffic = function () {
+    if (!hardRun) return _st.apply(this, arguments);
+    for (let i = 0; i < 4; i++) {
+        const n = enemies.length; _st.apply(this, arguments);
+        if (enemies.length > n) {
+            const e = enemies[enemies.length - 1];
+            if (e.l < 2 && !e.isChaser) enemies.pop(); else return;
+        }
+    }
+};
+
+// ---------- AUTOS DE FRENTE ----------
+function lanesLibres() {
+    return [0, 1].filter(l => !(constEvent.active && constEvent.lane === l) &&
+        !enemies.some(e => e.onc && e.l === l && e.y < 300) && !warns.some(w => w.l === l));
+}
+function spawnFrente(l) {
+    const truck = level >= 2 && Math.random() < 0.25 && assets.truck;
+    const w = truck ? 55 : 45, h = truck ? 110 : 80, v = VEL_FRENTE[0] + Math.random() * (VEL_FRENTE[1] - VEL_FRENTE[0]);
+    const img = truck ? assets.truck : assets.npcs[(Math.random() * assets.npcs.length) | 0];
+    enemies.push({ x: LANE_X[l] - w / 2, y: -200, l, w, h, type: 'normal', onc: true, img, baseSpeed: -v, speed: -v, tx: 0, tl: l, blink: false, bCount: 0, bTimer: 0, chg: false });
+}
+
+// ---------- UPDATE ----------
+const _up = update;
+update = function (dt) {
+    if (!hardRun || state !== 'PLAYING') return _up(dt);
+    const vivos0 = new Set(enemies.filter(e => e.onc && !e.crashed)), l0 = lives, tc0 = garage.totalCoinsRec;
+
+    // alertas + generación de autos de frente (por distancia recorrida, no por tiempo)
+    acc += currentSpeed * dt;
+    if (acc >= nextGap) {
+        const libres = lanesLibres();
+        if (libres.length) {
+            const l = libres[(Math.random() * libres.length) | 0];
+            warns.push({ l, t: AVISO });
+            acc = 0; nextGap = GAP_MIN + Math.random() * (GAP_MAX - GAP_MIN);
+        } else acc = nextGap - 100;
+    }
+    for (let i = warns.length - 1; i >= 0; i--) { warns[i].t -= dt; if (warns[i].t <= 0) { spawnFrente(warns[i].l); warns.splice(i, 1); } }
+
+    _up(dt);
+    if (state !== 'PLAYING' && state !== 'PAUSED') return;
+
+    // los de frente nunca cambian de carril
+    enemies.forEach(e => {
+        if (e.onc && !e.crashed && !e.hit) { e.blink = false; e.chg = false; e.tl = e.l; e.x = LANE_X[e.l] - e.w / 2; }
+        if (e.onc && e.crashed) e.rotation = Math.PI + 0.25;
+    });
+
+    // choque de frente: la 2ª vida se descuenta acá (el escudo y el chasis ya lo resolvió el juego)
+    const choco = enemies.some(e => e.onc && e.crashed && vivos0.has(e));
+    if (choco && state === 'PLAYING') {
+        screenShake = 14;
+        if (lives < l0 && COSTO_VIDAS > 1) {
+            lives = Math.max(0, lives - (COSTO_VIDAS - 1)); updateHUD();
+            showToast('💥 DE FRENTE', '-' + COSTO_VIDAS + ' vidas');
+            if (lives <= 0) endGame('CHOQUE DE FRENTE');
+        }
+    }
+
+    // monedas del piso x2 en contramano
+    const D = garage.totalCoinsRec - tc0;
+    if (D > 0 && state === 'PLAYING' && player.x + player.w / 2 < 200) {
+        const extra = Math.round(D * (MULT_MONEDAS - 1));
+        garage.coins += extra; coinsThisRun += extra; garage.totalCoinsRec += extra;
+    }
+};
+
+// ---------- DIBUJO: ruta ----------
+const _dr0 = drawRoad;
+drawRoad = function () {
+    _dr0();
+    if (!hardRun || (state !== 'PLAYING' && state !== 'PAUSED')) return;
+    ctx.fillStyle = 'rgba(255,70,50,0.05)'; ctx.fillRect(43, 0, 153, 750);
+    ctx.fillStyle = '#34414f'; ctx.fillRect(190, 0, 20, 750);                       // tapa la raya punteada
+    ctx.fillStyle = '#f1c40f'; ctx.fillRect(193.5, 0, 3.5, 750); ctx.fillRect(203, 0, 3.5, 750);   // doble línea amarilla
+    // flechas: ↓ en contramano, ↑ en tu sentido
+    ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (let i = -1; i < 4; i++) {
+        const y = i * 260 + (roadY % 260);
+        [[LANE_X[0], 1], [LANE_X[1], 1], [LANE_X[2], -1], [LANE_X[3], -1]].forEach(([cx, d]) => {
+            ctx.strokeStyle = d > 0 ? 'rgba(255,120,100,0.45)' : 'rgba(255,255,255,0.28)';
+            ctx.beginPath(); ctx.moveTo(cx - 11, y - d * 7); ctx.lineTo(cx, y + d * 7); ctx.lineTo(cx + 11, y - d * 7); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx, y + d * 7); ctx.lineTo(cx, y - d * 26); ctx.stroke();
+        });
+    }
+};
+
+// ---------- DIBUJO: autos de frente + alertas ----------
+const _dr = draw;
+draw = function () {
+    const ocultos = [];
+    if (hardRun) enemies.forEach(e => { if (e.onc && !e.crashed) { ocultos.push([e, e.y]); e.y = 5000; } });
+    _dr();
+    ocultos.forEach(([e, y]) => { e.y = y; });
+    if (!hardRun || (state !== 'PLAYING' && state !== 'PAUSED')) return;
+    const t = performance.now();
+    ocultos.forEach(([e]) => {
+        const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+        if (e.y < -e.h || e.y > 780) return;
+        ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(cx + 3, cy + 5, e.w * 0.42, e.h * 0.45, 0, 0, 6.283); ctx.fill(); ctx.restore();
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI);
+        if (e.img && e.img.complete && e.img.naturalWidth > 0) ctx.drawImage(e.img, -e.w / 2, -e.h / 2, e.w, e.h);
+        ctx.restore();
+        // faros (adelante = abajo)
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        [e.x + e.w * 0.28, e.x + e.w * 0.72].forEach(fx => {
+            const fy = e.y + e.h - 6;
+            const g = ctx.createRadialGradient(fx, fy, 1, fx, fy + 16, 38); g.addColorStop(0, 'rgba(255,245,200,.55)'); g.addColorStop(1, 'rgba(255,245,200,0)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(fx, fy + 12, 38, 0, 6.283); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,230,.95)'; ctx.beginPath(); ctx.arc(fx, fy, 3, 0, 6.283); ctx.fill();
+        });
+        ctx.restore();
+    });
+    warns.forEach(w => {
+        if (Math.floor(t / 110) % 2) return;
+        const cx = LANE_X[w.l];
+        ctx.save(); ctx.fillStyle = 'rgba(255,60,40,.22)'; ctx.fillRect(cx - 38, 0, 76, 90);
+        ctx.fillStyle = '#ff4d3a'; ctx.beginPath(); ctx.moveTo(cx, 62); ctx.lineTo(cx - 20, 22); ctx.lineTo(cx + 20, 22); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '900 24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', cx, 40);
+        ctx.restore();
+    });
+};
+
+// ---------- RÁNKING x1,5 + AVISO EN EL RESUMEN ----------
+const _sa = window.seasonAcumular;
+window.seasonAcumular = function (m) { return _sa.call(this, hardRun ? Math.floor(m * MULT_METROS) : m); };
+const _fg = window.finishGame;
+window.finishGame = function () {
+    const era = hardRun;
+    _fg.apply(this, arguments);
+    try {
+        const ex = document.getElementById('go-extra');
+        if (era && ex) ex.insertAdjacentHTML('beforeend', `<div style="font-size:11px;color:#ff7b6b;margin:-2px 0 10px">🔥 MODO DIFÍCIL · ránking x${MULT_METROS}</div>`);
+    } catch (e) { }
+};
+} catch (e) { console.error('Mejoras13:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
