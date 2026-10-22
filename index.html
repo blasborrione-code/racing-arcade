@@ -5311,6 +5311,143 @@ document.head.appendChild(st);
       <div class="tt-go">TOCÁ LA PANTALLA PARA EMPEZAR</div></div>`;
 })();
 } catch (e) { console.error('Mejoras23:', e); } })();
+// ===== MEJORAS 24 - MÁQUINA DE BOLITAS PARA ABRIR LAS CAJAS (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras23) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+
+// ---------- PERILLAS ----------
+const AUTO_ABRIR_MS = 6500;   // si no tocás la bolita, se abre sola a los 6,5 segundos (0 = nunca se abre sola)
+
+// ---------- ESTILOS ----------
+const st = document.createElement('style');
+st.textContent = `
+#gx{position:fixed;inset:0;z-index:3500;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;overflow:hidden;font-family:'Saira Semi Condensed','Barlow Condensed',sans-serif;color:#fff;
+  background:repeating-linear-gradient(45deg,rgba(255,255,255,.035) 0 3px,transparent 3px 6px),radial-gradient(circle at 50% 45%,rgba(225,6,0,.28),rgba(0,0,0,.96) 70%)}
+#gx.show{display:flex}
+#gx .gx-top{font-family:'Racing Sans One',sans-serif;font-size:24px;letter-spacing:3px;text-shadow:2px 2px 0 #e10600;text-align:center;min-height:30px;z-index:3}
+#gx .gx-m{position:relative;width:min(74vw,290px,calc((100vh - 150px)*.68));aspect-ratio:300/440;animation:gxIn .55s cubic-bezier(.2,1.3,.4,1)}
+@keyframes gxIn{from{transform:translateY(80px) scale(.8);opacity:0}to{transform:none;opacity:1}}
+#gx svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#gx .gb{animation:gxJ 1.4s ease-in-out infinite}
+#gx .gb:nth-child(2n){animation-delay:-.4s}#gx .gb:nth-child(3n){animation-delay:-.8s}#gx .gb:nth-child(5n){animation-delay:-1.1s}
+#gx .shake .gb{animation-duration:.14s}
+@keyframes gxJ{0%,100%{transform:translate(0,0)}25%{transform:translate(2px,-3px)}75%{transform:translate(-2px,-1px)}}
+#gx .gx-crank{transform-origin:150px 300px}
+#gx .gx-crank.turn{animation:gxCrank .9s ease-in-out}
+@keyframes gxCrank{to{transform:rotate(720deg)}}
+#gx .gx-m.thud{animation:gxThud .25s}
+@keyframes gxThud{0%,100%{transform:none}30%{transform:translateY(5px)}60%{transform:translateY(-2px)}}
+#gx .gx-ball{position:absolute;left:50%;top:44%;width:11.5%;aspect-ratio:1;transform:translate(-50%,-50%);z-index:2;visibility:hidden;transition:top .55s cubic-bezier(.2,1.4,.4,1),transform .55s cubic-bezier(.2,1.4,.4,1)}
+#gx .gx-ball.fall{visibility:visible;animation:gxFall .95s cubic-bezier(.5,0,.8,.5) forwards}
+@keyframes gxFall{0%{top:44%}60%{top:85%}72%{top:81%}84%{top:85%}92%{top:84%}100%{top:85%}}
+#gx .gx-ball.ready{visibility:visible;animation:none;top:60%;transform:translate(-50%,-50%) scale(3.1);cursor:pointer}
+#gx .gx-bw{position:absolute;inset:0;animation:none}
+#gx .gx-ball.ready .gx-bw{animation:gxWig .5s ease-in-out infinite}
+@keyframes gxWig{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+#gx .gx-ball i{position:absolute;inset:0;border-radius:50%;transition:transform .45s ease-in,opacity .45s}
+#gx .gx-ball i.t{clip-path:inset(0 0 50% 0);background:radial-gradient(circle at 35% 28%,#fff,#dcdce4 55%,#a9a9b6)}
+#gx .gx-ball i.b{clip-path:inset(50% 0 0 0);background:radial-gradient(circle at 35% 28%,rgba(255,255,255,.6),var(--bc) 42%,color-mix(in srgb,var(--bc) 55%,#000))}
+#gx .gx-ball.rb i.b{background:conic-gradient(#ff3b3b,#ffd400,#2fd17a,#22e6ff,#8b5cff,#ff3bd6,#ff3b3b);animation:gxHue 1.2s linear infinite}
+@keyframes gxHue{to{filter:hue-rotate(360deg)}}
+#gx .gx-ball::after{content:"";position:absolute;left:0;right:0;top:calc(50% - 1px);height:2px;background:rgba(0,0,0,.35);border-radius:2px}
+#gx .gx-ball.open::after{display:none}
+#gx .gx-ball.open i.t{transform:translateY(-70%) rotate(-30deg);opacity:0}
+#gx .gx-ball.open i.b{transform:translateY(70%) rotate(25deg);opacity:0}
+#gx .gx-hint{font-weight:800;font-size:15px;letter-spacing:3px;color:#ffc400;min-height:22px;text-align:center;animation:sbBlink 1s ease-in-out infinite;z-index:3}
+#gx .gx-p{position:absolute;left:50%;top:60%;width:9px;height:9px;border-radius:50%;background:var(--bc);box-shadow:0 0 10px var(--bc);opacity:0;z-index:2}
+#gx.open .gx-p{animation:gxBurst .9s ease-out forwards}
+@keyframes gxBurst{0%{transform:translate(-50%,-50%) rotate(var(--a)) translateY(0);opacity:1}100%{transform:translate(-50%,-50%) rotate(var(--a)) translateY(-150px);opacity:0}}
+#gx.open .gx-m{opacity:.22;transition:opacity .4s}
+#gx .gx-card{position:absolute;left:50%;top:50%;width:min(86vw,350px);box-sizing:border-box;transform:translate(-50%,-50%);padding:24px 18px 18px;background:#101013;border-left:8px solid var(--bc);box-shadow:8px 8px 0 #fff;text-align:center;z-index:5;display:none}
+#gx.open .gx-card{display:block;animation:gxPop .5s cubic-bezier(.2,1.5,.4,1)}
+@keyframes gxPop{from{transform:translate(-50%,-50%) scale(.5);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+#gx .gx-card::before{content:"";position:absolute;left:0;right:0;top:0;height:10px;background:repeating-linear-gradient(90deg,#fff 0 10px,#0a0a0c 10px 20px);opacity:.9}
+#gx .gx-card small{display:block;font-family:'Racing Sans One',sans-serif;font-size:20px;letter-spacing:3px;color:var(--bc)}
+#gx .gx-card b{display:block;margin:10px 0 14px;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:30px;line-height:1.15;color:#fff;text-shadow:3px 3px 0 #e10600}
+#gx .gx-card em{display:block;font-style:normal;font-weight:800;font-size:13px;letter-spacing:3px;color:#c9c9d0;animation:sbBlink 1.2s ease-in-out infinite}
+#gx .gx-legend{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 14px);display:flex;justify-content:center;gap:8px;z-index:3}
+#gx .gx-legend i{width:12px;height:12px;border-radius:50%;background:var(--bc);box-shadow:0 0 8px var(--bc)}
+#gx.open .gx-top,#gx.open .gx-hint,#gx.open .gx-legend{opacity:0}`;
+document.head.appendChild(st);
+
+// ---------- QUÉ COLOR DE BOLITA SALE SEGÚN EL PREMIO ----------
+function clasificar(m) {
+    if (/ÉPICO|AUTO/.test(m)) return { col: '#ff2bd6', rb: true, tag: '¡MÍTICO!' };
+    if (/SKIN/.test(m)) return { col: '#ff8a00', tag: 'EXCLUSIVO' };
+    if (/NEÓN/.test(m)) return { col: '#9b5cff', tag: 'ÉPICO' };
+    if (/PIEZA/.test(m)) return { col: '#3b9cff', tag: 'RARO' };
+    if (/VIDA/.test(m)) return { col: '#ff3b5c', tag: 'BONUS' };
+    if (/SUERTE/.test(m)) return { col: '#ffc400', tag: '¡GRAN PREMIO!' };
+    return { col: '#2fd17a', tag: 'PREMIO' };
+}
+const COLS = { common: ['#2fd17a', '#ff3b5c', '#3b9cff', '#ffc400', '#ffffff'], premium: ['#2fd17a', '#9b5cff', '#ff8a00', '#ff2bd6', '#ffc400', '#ffffff'] };
+const SPOTS = [[112, 196], [150, 202], [188, 196], [90, 168], [128, 170], [168, 170], [208, 168], [108, 140], [146, 142], [186, 140], [128, 112], [166, 112], [150, 84], [78, 196], [222, 196]];
+
+let tipo = 'common', timers = [];
+const wait = (f, ms) => { const t = setTimeout(f, ms); timers.push(t); return t; };
+
+function maquina(theme) {
+    const body = theme === 'premium' ? '#17171b' : '#e10600', acc = theme === 'premium' ? '#ffc400' : '#ffffff';
+    const cols = COLS[theme] || COLS.common;
+    const balls = SPOTS.map((p, i) => `<g class="gb"><circle cx="${p[0]}" cy="${p[1]}" r="19" fill="${cols[i % cols.length]}"/><circle cx="${p[0] - 6}" cy="${p[1] - 7}" r="6" fill="rgba(255,255,255,.55)"/><path d="M${p[0] - 19} ${p[1]}h38" stroke="rgba(0,0,0,.3)" stroke-width="2"/></g>`).join('');
+    return `<svg viewBox="0 0 300 440" aria-hidden="true">
+      <rect x="64" y="414" width="40" height="18" fill="#000"/><rect x="196" y="414" width="40" height="18" fill="#000"/>
+      <path d="M50 236H250L264 414H36Z" fill="${body}" stroke="#000" stroke-width="3"/>
+      <path d="M68 244H104L74 414H38Z" fill="${acc}" opacity=".92"/>
+      <rect x="44" y="214" width="212" height="26" fill="#0a0a0c" stroke="${acc}" stroke-width="3"/>
+      <g id="gx-balls"><clipPath id="gx-clip"><circle cx="150" cy="130" r="94"/></clipPath><g clip-path="url(#gx-clip)">${balls}</g></g>
+      <circle cx="150" cy="130" r="98" fill="rgba(255,255,255,.07)" stroke="#fff" stroke-width="5"/>
+      <path d="M86 92A70 70 0 0 1 134 52" stroke="rgba(255,255,255,.55)" stroke-width="8" fill="none" stroke-linecap="round"/>
+      <circle cx="150" cy="300" r="42" fill="#0a0a0c" stroke="${acc}" stroke-width="4"/>
+      <g class="gx-crank"><rect x="136" y="292" width="64" height="16" rx="8" fill="${acc}"/><circle cx="196" cy="300" r="12" fill="#ffc400" stroke="#000" stroke-width="3"/></g>
+      <rect x="104" y="350" width="92" height="52" fill="#000" stroke="${acc}" stroke-width="4"/>
+    </svg>`;
+}
+
+function mostrar(msg) {
+    timers.forEach(clearTimeout); timers = [];
+    let o = $('gx'); if (!o) { o = document.createElement('div'); o.id = 'gx'; document.body.appendChild(o); }
+    const c = clasificar(String(msg)), theme = tipo === 'premium' ? 'premium' : 'common';
+    let ps = ''; for (let i = 0; i < 28; i++) ps += `<i class="gx-p" style="--a:${i * (360 / 28)}deg"></i>`;
+    const leg = (COLS[theme]).filter(x => x !== '#ffffff').map(x => `<i style="--bc:${x}"></i>`).join('');
+    o.style.setProperty('--bc', c.col);
+    o.innerHTML = `<div class="gx-top">${theme === 'premium' ? 'MÁQUINA PREMIUM' : 'MÁQUINA DE PREMIOS'}</div>
+      <div class="gx-m" id="gx-m">${maquina(theme)}
+        <div class="gx-ball${c.rb ? ' rb' : ''}" id="gx-ball" style="--bc:${c.col}"><div class="gx-bw"><i class="t"></i><i class="b"></i></div></div>${ps}</div>
+      <div class="gx-hint" id="gx-hint"></div>
+      <div class="gx-card"><small>${c.tag}</small><b>${String(msg)}</b><em>TOCÁ PARA CONTINUAR</em></div>
+      <div class="gx-legend">${leg}</div>`;
+    o.className = 'show';
+    const m = $('gx-m'), ball = $('gx-ball'), hint = $('gx-hint'), crank = o.querySelector('.gx-crank'), dome = $('gx-balls');
+    let abierta = false;
+
+    function abrir() {
+        if (abierta) return; abierta = true; hint.textContent = '';
+        ball.classList.add('open'); o.classList.add('open');
+        try { playSound('coin'); } catch (e) { }
+        wait(() => { o.dataset.listo = '1'; }, 500);
+    }
+    ball.onclick = abrir;
+    o.onclick = () => { if (o.dataset.listo === '1') { o.className = ''; o.dataset.listo = ''; } };
+    o.dataset.listo = '';
+
+    hint.style.animation = 'none';
+    wait(() => { try { playSound('click'); } catch (e) { } crank.classList.add('turn'); dome.classList.add('shake'); }, 600);
+    wait(() => { dome.classList.remove('shake'); ball.classList.add('fall'); }, 1500);
+    wait(() => { m.classList.add('thud'); try { playSound('near'); } catch (e) { } }, 2250);
+    wait(() => { ball.classList.remove('fall'); ball.classList.add('ready'); hint.style.animation = ''; hint.textContent = 'TOCÁ LA BOLITA'; }, 2600);
+    if (AUTO_ABRIR_MS > 0) wait(abrir, AUTO_ABRIR_MS);
+}
+
+// ---------- ENGANCHES (no se toca cómo se calcula el premio: solo cómo se muestra) ----------
+const _ob = window.openBox;
+window.openBox = function (t) { tipo = t === 'premium' ? 'premium' : 'common'; return _ob.apply(this, arguments); };
+const _st = window.showToast;
+window.showToast = function (title, msg) {
+    if (String(title).includes('PREMIO')) { try { mostrar(msg); return; } catch (e) { console.error('Mejoras24:', e); } }
+    return _st.apply(this, arguments);
+};
+} catch (e) { console.error('Mejoras24:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
