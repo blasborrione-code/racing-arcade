@@ -4557,6 +4557,190 @@ function dibujar(t) {
 }
 requestAnimationFrame(dibujar);
 } catch (e) { console.error('Mejoras18:', e); } })();
+// ===== MEJORAS 19 - PANTALLAS INTERNAS, ESTILO "CARRERA DEPORTIVA": KIT COMÚN + MISIONES (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras18) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+
+// ---------- KIT COMÚN (lo van a usar todas las pantallas internas) ----------
+if (!$('mb-fonts')) {
+    const l = document.createElement('link'); l.id = 'mb-fonts'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Racing+Sans+One&family=Saira+Semi+Condensed:wght@500;600;700;800&display=swap';
+    document.head.appendChild(l);
+}
+const st = document.createElement('style');
+st.textContent = `
+.overlay.sb{background:#0a0a0c !important;backdrop-filter:none !important;padding:0 !important;display:block;overflow:hidden}
+.overlay.sb:not(.hidden){display:block}
+.sb .sb-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.sb .sb-bg i{position:absolute;display:block}
+.sb .sb-root{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;box-sizing:border-box;
+  padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 34px);font-family:'Saira Semi Condensed','Barlow Condensed',sans-serif;color:#fff;text-align:left}
+.sb .sb-col{position:relative;z-index:2;width:min(100%,420px);height:100%;display:flex;flex-direction:column;gap:12px;min-height:0}
+.sb .sb-col>*{flex-shrink:0}
+.sb .sb-head{display:flex;align-items:center;gap:10px}
+.sb .sb-back{width:40px;height:40px;min-width:0;padding:0;margin:0;transform:skewX(-12deg);background:#0a0a0c;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.sb .sb-back svg{transform:skewX(12deg)}
+.sb .sb-title{margin:0;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:clamp(30px,9vw,40px);line-height:1;letter-spacing:1px;color:#fff;text-shadow:3px 3px 0 #e10600;white-space:nowrap}
+.sb .sb-sp{flex-grow:1;min-width:0}
+.sb .sb-pill{display:flex;align-items:center;gap:6px;height:34px;padding:0 14px 0 9px;transform:skewX(-12deg);background:#0a0a0c;border-left:4px solid #ffc400;flex-shrink:0;margin:0}
+.sb .sb-pill>*{transform:skewX(12deg)}
+.sb .sb-pill b,.sb .sb-pill .shop-coin-display{font-weight:800;font-size:19px;line-height:1;color:#fff;margin:0}
+.sb .sb-body{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:12px}
+.sb .sb-scroll{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;padding:2px 10px 10px 2px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch}
+.sb .sb-foot{margin-top:auto}
+.sb .sb-btn{position:relative;width:100%;min-width:0;height:52px;margin:0;padding:0;border:2px solid #fff;background:#0a0a0c;cursor:pointer;transform:skewX(-14deg);display:flex;align-items:center;justify-content:center}
+.sb .sb-btn>span{transform:skewX(14deg);font-family:'Racing Sans One',sans-serif;font-size:26px;letter-spacing:4px;color:#fff;line-height:1}
+.sb .sb-btn:active{filter:brightness(.8)}
+.sb .sb-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-right:8px}
+.sb .sb-tab{position:relative;min-width:0;width:100%;height:46px;margin:0;padding:0;cursor:pointer;transform:skewX(-14deg);background:#1b1b20;border:2px solid #444;display:flex;align-items:center;justify-content:center}
+.sb .sb-tab>span{transform:skewX(14deg);font-family:'Racing Sans One',sans-serif;font-size:21px;letter-spacing:2px;color:#9a9aa3;line-height:1}
+.sb .sb-tab.on{background:#e10600;border:0;box-shadow:5px 5px 0 #fff}
+.sb .sb-tab.on>span{color:#fff}
+.sb .sb-tab i{position:absolute;right:-4px;top:-7px;width:16px;height:16px;border-radius:50%;background:#ffc400;border:2px solid #0a0a0c;display:none}
+.sb .sb-tab i.on{display:block;transform:skewX(14deg)}
+.sb .sb-count{height:38px;transform:skewX(-14deg);display:flex;align-items:center;justify-content:center;gap:10px;background:#ffc400;color:#0a0a0c;margin-right:8px}
+.sb .sb-count>*{transform:skewX(14deg);white-space:nowrap}
+.sb .sb-count small{font-weight:800;font-size:14px;letter-spacing:2px}
+.sb .sb-count b{font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:24px;letter-spacing:1px}
+.sb .sb-card{position:relative;box-sizing:border-box;transform:skewX(-6deg);padding:12px 16px 12px 14px;background:#17171b;border-left:8px solid var(--cc,#e10600);display:block;margin-right:6px}
+.sb .sb-card>.in{transform:skewX(6deg);display:flex;gap:12px;align-items:flex-start}
+.sb .sb-ic{width:48px;height:48px;flex-shrink:0;background:#26262c;display:flex;align-items:center;justify-content:center}
+.sb .sb-ic svg{flex-shrink:0}
+.sb .sb-tx{flex-grow:1;min-width:0}
+.sb .sb-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sb .sb-name{font-family:'Racing Sans One',sans-serif;font-size:19px;line-height:1.1;letter-spacing:.5px;overflow-wrap:anywhere}
+.sb .sb-prem{font-family:'Racing Sans One',sans-serif;font-size:19px;color:#ffc400;white-space:nowrap}
+.sb .sb-bar{margin-top:9px;height:10px;background:#000;transform:skewX(-20deg);overflow:hidden}
+.sb .sb-bar>div{height:100%;background:var(--cc,#e10600)}
+.sb .sb-sub{margin-top:6px;font-weight:700;font-size:14px;letter-spacing:1.5px;color:#c9c9d0}
+.sb .sb-card.done{opacity:.55;--cc:#3a3a42}
+.sb .sb-card.done .sb-sub{color:#2fd17a}
+.sb .sb-card.ready{background:#f2f2f2;color:#0a0a0c;--cc:#ffc400;box-shadow:6px 6px 0 #e10600}
+.sb .sb-card.ready .sb-ic{background:#0a0a0c}
+.sb .sb-card.ready .sb-prem{color:#e10600}
+.sb .sb-card.ready .sb-bar{background:#cfcfd4}
+.sb .sb-card.ready .sb-bar>div{background:#0a0a0c}
+.sb .sb-claim{margin-top:8px;width:100%;min-width:0;height:32px;padding:0;border:0;cursor:pointer;background:#e10600;color:#fff;font-family:'Racing Sans One',sans-serif;font-size:19px;letter-spacing:4px;animation:sbBlink 1.2s ease-in-out infinite}
+@keyframes sbBlink{0%,100%{filter:none}50%{filter:brightness(1.25)}}
+.sb .sb-empty{padding:24px 10px;text-align:center;font-weight:700;letter-spacing:2px;color:#9a9aa3}
+@media (max-height:700px){.sb .sb-title{font-size:30px}.sb .sb-btn{height:46px}.sb .sb-tab{height:40px}.sb .sb-card{padding:9px 14px 9px 12px}.sb .sb-ic{width:40px;height:40px}}`;
+document.head.appendChild(st);
+
+const ICONS = {
+    back: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"><path d="M15 5l-7 7 7 7"/></svg>',
+    coin: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffc400" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 010 3.6h-3a1.8 1.8 0 000 3.6h4.2"/></svg>'
+};
+// íconos de cada tipo de misión (c = color)
+const MIC = {
+    coinsThisRun: c => `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 010 3.6h-3a1.8 1.8 0 000 3.6h4.2"/></svg>`,
+    score: c => `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M6 21L10 3M18 21L14 3M12 7v2M12 13v2"/></svg>`,
+    nearMissesThisRun: c => `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M13 2L5 14h6l-1 8 9-13h-6z"/></svg>`,
+    fuelsThisRun: c => `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M5 21V5a2 2 0 012-2h6a2 2 0 012 2v16M3 21h14M15 9h2a2 2 0 012 2v5a1.5 1.5 0 003 0V9l-3-3M8 7h4"/></svg>`,
+    conesThisRun: c => `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M12 3l6 16H6zM8.5 12h7M7 16h10M3 21h18"/></svg>`,
+    escapesThisRun: c => `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M5 17V12a7 7 0 0114 0v5M3 17h18M12 5V3M8 21h8"/></svg>`,
+    speedTimeThisRun: c => `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M3 17a9 9 0 1118 0M12 17l4-6M7 17h.01M12 8v.01M17 17h.01"/></svg>`
+};
+MIC.def = MIC.score;
+
+// Arma una pantalla interna: devuelve { body, root } donde se puede meter el contenido.
+// opts: title, coin (true = muestra monedas), volver (texto del botón), back (función al tocar atrás/volver)
+function sbMount(screenId, opts) {
+    const scr = $(screenId); if (!scr) return null;
+    opts = opts || {};
+    scr.classList.add('sb');
+    const goBack = opts.back || 'showMenu()';
+    scr.innerHTML = `
+    <div class="sb-bg">
+      <i style="inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.035) 0 3px,transparent 3px 6px),repeating-linear-gradient(-45deg,rgba(0,0,0,.35) 0 3px,transparent 3px 6px),linear-gradient(180deg,#141418,#08080a)"></i>
+      <i style="left:-100px;top:-40px;width:140px;height:calc(100% + 80px);transform:skewX(-14deg);background:linear-gradient(180deg,#e10600,#7a0300)"></i>
+      <i style="left:-4px;bottom:0;right:0;height:22px;background:repeating-linear-gradient(90deg,#fff 0 11px,#0a0a0c 11px 22px);opacity:.9"></i>
+    </div>
+    <div class="sb-root"><div class="sb-col">
+      <div class="sb-head">
+        <button class="sb-back" aria-label="Volver" onclick="${goBack}">${ICONS.back}</button>
+        <h1 class="sb-title">${opts.title || ''}</h1>
+        <div class="sb-sp"></div>
+        ${opts.coin === false ? '' : `<div class="sb-pill">${ICONS.coin}<span class="shop-coin-display">0</span></div>`}
+      </div>
+      <div class="sb-body"></div>
+      <div class="sb-foot"><button class="sb-btn" onclick="${goBack}"><span>${opts.volver || 'VOLVER'}</span></button></div>
+    </div></div>`;
+    return { screen: scr, body: scr.querySelector('.sb-body') };
+}
+window.sbKit = { mount: sbMount, ICONS, MIC };
+
+// ---------- MISIONES ----------
+const M = sbMount('missions-screen', { title: 'MISIONES' });
+if (M) {
+    M.body.innerHTML = `
+      <div class="sb-tabs">
+        <button class="sb-tab on" data-t="diaria"><span>DIARIAS</span><i></i></button>
+        <button class="sb-tab" data-t="semanal"><span>SEMANALES</span><i></i></button>
+      </div>
+      <div class="sb-count"><small>SE RENUEVAN EN</small><b id="mi-timer">--:--:--</b></div>
+      <div class="sb-scroll" id="mi-list"></div>`;
+    let tab = 'diaria';
+    const two = n => String(n).padStart(2, '0');
+    const fmt = ms => {
+        let s = Math.max(0, Math.floor(ms / 1000)); const d = Math.floor(s / 86400); s -= d * 86400;
+        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+        return (d ? d + 'D ' : '') + two(h) + ':' + two(m) + ':' + two(x);
+    };
+    // las diarias cambian a medianoche; las semanales el lunes a las 00:00 (hora del celu), igual que la lógica del juego
+    function falta() {
+        const n = new Date(), t = new Date(n);
+        if (tab === 'diaria') { t.setHours(24, 0, 0, 0); }
+        else { const dow = (n.getDay() + 6) % 7; t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + (7 - dow)); }
+        return t - n;
+    }
+    const tick = () => { const e = $('mi-timer'); if (e && !M.screen.classList.contains('hidden')) e.textContent = fmt(falta()); };
+    setInterval(tick, 1000);
+
+    const unidad = p => p === 'score' ? ' m' : p === 'speedTimeThisRun' ? ' s' : '';
+    function limpio(m) { // saca el "(1.500)" del final, porque el número ya aparece en el progreso
+        return String(m.desc || '').replace(/\s*\([\d.,]+\)\s*$/, '').toUpperCase();
+    }
+    function render() {
+        const list = $('mi-list'), ms = (garage.activeMissions || []).map((m, i) => ({ m, i }));
+        const listas = t => ms.filter(o => o.m.tipo === t && !o.m.cobrado && o.m.progreso >= o.m.meta).length;
+        M.body.querySelectorAll('.sb-tab').forEach(b => {
+            b.classList.toggle('on', b.dataset.t === tab);
+            b.querySelector('i').classList.toggle('on', listas(b.dataset.t) > 0);
+        });
+        const orden = o => (o.m.cobrado ? 2 : o.m.progreso >= o.m.meta ? 0 : 1);
+        const arr = ms.filter(o => o.m.tipo === tab).sort((a, b) => orden(a) - orden(b) || a.i - b.i);
+        list.innerHTML = '';
+        if (!arr.length) { list.innerHTML = '<div class="sb-empty">NO HAY MISIONES POR AHORA</div>'; tick(); return; }
+        arr.forEach(({ m, i }) => {
+            const lista = !m.cobrado && m.progreso >= m.meta, p = Math.min(100, (m.progreso / m.meta) * 100);
+            const cls = m.cobrado ? 'done' : lista ? 'ready' : '';
+            const col = m.cobrado ? '#3a3a42' : lista ? '#ffc400' : (m.progreso > 0 ? '#e10600' : '#ffffff');
+            const icc = m.cobrado ? '#ffc400' : lista ? '#fff' : (m.progreso > 0 ? '#e10600' : '#fff');
+            const ic = (MIC[m.prop] || MIC.def)(icc);
+            const u = unidad(m.prop);
+            const d = document.createElement('div'); d.className = 'sb-card ' + cls; d.style.setProperty('--cc', col);
+            d.innerHTML = `<div class="in"><div class="sb-ic">${ic}</div><div class="sb-tx">
+                <div class="sb-row"><span class="sb-name">${limpio(m)}</span><span class="sb-prem">+${(m.premio || 0).toLocaleString()}</span></div>
+                <div class="sb-bar"><div style="width:${p}%"></div></div>
+                ${m.cobrado ? '<div class="sb-sub">COBRADA</div>' : lista ? `<button class="sb-claim" onclick="reclamarMision(${i})">COBRAR</button>` : `<div class="sb-sub">${m.progreso.toLocaleString()} / ${m.meta.toLocaleString()}${u}</div>`}
+            </div></div>`;
+            list.appendChild(d);
+        });
+        tick();
+    }
+    M.body.querySelectorAll('.sb-tab').forEach(b => b.addEventListener('click', () => { tab = b.dataset.t; try { playSound('click'); } catch (e) { } render(); }));
+
+    window.openMissions = function () {
+        const yaAbierta = !M.screen.classList.contains('hidden');
+        try { playSound('click'); } catch (e) { }
+        hideAll(); updateShopCoinDisplays();
+        // si hoy no hay nada para cobrar en diarias pero sí en semanales, abre en semanales
+        const pend = t => (garage.activeMissions || []).some(m => m.tipo === t && !m.cobrado && m.progreso >= m.meta);
+        if (!yaAbierta) { if (pend('semanal') && !pend('diaria')) tab = 'semanal'; else if (pend('diaria')) tab = 'diaria'; }
+        render(); M.screen.classList.remove('hidden');
+    };
+}
+} catch (e) { console.error('Mejoras19:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
