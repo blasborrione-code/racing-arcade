@@ -4256,15 +4256,17 @@ update = function (dt) {
     try { return _up(dt); } finally { car.accel = base; }
 };
 } catch (e) { console.error('Mejoras15:', e); } })();
-// ===== MEJORAS 16 - FASE 4, ENTREGA 1: AUTOS INTEGRADOS A LA ESCENA (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras15) =====
+// ===== MEJORAS 16 - FASE 4, ENTREGA 1 (v2): AUTOS INTEGRADOS A LA ESCENA (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras15; si ya tenías mejoras16, reemplazala) =====
 (function () { try {
 
 // ---------- PERILLAS ----------
-const NITIDO = false;          // true = los autos se dibujan "pixel perfect" (más filosos). Probalo y si no te gusta volvé a false.
-const TINTE = 1;               // 0 = autos sin oscurecer | 1 = normal | 1.5 = más oscuros de noche/lluvia
-const INCLINACION = 1;         // 0 = sin inclinación al girar | 1 = normal | 1.6 = más exagerada
+const NITIDO = false;          // true = autos "pixel perfect" (más filosos). Probalo; si no te gusta, false.
+const BRILLO = 1;              // volumen/brillo en la carrocería (siempre activo, también de día). 0 = apagado | 1 = normal | 1.6 = fuerte
+const TINTE = 1;               // oscurecido por clima (atardecer/lluvia/noche). 0 = apagado | 1 = normal | 1.4 = más oscuro
+const INCLINACION = 1;         // inclinación al girar. 0 = apagada | 1 = normal | 1.6 = exagerada
+const LUZ_FAROS = 1;           // cuánto se iluminan los autos que alumbra TU luz de noche. 0 = nada | 1 = normal
 
-// ---------- 1) SOMBRA MÁS PAREJA: una sombra suave + una más pegada al auto ----------
+// ---------- 1) SOMBRA MÁS PAREJA ----------
 carShadow = function (x, y, w, h) {
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.20)'; ctx.beginPath();
@@ -4274,29 +4276,50 @@ carShadow = function (x, y, w, h) {
     ctx.restore();
 };
 
-// ---------- 2) COLOR DE ESCENA: de noche / lluvia / atardecer los autos toman el color del ambiente ----------
+// ---------- 2) VERSIONES "ILUMINADAS" DE CADA AUTO (se arman una sola vez y se guardan) ----------
 const TINTES = {   // [r, g, b, fuerza en autos del tránsito, fuerza en tu auto]
-    noche:    [6, 12, 46, 0.40, 0.22],
-    lluvia:   [14, 26, 52, 0.24, 0.12],
-    atardecer: [255, 110, 40, 0.14, 0.08]
+    noche:     [6, 12, 46, 0.58, 0.24],
+    lluvia:    [14, 26, 52, 0.36, 0.14],
+    atardecer: [255, 110, 40, 0.20, 0.10]
 };
 const modoEscena = () => {
     if (level < 6) return null; const m = (level - 6) % 4;
     return m === 0 ? 'atardecer' : m === 1 ? 'lluvia' : m === 2 ? 'noche' : null;
 };
-const CACHE = {};
-function teñir(img, modo, esJugador) {
+const CACHE = {}, LUZ = new Map();
+function version(img, modo, esJugador) {
     if (!(img && img.complete && img.naturalWidth > 0) || !img.src) return null;
-    const T = TINTES[modo], a = Math.min(0.85, T[esJugador ? 4 : 3] * TINTE), key = img.src + '|' + modo + '|' + (esJugador ? 1 : 0) + '|' + a.toFixed(2);
+    const T = TINTES[modo], a = T ? Math.min(0.88, T[esJugador ? 4 : 3] * TINTE) : 0, key = img.src + '|' + (modo || 'dia') + '|' + (esJugador ? 1 : 0);
     if (CACHE[key]) return CACHE[key];
-    const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    const W = img.naturalWidth, H = img.naturalHeight, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
-    g.globalCompositeOperation = 'source-atop'; g.fillStyle = `rgba(${T[0]},${T[1]},${T[2]},${a})`; g.fillRect(0, 0, cv.width, cv.height);
-    cv.complete = true; cv.naturalWidth = cv.width; cv.naturalHeight = cv.height; cv.src = key;   // para que el juego lo acepte como imagen cargada
+    g.globalCompositeOperation = 'source-atop';
+    if (BRILLO > 0) {   // luz que viene de arriba a la izquierda (igual que la sombra, que cae abajo a la derecha)
+        let gr = g.createLinearGradient(0, 0, W, 0);
+        gr.addColorStop(0, `rgba(255,255,255,${0.18 * BRILLO})`); gr.addColorStop(0.5, 'rgba(255,255,255,0)'); gr.addColorStop(1, `rgba(0,0,0,${0.26 * BRILLO})`);
+        g.fillStyle = gr; g.fillRect(0, 0, W, H);
+        gr = g.createLinearGradient(0, 0, 0, H);
+        gr.addColorStop(0, `rgba(255,255,255,${0.12 * BRILLO})`); gr.addColorStop(0.55, 'rgba(255,255,255,0)'); gr.addColorStop(1, `rgba(0,0,0,${0.18 * BRILLO})`);
+        g.fillStyle = gr; g.fillRect(0, 0, W, H);
+        gr = g.createRadialGradient(W * 0.32, H * 0.3, 1, W * 0.32, H * 0.3, Math.max(W, H) * 0.32);   // brillito de techo
+        gr.addColorStop(0, `rgba(255,255,255,${0.20 * BRILLO})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    }
+    if (a > 0) { g.fillStyle = `rgba(${T[0]},${T[1]},${T[2]},${a})`; g.fillRect(0, 0, W, H); }
+    cv.complete = true; cv.naturalWidth = W; cv.naturalHeight = H; cv.src = key;   // para que el juego lo acepte como imagen cargada
     return (CACHE[key] = cv);
 }
 
-// ---------- 3) DIBUJO: tinte + inclinación al girar ----------
+// cuánto ilumina TU luz a un auto (0 = nada, 1 = pleno): solo adelante tuyo y dentro del haz
+function iluminado(x, y, w, h) {
+    if (x < 0 && y < 0) return 0.45;                       // autos dibujados dados vuelta / chocados
+    const cx = x + w / 2, cy = y + h / 2, dy = player.y - cy;
+    if (dy < -20 || dy > 300) return 0;
+    const ancho = 34 + Math.max(0, dy) * 0.22, k = 1 - Math.abs(cx - (player.x + player.w / 2)) / ancho;
+    return Math.max(0, k) * Math.min(1, 1 - Math.max(0, dy) / 300 + 0.15) * LUZ_FAROS;
+}
+
+// ---------- 3) DIBUJO ----------
 let tiltJ = 0;
 const proto = CanvasRenderingContext2D.prototype.drawImage;
 const _dr = draw;
@@ -4304,24 +4327,34 @@ draw = function () {
     const modo = (state === 'PLAYING' || state === 'PAUSED') ? modoEscena() : null, swaps = [], mapa = new Map();
     try {
         enemies.forEach(e => {
-            if (e.type === 'obs') return;
-            if (modo && e.img) { const t = teñir(e.img, modo, false); if (t) { swaps.push([e, 'img', e.img]); e.img = t; } }
-            if (e.chg && !e.crashed && !e.hit && e.tx !== undefined) mapa.set(e.x + ',' + e.y, (e.tx > e.x ? 1 : -1) * 0.11 * INCLINACION);
+            if (e.type === 'obs' || !e.img) return;
+            const oscuro = version(e.img, modo, false);
+            if (oscuro) { if (modo) { const dia = version(e.img, null, false); if (dia) LUZ.set(oscuro, dia); } swaps.push([e, 'img', e.img]); e.img = oscuro; }
+            // giro natural: se mete hacia el carril, llega al máximo a mitad de camino y se endereza al llegar
+            let objetivo = 0;
+            if (e.chg && !e.crashed && !e.hit && e.tx !== undefined) {
+                if (e._x0 === undefined) e._x0 = e.x;
+                const total = Math.abs(e.tx - e._x0) || 1, p = Math.min(1, Math.abs(e.x - e._x0) / total);
+                objetivo = (e.tx > e._x0 ? 1 : -1) * 0.13 * Math.sin(Math.PI * p) * INCLINACION;
+            } else e._x0 = undefined;
+            e._tilt = (e._tilt || 0) + (objetivo - (e._tilt || 0)) * 0.18;
+            if (Math.abs(e._tilt) > 0.004 && !e.crashed && !e.hit) mapa.set(e.x + ',' + e.y, e._tilt);
         });
-        if (modo && assets.player) { const t = teñir(assets.player, modo, true); if (t) { swaps.push([assets, 'player', assets.player]); assets.player = t; } }
+        if (assets.player) { const t = version(assets.player, modo, true); if (t) { swaps.push([assets, 'player', assets.player]); assets.player = t; } }
     } catch (e) { }
-    // inclinación suave del jugador según cuánto está doblando
-    const objetivo = (state === 'PLAYING' && player) ? Math.max(-0.14, Math.min(0.14, player.vx * 0.022)) * INCLINACION : 0;
-    tiltJ += (objetivo - tiltJ) * 0.25;
+    const objJ = (state === 'PLAYING' && player) ? Math.max(-0.14, Math.min(0.14, player.vx * 0.022)) * INCLINACION : 0;
+    tiltJ += (objJ - tiltJ) * 0.25;
     const imgJ = assets.player, autos = new Set(enemies.filter(e => e.type !== 'obs').map(e => e.img)); autos.add(imgJ);
     ctx.drawImage = function (img, x, y, w, h) {
         if (arguments.length !== 5 || !autos.has(img)) return proto.apply(ctx, arguments);
-        const esJ = img === imgJ && w === player.w && h === player.h, ang = esJ ? tiltJ : mapa.get(x + ',' + y);
-        if (!ang && !NITIDO) return proto.apply(ctx, arguments);
+        const esJ = img === imgJ && w === player.w && h === player.h, ang = esJ ? tiltJ : mapa.get(x + ',' + y), luz = (!esJ && LUZ.has(img)) ? iluminado(x, y, w, h) : 0;
+        if (!ang && !NITIDO && luz < 0.02) return proto.apply(ctx, arguments);
         ctx.save();
         if (NITIDO) ctx.imageSmoothingEnabled = false;
-        if (ang) { ctx.translate(x + w / 2, y + h / 2); ctx.rotate(ang); proto.call(ctx, img, -w / 2, -h / 2, w, h); }
-        else proto.call(ctx, img, x, y, w, h);
+        let dx = x, dy = y;
+        if (ang) { ctx.translate(x + w / 2, y + h / 2); ctx.rotate(ang); dx = -w / 2; dy = -h / 2; }
+        proto.call(ctx, img, dx, dy, w, h);
+        if (luz >= 0.02) { ctx.globalAlpha = Math.min(1, luz); proto.call(ctx, LUZ.get(img), dx, dy, w, h); }   // la parte alumbrada vuelve a su color real
         ctx.restore();
     };
     try { _dr(); }
