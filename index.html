@@ -4383,6 +4383,157 @@ update = function (dt) {
     try { return _up(dt); } finally { car.handling = base; }
 };
 } catch (e) { console.error('Mejoras17:', e); } })();
+// ===== MEJORAS 18 - NUEVO MENÚ PRINCIPAL, ESTILO "CARRERA DEPORTIVA" (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras17) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+
+// ---------- TIPOGRAFÍAS (Racing Sans One para títulos y botones, Saira Semi Condensed para números y textos) ----------
+if (!document.getElementById('mb-fonts')) {
+    const l = document.createElement('link'); l.id = 'mb-fonts'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Racing+Sans+One&family=Saira+Semi+Condensed:wght@500;600;700;800&display=swap';
+    document.head.appendChild(l);
+}
+
+// ---------- ESTILOS ----------
+const st = document.createElement('style');
+st.textContent = `
+#menu.mb{background:#0a0a0c !important;backdrop-filter:none !important;justify-content:flex-start !important;overflow:hidden !important}
+#menu.mb::before,#menu.mb::after{content:none !important;display:none !important}
+#menu.mb .ui-card{display:none !important}
+#menu.mb .mb-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+#menu.mb .mb-bg i{position:absolute;display:block}
+#menu.mb .mb-root{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;display:flex;justify-content:center;
+  padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 32px);font-family:'Saira Semi Condensed','Barlow Condensed',sans-serif;color:#fff}
+#menu.mb .mb-col{position:relative;z-index:2;width:min(100%,400px);min-height:100%;display:flex;flex-direction:column;gap:10px}
+#menu.mb .mb-top{display:flex;align-items:center;gap:8px}
+#menu.mb .mb-pill{display:flex;align-items:center;gap:7px;height:34px;padding:0 14px 0 9px;transform:skewX(-12deg);background:#0a0a0c;border-left:4px solid var(--pc,#ffc400)}
+#menu.mb .mb-pill>*{transform:skewX(12deg)}
+#menu.mb .mb-pill svg{flex-shrink:0}
+#menu.mb .mb-pill b{font-weight:800;font-size:20px;line-height:1}
+#menu.mb .mb-ico{width:40px;height:40px;min-width:0;padding:0;margin:0;transform:skewX(-12deg);background:#0a0a0c;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+#menu.mb .mb-ico svg{transform:skewX(12deg)}
+#menu.mb .mb-title{margin-top:4px;padding-left:4px}
+#menu.mb .mb-title small{display:block;font-family:'Racing Sans One',sans-serif;font-size:19px;letter-spacing:9px;line-height:1.1;text-shadow:0 2px 0 #7a0300}
+#menu.mb .mb-title strong{display:block;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:clamp(54px,17vw,74px);line-height:.92;color:#fff;text-shadow:4px 4px 0 #e10600}
+#menu.mb .mb-title span{display:block;margin-top:6px;font-weight:700;font-size:15px;letter-spacing:2px;color:#ffc400;text-shadow:0 0 6px #000,0 1px 0 #000}
+#menu.mb .mb-title span b{color:#fff;font-weight:800}
+#menu.mb .mb-car{position:relative;flex:1 1 auto;min-height:150px;display:flex;align-items:center;justify-content:center}
+#menu.mb .mb-car canvas{height:100%;max-width:100%;object-fit:contain;display:block}
+#menu.mb #rank-display-menu{margin:0 !important;padding:8px 18px 8px 14px !important;border-radius:0 !important;background:rgba(10,10,12,.92) !important;border-left:6px solid #ffc400;
+  box-shadow:6px 6px 0 rgba(255,255,255,.12) !important;justify-content:flex-start !important;gap:14px !important;cursor:pointer;position:relative;order:0 !important;grid-column:auto !important}
+#menu.mb #rank-display-menu::after{right:14px}
+#menu.mb #rank-icon-menu{width:46px !important;height:46px !important}
+#menu.mb #rank-display-menu>div>div:first-child{font-weight:700 !important;font-size:12px !important;letter-spacing:3px;color:#ffc400 !important}
+#menu.mb #rank-name-menu{font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:28px !important;line-height:1}
+#menu.mb #rank-sub{font-weight:600 !important;font-size:13px !important;color:#ffe9b3 !important}
+#menu.mb .mb-go{position:relative;min-width:0;width:100%;height:78px;margin:6px 0 4px;padding:0;border:0;cursor:pointer;transform:skewX(-14deg);background:#e10600;box-shadow:7px 7px 0 #fff;
+  display:flex;align-items:center;justify-content:center;gap:14px;overflow:hidden;animation:mbPulse 1.8s ease-in-out infinite}
+#menu.mb .mb-go>*{transform:skewX(14deg)}
+#menu.mb .mb-go span{font-family:'Racing Sans One',sans-serif;font-size:46px;letter-spacing:4px;color:#fff;line-height:1}
+#menu.mb .mb-go::after{content:"";position:absolute;top:0;left:-60%;width:30%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-20deg);animation:mbShine 3s ease-in-out infinite}
+@keyframes mbPulse{0%,100%{box-shadow:7px 7px 0 #fff}50%{box-shadow:7px 7px 0 #fff,0 0 26px rgba(225,6,0,.8)}}
+@keyframes mbShine{0%,55%{left:-60%}100%{left:130%}}
+#menu.mb .mb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding-right:6px}
+#menu.mb .mb-btn{position:relative;min-width:0;width:100%;height:62px;margin:0;padding:0 10px 0 14px;cursor:pointer;transform:skewX(-14deg);background:#f2f2f2;border:0;border-left:8px solid var(--bc,#e10600);
+  display:flex;align-items:center;gap:10px;color:#0a0a0c;text-align:left}
+#menu.mb .mb-btn>*{transform:skewX(14deg)}
+#menu.mb .mb-btn svg{flex-shrink:0}
+#menu.mb .mb-btn span{font-family:'Racing Sans One',sans-serif;font-size:22px;letter-spacing:1px;line-height:1}
+#menu.mb .mb-btn:active,#menu.mb .mb-go:active{filter:brightness(.85)}
+#menu.mb .notification-dot{position:absolute;right:-6px;top:-8px;transform:none}
+#menu.mb .mb-foot{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:2px}
+#menu.mb #btn-login{min-width:0 !important;width:auto !important;margin:0 !important;padding:8px 16px !important;font-size:13px !important;font-weight:700;letter-spacing:1px;border-radius:0 !important;
+  background:#1b1b20 !important;border:1px solid #555 !important;color:#fff !important;font-family:'Saira Semi Condensed',sans-serif;order:0 !important;grid-column:auto !important}
+#menu.mb #user-status{margin:0 !important;font-size:12px !important;color:#9a9aa3 !important;order:0 !important;grid-column:auto !important}
+#menu.mb .legal-link{margin:0 !important;font-size:11px !important;order:0 !important;grid-column:auto !important}
+@media (max-height:700px){#menu.mb .mb-car{min-height:110px}#menu.mb .mb-go{height:64px}#menu.mb .mb-go span{font-size:38px}}`;
+document.head.appendChild(st);
+
+// ---------- ARMADO (se reutilizan los elementos originales para que todo lo que ya los actualiza siga andando) ----------
+const menu = $('menu'), card = menu.querySelector('.ui-card');
+menu.classList.add('mb');
+const take = id => $(id);
+const bg = document.createElement('div'); bg.className = 'mb-bg';
+bg.innerHTML = `
+<i style="inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.035) 0 3px,transparent 3px 6px),repeating-linear-gradient(-45deg,rgba(0,0,0,.35) 0 3px,transparent 3px 6px),linear-gradient(180deg,#141418,#08080a)"></i>
+<i style="left:-70px;top:-40px;width:190px;height:calc(100% + 80px);transform:skewX(-14deg);background:linear-gradient(180deg,#e10600,#7a0300)"></i>
+<i style="left:140px;top:-40px;width:22px;height:calc(100% + 80px);transform:skewX(-14deg);background:#fff;opacity:.9"></i>
+<i style="left:172px;top:-40px;width:9px;height:calc(100% + 80px);transform:skewX(-14deg);background:#e10600"></i>
+<i style="left:0;right:0;bottom:0;height:22px;background:repeating-linear-gradient(90deg,#fff 0 11px,#0a0a0c 11px 22px);opacity:.9"></i>`;
+menu.appendChild(bg);
+
+const root = document.createElement('div'); root.className = 'mb-root';
+root.innerHTML = `<div class="mb-col">
+  <div class="mb-top">
+    <div class="mb-pill" style="--pc:#ffc400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffc400" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 010 3.6h-3a1.8 1.8 0 000 3.6h4.2"/></svg><span data-slot="menu-total-coins"></span></div>
+    <div class="mb-pill" style="--pc:#fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" aria-hidden="true"><path d="M3 8a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 000-4z"/></svg><b id="mb-tickets">0</b></div>
+    <div style="flex-grow:1"></div>
+    <button class="mb-ico" aria-label="Calendario de premios diarios" onclick="openDailyCalendar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
+  </div>
+  <div class="mb-title"><small>RACING</small><strong>ARCADE</strong><span>RÉCORD <span data-slot="menu-high-score"></span> m</span></div>
+  <div class="mb-car"><canvas id="mb-car" width="380" height="420"></canvas></div>
+  <div data-slot="rank-display-menu"></div>
+  <button class="mb-go" onclick="requestFullScreen(); startGame()"><svg width="32" height="32" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg><span>CORRER</span></button>
+  <div class="mb-grid">
+    <button class="mb-btn" style="--bc:#e10600" onclick="openShop()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0a0a0c" stroke-width="2.2" aria-hidden="true"><path d="M3 14l2-6h14l2 6v4h-3v-2H6v2H3z"/><circle cx="7.5" cy="14" r="1"/><circle cx="16.5" cy="14" r="1"/></svg><span>GARAJE</span></button>
+    <button class="mb-btn" style="--bc:#ffc400" onclick="openBlackMarket()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0a0a0c" stroke-width="2.2" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 016 0"/></svg><span>TIENDA</span></button>
+    <button class="mb-btn" id="mb-missions" style="--bc:#0a0a0c" onclick="openMissions()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0a0a0c" stroke-width="2.2" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11l2 2 4-4M9 17h6"/></svg><span>MISIONES</span></button>
+    <button class="mb-btn" style="--bc:#0a0a0c" onclick="openRanking()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0a0a0c" stroke-width="2.2" aria-hidden="true"><path d="M8 4h8v6a4 4 0 01-8 0zM8 6H4v2a3 3 0 003 3M16 6h4v2a3 3 0 01-3 3M12 14v4M8 21h8"/></svg><span>RANKING</span></button>
+  </div>
+  <div class="mb-foot"><div data-slot="btn-login"></div><div data-slot="user-status"></div><div data-slot="legal"></div></div>
+</div>`;
+menu.appendChild(root);
+
+// mover los elementos originales a su lugar nuevo
+const put = (slot, el) => { const s = root.querySelector(`[data-slot="${slot}"]`); if (s && el) s.replaceWith(el); };
+const coins = take('menu-total-coins'); if (coins) coins.style.cssText = 'font-weight:800;font-size:20px;line-height:1';
+const high = take('menu-high-score'); if (high) high.style.cssText = 'color:#fff;font-weight:800';
+put('menu-total-coins', coins); put('menu-high-score', high);
+put('rank-display-menu', take('rank-display-menu'));
+put('btn-login', take('btn-login')); put('user-status', take('user-status'));
+put('legal', card.querySelector('.legal-link'));
+const dot = take('mission-dot'); if (dot) $('mb-missions').appendChild(dot);
+
+// tickets al día
+const _u = window.updateUI;
+window.updateUI = function () { const r = _u.apply(this, arguments); try { $('mb-tickets').innerText = (garage.tickets || 0).toLocaleString(); } catch (e) { } return r; };
+try { $('mb-tickets').innerText = (garage.tickets || 0).toLocaleString(); } catch (e) { }
+
+// ---------- AUTO ESTRELLA: el que tenés equipado, con su color, neón de abajo y luz de faros ----------
+const cv = $('mb-car'), g = cv.getContext('2d'), img = new Image();
+let imgSrc = '';
+function dibujar(t) {
+    requestAnimationFrame(dibujar);
+    if (menu.classList.contains('hidden')) return;
+    try {
+        const ck = garage.selected, m = MODELS[ck]; if (!m) return;
+        const src = getCarImg(ck); if (src !== imgSrc) { imgSrc = src; img.src = src; }
+        const W = cv.width, H = cv.height; g.clearRect(0, 0, W, H);
+        const sc = Math.min(2.8, (H * 0.58) / m.h), w = m.w * sc, h = m.h * sc, cx = W / 2, cy = H * 0.52 + Math.sin(t / 700) * 3;
+        // sombra en el piso
+        g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(cx + 8, cy + h * 0.5 + 6, w * 0.62, 14, 0, 0, 6.283); g.fill();
+        g.save(); g.translate(cx, cy); g.rotate(-0.14);
+        // neón de abajo (underglow), incluido el arcoíris
+        const ug = garage.selectedUnderglows && garage.selectedUnderglows[ck];
+        if (ug && ug !== 'none' && UNDERGLOW[ug]) {
+            const u = UNDERGLOW[ug].color; g.save(); g.globalCompositeOperation = 'lighter'; g.scale(1.1, 1);
+            const gr = g.createRadialGradient(0, 0, 8, 0, 0, h * 0.55); gr.addColorStop(0, `rgba(${u[0]},${u[1]},${u[2]},.7)`); gr.addColorStop(1, `rgba(${u[0]},${u[1]},${u[2]},0)`);
+            g.fillStyle = gr; g.beginPath(); g.arc(0, 0, h * 0.55, 0, 6.283); g.fill(); g.restore();
+        }
+        // luz de los faros (color del faro que tenés elegido)
+        const nk = (garage.selectedNeons && garage.selectedNeons[ck]) || 'white', nc = (NEONES[nk] && NEONES[nk].color) || [255, 240, 200];
+        g.save(); g.globalCompositeOperation = 'lighter';
+        [-w * 0.28, w * 0.28].forEach(ox => {
+            const gr = g.createRadialGradient(ox, -h * 0.5, 2, ox, -h * 0.5, h * 0.5); gr.addColorStop(0, `rgba(${nc[0]},${nc[1]},${nc[2]},.5)`); gr.addColorStop(1, `rgba(${nc[0]},${nc[1]},${nc[2]},0)`);
+            g.fillStyle = gr; g.beginPath(); g.arc(ox, -h * 0.5, h * 0.5, 0, 6.283); g.fill();
+        });
+        g.restore();
+        if (img.complete && img.naturalWidth > 0) g.drawImage(img, -w / 2, -h / 2, w, h);
+        g.restore();
+    } catch (e) { }
+}
+requestAnimationFrame(dibujar);
+} catch (e) { console.error('Mejoras18:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
