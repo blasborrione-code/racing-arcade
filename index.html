@@ -3946,7 +3946,12 @@ setInterval(() => document.body.classList.toggle('jugando', state === 'PLAYING')
 (function () { try {
 
 // ---------- PERILLAS ----------
-const GAP_MIN = 450, GAP_MAX = 1100;  // distancia de ruta entre autos de frente (más chico = más tráfico en contramano)
+// Dificultad del tráfico de frente: arranca en los valores "INICIO" (nivel 1) y sube de a poco hasta los "TOPE" (nivel NIVEL_TOPE); después no sube más.
+const NIVEL_TOPE = 13;
+const GAP_INICIO  = [900, 1600], GAP_TOPE  = [450, 1000];   // distancia de ruta entre autos de frente [mínima, máxima] (más chico = más tráfico)
+const DOBLE_INICIO = 0.04, DOBLE_TOPE = 0.30;                // probabilidad de que vengan los dos carriles a la vez
+const SEGUIDO_INICIO = 0.12, SEGUIDO_TOPE = 0.30;            // probabilidad de que vengan uno atrás del otro
+const mezcla = (a, b) => a + (b - a) * Math.min(1, Math.max(0, (level - 1) / (NIVEL_TOPE - 1)));
 const VEL_FRENTE = [2, 4];            // velocidad propia de los autos que vienen de frente (se suma a la tuya)
 const AVISO = 45;                     // cuadros (60 = 1 seg) que parpadea la alerta antes de que aparezca un auto de frente
 const COSTO_VIDAS = 2;                // vidas que saca un choque de frente
@@ -3955,6 +3960,7 @@ const MULT_MONEDAS = 2;               // monedas del piso en contramano
 
 const LANE_X = [75, 157.5, 242.5, 325];
 let hardRun = false, acc = 0, nextGap = 1000, warns = [];
+const nuevoGap = () => mezcla(GAP_INICIO[0], GAP_TOPE[0]) + Math.random() * (mezcla(GAP_INICIO[1], GAP_TOPE[1]) - mezcla(GAP_INICIO[0], GAP_TOPE[0]));
 
 const st = document.createElement('style');
 st.textContent = '#md-note{display:none !important}';
@@ -3965,7 +3971,7 @@ const _sgl = startGameLogic;
 startGameLogic = function () {
     hardRun = (window.gameMode === 'dificil');
     _sgl();
-    acc = 0; nextGap = GAP_MIN; warns = [];
+    acc = 0; nextGap = nuevoGap(); warns = [];
     if (hardRun) player.x = LANE_X[3] - player.w / 2;     // arrancás en tu carril de la derecha
 };
 
@@ -4005,12 +4011,12 @@ update = function (dt) {
     if (acc >= nextGap) {
         const libres = lanesLibres();
         if (libres.length) {
-            const r = Math.random(), pDoble = Math.min(0.35, 0.12 + level * 0.025), pSeguido = 0.30;
+            const r = Math.random(), pDoble = mezcla(DOBLE_INICIO, DOBLE_TOPE), pSeguido = mezcla(SEGUIDO_INICIO, SEGUIDO_TOPE);
             const l = libres[(Math.random() * libres.length) | 0];
             warns.push({ l, t: AVISO });
             if (libres.length === 2 && r < pDoble) warns.push({ l: 1 - l, t: AVISO + (Math.random() < 0.5 ? 0 : 14) });   // los dos carriles a la vez (o casi)
             else if (r < pDoble + pSeguido) warns.push({ l: Math.random() < 0.5 ? l : 1 - l, t: AVISO + 30 + Math.random() * 50 });   // uno atrás del otro
-            acc = 0; nextGap = GAP_MIN + Math.random() * (GAP_MAX - GAP_MIN);
+            acc = 0; nextGap = nuevoGap();
         } else acc = nextGap - 100;
     }
     for (let i = warns.length - 1; i >= 0; i--) { warns[i].t -= dt; if (warns[i].t <= 0) { spawnFrente(warns[i].l); warns.splice(i, 1); } }
