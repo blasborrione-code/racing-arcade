@@ -4569,8 +4569,8 @@ if (!$('mb-fonts')) {
 }
 const st = document.createElement('style');
 st.textContent = `
-.overlay.sb{background:#0a0a0c !important;backdrop-filter:none !important;padding:0 !important;display:block;overflow:hidden}
-.overlay.sb:not(.hidden){display:block}
+.overlay.sb{background:#0a0a0c !important;backdrop-filter:none !important;padding:0 !important;overflow:hidden}
+.overlay.sb.hidden{display:none !important}
 .sb .sb-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .sb .sb-bg i{position:absolute;display:block}
 .sb .sb-root{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;box-sizing:border-box;
@@ -4741,6 +4741,124 @@ if (M) {
     };
 }
 } catch (e) { console.error('Mejoras19:', e); } })();
+// ===== MEJORAS 20 - GARAJE, TIENDA Y LOGROS EN ESTILO "CARRERA DEPORTIVA" (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras19) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+const kit = window.sbKit; if (!kit) { console.error('Mejoras20: falta mejoras19'); return; }
+
+const st = document.createElement('style');
+st.textContent = `
+.sb .sb-hero{position:relative;height:clamp(140px,24vh,210px);margin:0 -16px;display:flex;align-items:center;justify-content:center}
+.sb .sb-hero::before{content:"";position:absolute;left:50%;top:50%;width:min(70%,260px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),rgba(255,255,255,0) 68%)}
+.sb .sb-hero img{position:relative;height:88%;max-width:70%;object-fit:contain;transform:rotate(-8deg);filter:drop-shadow(0 12px 10px rgba(0,0,0,.6)) drop-shadow(0 0 var(--gl,0px) var(--gc,transparent));image-rendering:pixelated}
+.sb .sb-hero b{position:absolute;left:16px;bottom:0;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:22px;letter-spacing:1px;text-shadow:2px 2px 0 #e10600}
+.sb .sb-hero small{position:absolute;left:16px;bottom:26px;font-weight:700;font-size:12px;letter-spacing:3px;color:#ffc400}
+.sb .sb-nav{position:relative;box-sizing:border-box;width:calc(100% - 8px);min-width:0;height:78px;margin:0;padding:0 16px 0 18px;cursor:pointer;transform:skewX(-8deg);background:#f2f2f2;border:0;border-left:10px solid var(--bc,#e10600);
+  display:flex;align-items:center;gap:14px;color:#0a0a0c;text-align:left;box-shadow:6px 6px 0 rgba(225,6,0,.0)}
+.sb .sb-nav>*{transform:skewX(8deg)}
+.sb .sb-nav:active{filter:brightness(.85)}
+.sb .sb-nav .ni{width:46px;height:46px;flex-shrink:0;background:#0a0a0c;display:flex;align-items:center;justify-content:center}
+.sb .sb-nav .nt{flex-grow:1;min-width:0}
+.sb .sb-nav .nt b{display:block;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:28px;letter-spacing:1px;line-height:1}
+.sb .sb-nav .nt small{display:block;margin-top:3px;font-weight:700;font-size:13px;letter-spacing:.5px;color:#55555e}
+.sb .sb-nav .nc{font-family:'Racing Sans One',sans-serif;font-size:28px;color:#e10600}
+.sb .sb-prow{display:flex;gap:10px;align-items:center}
+.sb .sb-pill.t{border-left-color:#fff;margin-left:0}
+.sb .sb-box{position:relative;box-sizing:border-box;transform:skewX(-6deg);padding:14px 16px 14px 14px;background:#17171b;border-left:8px solid var(--cc,#fff);margin-right:6px}
+.sb .sb-box>.in{transform:skewX(6deg)}
+.sb .sb-box .top{display:flex;gap:12px;align-items:center}
+.sb .sb-box .bi{width:56px;height:56px;flex-shrink:0;background:#26262c;display:flex;align-items:center;justify-content:center}
+.sb .sb-box .bt{flex-grow:1;min-width:0}
+.sb .sb-box .bt b{display:block;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:21px;letter-spacing:.5px;line-height:1.05;color:var(--cc,#fff)}
+.sb .sb-box .bt small{display:block;margin-top:4px;font-weight:600;font-size:14px;color:#c9c9d0}
+.sb .sb-info{width:32px;height:32px;min-width:0;padding:0;margin:0;border:2px solid #fff;background:transparent;color:#fff;font-weight:800;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transform:skewX(-12deg)}
+.sb .sb-info>span{transform:skewX(12deg)}
+.sb .sb-acts{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.sb .sb-buy{min-width:0;width:100%;height:46px;margin:0;padding:0;border:0;cursor:pointer;background:#e10600;color:#fff;font-family:'Racing Sans One',sans-serif;font-size:22px;letter-spacing:2px;line-height:1;transition:filter .1s}
+.sb .sb-buy:active{filter:brightness(.8)}
+.sb .sb-ad{min-width:0;width:100%;min-height:46px;margin:0;padding:6px 10px;border:2px solid #fff;cursor:pointer;background:#0a0a0c;color:#fff;font-family:'Saira Semi Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:1px;line-height:1.25;text-align:center}
+.sb .sb-ad small{font-weight:700;font-size:12px;letter-spacing:1px}
+.sb .sb-ad:active{filter:brightness(.8)}
+`;
+document.head.appendChild(st);
+
+const coinBig = c => `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 010 3.6h-3a1.8 1.8 0 000 3.6h4.2"/></svg>`;
+const NAVI = {
+    auto: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M3 14l2-6h14l2 6v4h-3v-2H6v2H3z"/><circle cx="7.5" cy="14" r="1"/><circle cx="16.5" cy="14" r="1"/></svg>',
+    mej: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
+    log: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M8 4h8v6a4 4 0 01-8 0zM8 6H4v2a3 3 0 003 3M16 6h4v2a3 3 0 01-3 3M12 14v4M8 21h8"/></svg>'
+};
+
+// ---------- GARAJE ----------
+const G = kit.mount('shop-main', { title: 'GARAJE' });
+if (G) {
+    G.body.innerHTML = `
+      <div class="sb-hero" id="gj-hero"><small>TU AUTO</small><b id="gj-name"></b><img id="gj-img" alt=""></div>
+      <button class="sb-nav" style="--bc:#e10600" onclick="openConcesionario()"><div class="ni">${NAVI.auto}</div><div class="nt"><b>AUTOS</b><small>Comprá y elegí tu auto</small></div></button>
+      <button class="sb-nav" style="--bc:#ffc400" onclick="openMejoras()"><div class="ni">${NAVI.mej}</div><div class="nt"><b>MEJORAS</b><small>Motor, pintura y luces</small></div></button>
+      <button class="sb-nav" style="--bc:#0a0a0c" onclick="openLogros()"><div class="ni">${NAVI.log}</div><div class="nt"><b>LOGROS</b><small>Tus metas y premios</small></div></button>`;
+    const pintar = () => {
+        try {
+            const ck = garage.selected, m = MODELS[ck]; if (!m) return;
+            $('gj-img').src = getCarImg(ck); $('gj-name').textContent = m.name;
+            const ug = garage.selectedUnderglows && garage.selectedUnderglows[ck], img = $('gj-img');
+            if (ug && ug !== 'none' && UNDERGLOW[ug]) { const u = UNDERGLOW[ug].color; img.style.setProperty('--gc', `rgb(${u[0]},${u[1]},${u[2]})`); img.style.setProperty('--gl', '16px'); }
+            else { img.style.setProperty('--gl', '0px'); }
+        } catch (e) { }
+    };
+    const _os = window.openShop;
+    window.openShop = function () { const r = _os.apply(this, arguments); pintar(); return r; };
+}
+
+// ---------- TIENDA (cajas) ----------
+const T = kit.mount('black-market-screen', { title: 'TIENDA', coin: false });
+if (T) {
+    const crate = c => `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2"><path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4M12 12v9"/></svg>`;
+    T.body.innerHTML = `<div class="sb-prow"><div class="sb-pill">${kit.ICONS.coin}<span class="shop-coin-display">0</span></div><div class="sb-pill t"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M3 8a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 000-4z"/></svg><b id="ui-tickets-display">0</b></div></div>
+    <div class="sb-scroll">
+      <div class="sb-box" style="--cc:#ffffff"><div class="in">
+        <div class="top"><div class="bi">${crate('#fff')}</div><div class="bt"><b>CAJA NORMAL</b><small>Piezas básicas, vidas y monedas</small></div>
+          <button class="sb-info" aria-label="Probabilidades" onclick="showProbabilities('common')"><span>i</span></button></div>
+        <div class="sb-acts">
+          <button class="sb-buy" onclick="openBox('common')">COMPRAR ($2.500)</button>
+          <button class="sb-ad" id="btn-ad-common" onclick="watchAdForBox('common')">VER VIDEO (0/15)</button>
+        </div></div></div>
+      <div class="sb-box" style="--cc:#ffc400"><div class="in">
+        <div class="top"><div class="bi">${crate('#ffc400')}</div><div class="bt"><b>CAJA PREMIUM</b><small>Autos raros y neones exclusivos</small></div>
+          <button class="sb-info" aria-label="Probabilidades" onclick="showProbabilities('premium')"><span>i</span></button></div>
+        <div class="sb-acts">
+          <button class="sb-buy" style="background:#ffc400;color:#0a0a0c" onclick="openBox('premium')">USAR 1 TICKET</button>
+          <button class="sb-ad" id="btn-ad-premium" onclick="watchAdForBox('premium')">VER VIDEO (0/5)</button>
+        </div></div></div>
+    </div>`;
+}
+
+// ---------- LOGROS ----------
+const L = kit.mount('shop-logros', { title: 'LOGROS', back: 'openShop()', volver: 'ATRÁS' });
+if (L) {
+    L.body.innerHTML = '<div class="sb-scroll" id="logros-container"></div>';
+    const NOM = { totalDist: 'DISTANCIA TOTAL', totalCoins: 'MONEDAS JUNTADAS', totalPlays: 'PARTIDAS JUGADAS', totalNear: 'NEAR MISS' };
+    const ICO = { totalDist: 'score', totalCoins: 'coinsThisRun', totalPlays: 'escapesThisRun', totalNear: 'nearMissesThisRun' };
+    const UNI = { totalDist: ' m' };
+    window.openLogros = function () {
+        try { playSound('click'); } catch (e) { }
+        hideAll(); updateShopCoinDisplays();
+        const cont = $('logros-container'); cont.innerHTML = '';
+        Object.keys(MILESTONES).forEach(k => {
+            const cur = garage.unlockedLogros[k] || 0, tot = MILESTONES[k].length, max = cur >= tot;
+            const val = k === 'totalDist' ? garage.totalDist : k === 'totalCoins' ? garage.totalCoinsRec : k === 'totalNear' ? garage.totalNear : garage.totalPlays;
+            const meta = max ? 0 : MILESTONES[k][cur], p = max ? 100 : Math.min(100, (val / meta) * 100), u = UNI[k] || '';
+            const d = document.createElement('div'); d.className = 'sb-card' + (max ? ' ready' : ''); d.style.setProperty('--cc', max ? '#ffc400' : cur > 0 ? '#e10600' : '#fff');
+            d.innerHTML = `<div class="in"><div class="sb-ic">${(kit.MIC[ICO[k]] || kit.MIC.def)(max ? '#fff' : cur > 0 ? '#e10600' : '#fff')}</div><div class="sb-tx">
+              <div class="sb-row"><span class="sb-name">${NOM[k] || k.toUpperCase()}</span><span class="sb-prem">${max ? 'MAX' : 'NIVEL ' + (cur + 1)}</span></div>
+              <div class="sb-bar"><div style="width:${p}%"></div></div>
+              <div class="sb-sub">${max ? 'COMPLETADO ' + cur + ' / ' + tot : val.toLocaleString() + ' / ' + meta.toLocaleString() + u}</div></div></div>`;
+            cont.appendChild(d);
+        });
+        $('shop-logros').classList.remove('hidden');
+    };
+}
+} catch (e) { console.error('Mejoras20:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
