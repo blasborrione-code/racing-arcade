@@ -4364,6 +4364,25 @@ draw = function () {
     }
 };
 } catch (e) { console.error('Mejoras16:', e); } })();
+// ===== MEJORAS 17 - DIRECCIÓN SEGÚN LA VELOCIDAD (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras16) =====
+(function () { try {
+
+// ---------- PERILLAS ----------
+const VELOCIDAD_PLENA = 0.45;   // a qué fracción de la velocidad máxima del auto ya doblás con toda la fuerza (0.45 = casi a la mitad de la punta)
+const AGARRE_MINIMO = 0;        // cuánto doblás con el auto detenido (0 = nada). Ej: 0.05 = casi nada, pero algo
+
+// agarre: 0 con el auto parado, sube suave, 1 cuando ya vas rápido
+const agarre = r => { const x = Math.min(1, Math.max(0, r / VELOCIDAD_PLENA)); return AGARRE_MINIMO + (1 - AGARRE_MINIMO) * x * x * (3 - 2 * x); };
+
+const _up = update;
+update = function (dt) {
+    const car = MODELS[garage.selected];
+    if (!car || state !== 'PLAYING') return _up(dt);
+    const base = car.handling, r = currentSpeed / car.maxSpeed;
+    car.handling = base * agarre(r);
+    try { return _up(dt); } finally { car.handling = base; }
+};
+} catch (e) { console.error('Mejoras17:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
