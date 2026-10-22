@@ -4402,9 +4402,11 @@ st.textContent = `
 #menu.mb .ui-card{display:none !important}
 #menu.mb .mb-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 #menu.mb .mb-bg i{position:absolute;display:block}
-#menu.mb .mb-root{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;display:flex;justify-content:center;
+#menu.mb .mb-root{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;display:flex;justify-content:center;align-items:flex-start;
   padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 32px);font-family:'Saira Semi Condensed','Barlow Condensed',sans-serif;color:#fff}
 #menu.mb .mb-col{position:relative;z-index:2;width:min(100%,400px);min-height:100%;display:flex;flex-direction:column;gap:10px}
+#menu.mb .mb-col>*{flex-shrink:0}
+#menu.mb .mb-col>.mb-car{flex:1 1 0;min-height:120px}
 #menu.mb .mb-top{display:flex;align-items:center;gap:8px}
 #menu.mb .mb-pill{display:flex;align-items:center;gap:7px;height:34px;padding:0 14px 0 9px;transform:skewX(-12deg);background:#0a0a0c;border-left:4px solid var(--pc,#ffc400)}
 #menu.mb .mb-pill>*{transform:skewX(12deg)}
@@ -4418,7 +4420,7 @@ st.textContent = `
 #menu.mb .mb-title span{display:block;margin-top:6px;font-weight:700;font-size:15px;letter-spacing:2px;color:#ffc400;text-shadow:0 0 6px #000,0 1px 0 #000}
 #menu.mb .mb-title span span{display:inline;margin:0;font-size:inherit}
 #menu.mb .mb-title span b{color:#fff;font-weight:800}
-#menu.mb .mb-car{position:relative;flex:1 1 auto;min-height:210px;margin:-6px -16px -4px}
+#menu.mb .mb-car{position:relative;flex:1 1 auto;min-height:120px;margin:-6px -16px -4px}
 #menu.mb .mb-car canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 #menu.mb #rank-display-menu{margin:0 !important;padding:8px 18px 8px 14px !important;border-radius:0 !important;background:rgba(10,10,12,.92) !important;border-left:6px solid #ffc400;
   box-shadow:6px 6px 0 rgba(255,255,255,.12) !important;justify-content:flex-start !important;gap:14px !important;cursor:pointer;position:relative;order:0 !important;grid-column:auto !important}
@@ -4447,7 +4449,8 @@ st.textContent = `
   background:#1b1b20 !important;border:1px solid #555 !important;color:#fff !important;font-family:'Saira Semi Condensed',sans-serif;order:0 !important;grid-column:auto !important}
 #menu.mb #user-status{margin:0 !important;font-size:12px !important;color:#9a9aa3 !important;order:0 !important;grid-column:auto !important}
 #menu.mb .legal-link{margin:0 !important;font-size:11px !important;order:0 !important;grid-column:auto !important}
-@media (max-height:700px){#menu.mb .mb-car{min-height:150px}#menu.mb .mb-go{height:64px}#menu.mb .mb-go span{font-size:38px}}`;
+@media (max-height:800px){#menu.mb .mb-title strong{font-size:clamp(46px,14vw,60px)}#menu.mb .mb-title small{font-size:16px}#menu.mb .mb-go{height:66px}#menu.mb .mb-go span{font-size:40px}#menu.mb .mb-btn{height:54px}#menu.mb .mb-col{gap:8px}}
+@media (max-height:700px){#menu.mb .mb-car{min-height:100px}#menu.mb .mb-go{height:64px}#menu.mb .mb-go span{font-size:38px}}`;
 document.head.appendChild(st);
 
 // ---------- ARMADO (se reutilizan los elementos originales para que todo lo que ya los actualiza siga andando) ----------
