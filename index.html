@@ -3395,7 +3395,7 @@ update = function (dt) {
 
     // combo + tope de monedas por near miss
     for (let k = nearMissesThisRun - nm0; k > 0; k--) {
-        if (nmCoins + 10 > NM_COIN_CAP) {
+        if (nmCoins + 10 > NM_COIN_CAP + Math.floor(score * 0.06) {
             garage.coins -= 10; coinsThisRun -= 10;
             if (!capWarned) { capWarned = true; showToast('TOPE', 'Máximo de monedas por near miss en esta carrera'); }
         } else nmCoins += 10;
@@ -3777,6 +3777,51 @@ R(20, 'monedas', 2500); R(21, 'monedas', 3000); R(22, 'monedas', 3500); R(23, 'm
 R(25, 'monedas', 4000); R(26, 'monedas', 4500); R(27, 'monedas', 5000); R(28, 'monedas', 6000);
 R(29, 'ticket', 3);       // día 30 (auto inexistente)
 } catch (e) { console.error('Mejoras8:', e); } })();
+// ===== MEJORAS 9 - MISIONES REBALANCEADAS (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras8) =====
+(function () { try {
+
+// ---------- PERILLAS ----------
+const REGENERAR_AHORA = false;   // Poné true UNA vez para borrar tus misiones actuales y que se generen las nuevas ya. Después volvé a dejarlo en false.
+const PREMIO_DIARIA   = [100, 180, 300];   // fácil / media / difícil
+const PREMIO_SEMANAL  = 1800;
+const PESO_DIARIA     = [40, 40, 20];      // % de que toque fácil / media / difícil
+
+// Metas: d = diarias [fácil, media, difícil], w = semanal. r = premios propios (si no, se usan los de arriba)
+const DEFS = {
+    nearmiss: { desc: 'Haz Near Miss',                       prop: 'nearMissesThisRun', d: [20, 40, 70],    w: 300 },
+    coins:    { desc: 'Junta Monedas',                       prop: 'coinsThisRun',      d: [150, 300, 500], w: 2500 },
+    dist:     { desc: 'Recorre Metros',                      prop: 'score',             d: [3000, 6000, 10000], w: 40000 },
+    fuel:     { desc: 'Agarra Bidones de Nafta',             prop: 'fuelsThisRun',      d: [5, 10, 15],     w: 80 },
+    cones:    { desc: 'Choca Conos de Obra',                 prop: 'conesThisRun',      d: [4, 8, 12],      w: 50 },
+    speed:    { desc: 'Mantén Vel. Máxima (Segs)',           prop: 'speedTimeThisRun',  d: [20, 45, 90],    w: 500 },
+    police:   { desc: 'Escapa de la Policía (Estrellas)',    prop: 'escapesThisRun',    d: [1, 2, 3],       r: [150, 250, 400], soloDiaria: true }
+};
+const keyOf = m => m.key || String(m.id).split('_')[0];
+
+generateMission = function (isWeekly) {
+    const tipo = isWeekly ? 'semanal' : 'diaria';
+    const usados = (garage.activeMissions || []).filter(m => m.tipo === tipo).map(keyOf);
+    let keys = Object.keys(DEFS).filter(k => !(isWeekly && DEFS[k].soloDiaria));
+    const libres = keys.filter(k => !usados.includes(k));
+    if (libres.length) keys = libres;                       // evita repetir tipo
+    const key = keys[(Math.random() * keys.length) | 0], def = DEFS[key];
+
+    let meta, premio;
+    if (isWeekly) { meta = def.w; premio = PREMIO_SEMANAL; }
+    else {
+        const r = Math.random() * 100;
+        const t = r < PESO_DIARIA[0] ? 0 : r < PESO_DIARIA[0] + PESO_DIARIA[1] ? 1 : 2;
+        meta = def.d[t]; premio = (def.r || PREMIO_DIARIA)[t];
+    }
+    return {
+        id: key + '_' + Date.now() + Math.random(), key, tipo,
+        desc: `${def.desc} (${meta.toLocaleString()})`,
+        progreso: 0, meta, premio, prop: def.prop, cobrado: false
+    };
+};
+
+if (REGENERAR_AHORA) { garage.activeMissions = []; garage.lastMissionDate = ""; garage.lastWeeklyDate = ""; saveLocal(); }
+} catch (e) { console.error('Mejoras9:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
