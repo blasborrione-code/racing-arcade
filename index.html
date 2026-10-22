@@ -3989,8 +3989,9 @@ spawnTraffic = function () {
 };
 
 // ---------- AUTOS DE FRENTE ----------
+const hayObras = l => (constEvent.active && constEvent.lane === l) || enemies.some(e => e.type === 'obs' && e.l === l);   // obras activas o todavía en pantalla
 function lanesLibres() {
-    return [0, 1].filter(l => !(constEvent.active && constEvent.lane === l) &&
+    return [0, 1].filter(l => !hayObras(l) &&
         !enemies.some(e => e.onc && e.l === l && e.y < 260) && !warns.some(w => w.l === l));
 }
 function spawnFrente(l) {
@@ -4019,14 +4020,17 @@ update = function (dt) {
             acc = 0; nextGap = nuevoGap();
         } else acc = nextGap - 100;
     }
-    for (let i = warns.length - 1; i >= 0; i--) { warns[i].t -= dt; if (warns[i].t <= 0) { spawnFrente(warns[i].l); warns.splice(i, 1); } }
+    for (let i = warns.length - 1; i >= 0; i--) {
+        if (hayObras(warns[i].l)) { warns.splice(i, 1); continue; }     // empezaron obras en ese carril: se cancela el aviso
+        warns[i].t -= dt; if (warns[i].t <= 0) { spawnFrente(warns[i].l); warns.splice(i, 1); }
+    }
 
     _up(dt);
     if (state !== 'PLAYING' && state !== 'PAUSED') return;
 
     // los de frente nunca cambian de carril
     enemies.forEach(e => {
-        if (e.onc && !e.crashed && !e.hit) { e.blink = false; e.chg = false; e.tl = e.l; e.x = LANE_X[e.l] - e.w / 2; }
+        if (e.onc && !e.crashed && !e.hit) { e.speed = e.baseSpeed; e.blink = false; e.chg = false; e.tl = e.l; e.x = LANE_X[e.l] - e.w / 2; }
         if (e.onc && e.crashed) e.rotation = Math.PI + 0.25;
         // contramano permitido SOLO a: rival de carrera mientras corre, y policía en persecución
         if (e.onc || e.type === 'obs' || e.crashed || e.hit) return;
