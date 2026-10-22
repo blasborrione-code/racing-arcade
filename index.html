@@ -3822,6 +3822,81 @@ generateMission = function (isWeekly) {
 
 if (REGENERAR_AHORA) { garage.activeMissions = []; garage.lastMissionDate = ""; garage.lastWeeklyDate = ""; saveLocal(); }
 } catch (e) { console.error('Mejoras9:', e); } })();
+// ===== MEJORAS 10 - FASE 3, ENTREGA 1: SELECTOR DE MODO (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras9) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+
+// ---------- PERILLA ----------
+const DIFICIL_LISTO = false;   // mientras sea false, el selector avisa que Difícil todavía juega igual que Fácil. Se pone en true en la Entrega 2.
+
+window.gameMode = garage.lastMode === 'dificil' ? 'dificil' : 'facil';   // 'facil' | 'dificil' (lo van a leer las próximas entregas)
+
+// ---------- ESTILOS ----------
+const st = document.createElement('style');
+st.textContent = `
+#mode-select .ui-card{width:min(92vw,360px) !important;box-sizing:border-box}
+#mode-select h1{font-size:26px;margin-bottom:14px}
+.md-opt{position:relative;text-align:left;border-radius:20px;padding:14px;margin-bottom:12px;cursor:pointer;border:2px solid var(--mc);background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.02));box-shadow:0 0 18px color-mix(in srgb,var(--mc) 35%,transparent);transition:transform .1s}
+.md-opt:active{transform:scale(.97)}
+.md-opt.sel::after{content:"ÚLTIMO";position:absolute;top:10px;right:12px;font-size:9px;letter-spacing:2px;font-weight:900;color:var(--mc);opacity:.9}
+.md-opt h2{margin:0 0 2px;font-size:22px;font-style:italic;font-weight:900;color:var(--mc);letter-spacing:1px}
+.md-opt p{margin:0 0 10px;font-size:11px;color:#cfd6dd;line-height:1.45}
+.md-road{display:flex;gap:3px;height:46px;border-radius:10px;overflow:hidden;background:#1e2733;padding:0 6px;box-sizing:border-box;margin-bottom:8px}
+.md-road i{flex:1;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:22px;font-weight:900;color:rgba(255,255,255,.75);border-left:2px dashed rgba(255,255,255,.18)}
+.md-road i:first-child{border-left:none}
+.md-road i.dn{color:#ff7b6b}
+.md-road i.mid{border-left:3px solid #f1c40f}
+.md-tags{display:flex;flex-wrap:wrap;gap:5px}
+.md-tags span{font-size:9px;letter-spacing:.5px;font-weight:800;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.4);color:#fff;border:1px solid rgba(255,255,255,.18)}
+.md-note{font-size:10px;color:#e67e22;margin:-4px 0 12px;line-height:1.4}
+#mode-tag{position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:12;display:none;pointer-events:none;font-size:10px;font-weight:900;letter-spacing:3px;color:#ff7b6b;text-shadow:0 0 8px rgba(255,80,60,.8)}`;
+document.head.appendChild(st);
+
+// ---------- PANTALLA ----------
+const el = document.createElement('div'); el.id = 'mode-select'; el.className = 'overlay hidden';
+el.innerHTML = `<div class="ui-card"><h1>ELEGÍ MODO</h1>
+  <div class="md-opt" data-m="facil" style="--mc:#2ecc71"><h2>FÁCIL</h2>
+    <p>Los 4 carriles van en el mismo sentido. Ideal para aprender y juntar monedas tranquilo.</p>
+    <div class="md-road"><i>↑</i><i>↑</i><i>↑</i><i>↑</i></div>
+    <div class="md-tags"><span>4 CARRILES ↑</span><span>MODO CLÁSICO</span></div></div>
+  <div class="md-opt" data-m="dificil" style="--mc:#ff5a4a"><h2>DIFÍCIL 🔥</h2>
+    <p>Los 2 carriles de la izquierda vienen de frente. Más riesgo y más premio.</p>
+    <div class="md-road"><i class="dn">↓</i><i class="dn">↓</i><i class="mid">↑</i><i>↑</i></div>
+    <div class="md-tags"><span>CONTRAMANO</span><span>💰 x2 EN CONTRAMANO</span><span>METROS x1,5</span><span>CHOQUE DE FRENTE: −2 ❤️</span></div></div>
+  <div class="md-note" id="md-note"></div>
+  <button class="btn-red" id="md-back">VOLVER</button></div>`;
+$('game-container').appendChild(el);
+const tag = document.createElement('div'); tag.id = 'mode-tag'; tag.innerText = 'MODO DIFÍCIL'; $('game-container').appendChild(tag);
+
+function abrir() {
+    playSound('click'); hideAll();
+    $('md-note').innerText = DIFICIL_LISTO ? '' : '🔧 Difícil está en construcción: por ahora juega igual que Fácil.';
+    el.querySelectorAll('.md-opt').forEach(o => o.classList.toggle('sel', o.dataset.m === window.gameMode));
+    el.classList.remove('hidden');
+}
+function empezar(modo) {
+    window.gameMode = modo; garage.lastMode = modo; save();
+    el.classList.add('hidden'); window.__modoListo = true;
+    tag.style.display = (modo === 'dificil') ? 'block' : 'none';
+    window.startGame();
+}
+el.querySelectorAll('.md-opt').forEach(o => o.addEventListener('click', () => empezar(o.dataset.m)));
+$('md-back').addEventListener('click', () => window.showMenu());
+
+// ---------- ENGANCHES ----------
+// CORRER del menú abre el selector; si ya hay modo elegido (flag) arranca de verdad
+const _sg = window.startGame;
+window.startGame = function () {
+    if (window.__modoListo) { window.__modoListo = false; return _sg.apply(this, arguments); }
+    abrir();
+};
+// REINTENTAR repite el último modo sin preguntar
+const retry = $('game-over').querySelector('.btn-green');
+if (retry) retry.onclick = () => { window.__modoListo = true; window.startGame(); };
+// al volver al menú se esconde la etiqueta del modo
+const _sm = window.showMenu;
+window.showMenu = function () { tag.style.display = 'none'; return _sm.apply(this, arguments); };
+} catch (e) { console.error('Mejoras10:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
