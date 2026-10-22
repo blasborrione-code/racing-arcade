@@ -5200,6 +5200,117 @@ const IC = {
     };
 })();
 } catch (e) { console.error('Mejoras22:', e); } })();
+// ===== MEJORAS 23 - ELEGIR MODO, PAUSA, REVIVIR, GAME OVER, TEMPORADA, PODIO, CAJAS Y TUTORIAL EN ESTILO "CARRERA DEPORTIVA" (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras22) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+const kit = window.sbKit; if (!kit) { console.error('Mejoras23: falta mejoras19'); return; }
+
+const st = document.createElement('style');
+st.textContent = `
+/* ---- carteles (pausa, revivir, game over) ---- */
+#pause-screen,#revive-screen,#game-over{background:rgba(0,0,0,.82) !important;backdrop-filter:none !important}
+#revive-screen{background:radial-gradient(circle at 50% 35%,rgba(225,6,0,.35),rgba(0,0,0,.93) 70%) !important}
+:is(#pause-screen,#revive-screen,#game-over) .ui-card{width:min(90vw,380px) !important;max-height:92vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:#101013 !important;border:0 !important;border-left:8px solid #e10600 !important;border-radius:0 !important;
+  box-shadow:8px 8px 0 #fff !important;padding:28px 18px 18px !important;text-align:left;font-family:'Saira Semi Condensed','Barlow Condensed',sans-serif;position:relative}
+:is(#pause-screen,#revive-screen,#game-over) .ui-card::before{content:"";position:absolute;left:0;right:0;top:0;height:10px;background:repeating-linear-gradient(90deg,#fff 0 10px,#0a0a0c 10px 20px);opacity:.9}
+:is(#pause-screen,#revive-screen,#game-over) h1{font-family:'Racing Sans One',sans-serif !important;font-weight:400 !important;font-size:38px !important;letter-spacing:1px;margin:0 0 12px !important;color:#fff !important;text-shadow:3px 3px 0 #e10600;text-align:left;line-height:1}
+#game-over h1.go-record{color:transparent !important;text-shadow:none}
+:is(#pause-screen,#revive-screen,#game-over) .ui-card button{min-width:0;width:100%;height:52px;margin:10px 0 0 !important;padding:0 10px !important;border:0 !important;border-radius:0 !important;cursor:pointer;
+  font-family:'Racing Sans One',sans-serif !important;font-size:21px !important;letter-spacing:3px;line-height:1.1;background:#fff !important;color:#0a0a0c !important;box-shadow:none !important;animation:none}
+:is(#pause-screen,#revive-screen,#game-over) .ui-card button.btn-green{background:#e10600 !important;color:#fff !important}
+:is(#pause-screen,#revive-screen,#game-over) .ui-card button.btn-red{background:transparent !important;color:#fff !important;border:2px solid #fff !important}
+:is(#pause-screen,#revive-screen,#game-over) .ui-card button:active{filter:brightness(.8)}
+#btn-sound{background:#17171b !important;color:#fff !important;border:2px solid #fff !important}
+#revive-screen .btn-green{min-height:64px;font-size:19px !important;letter-spacing:1px !important;animation:sbBlink 1.2s ease-in-out infinite !important}
+#revive-screen p{font-size:15px !important;font-weight:600;color:#c9c9d0 !important;margin:0 0 14px !important;text-align:center}
+#rv-dist{font-weight:800;font-size:14px;letter-spacing:2px;color:#c9c9d0;margin-bottom:6px;text-align:center}
+#rv-dist b{color:#ffc400;font-size:18px}
+#timer-display{background:conic-gradient(#e10600 var(--ang),rgba(255,255,255,.12) 0) !important;box-shadow:none !important;font-family:'Racing Sans One',sans-serif;font-weight:400 !important;font-size:60px !important;text-shadow:none !important}
+#timer-display::before{background:#101013 !important}
+#game-over #over-reason{font-weight:800;font-size:16px;letter-spacing:2px;color:#ffc400 !important;text-transform:uppercase;margin:0 0 6px}
+#game-over #final-stats{color:#c9c9d0 !important;font-weight:600;font-size:15px}
+#game-over .go-grid{gap:8px;margin:8px 8px 12px 0}
+#game-over .go-tile{background:#17171b;border:0;border-top:4px solid #e10600;border-radius:0;transform:skewX(-6deg);padding:10px 2px;text-align:center}
+#game-over .go-tile>*{transform:skewX(6deg)}
+#game-over .go-tile small{font-weight:800;font-size:10px;letter-spacing:2px;color:#9a9aa3}
+#game-over .go-tile b{font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:21px;color:#fff}
+#game-over .go-rank{background:#17171b;border-style:solid;border-width:0 0 0 6px;border-radius:0;color:#fff;margin-bottom:12px}
+#game-over .go-rank b{font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:22px}
+#game-over .go-rank small{color:#c9c9d0;font-weight:600;font-size:13px}
+#game-over .go-bar{height:8px;background:#000;border-radius:0;transform:skewX(-20deg)}
+#game-over .go-bar i{border-radius:0}
+#game-over .go-up{color:#2fd17a;font-family:'Racing Sans One',sans-serif;font-size:18px;letter-spacing:1px}
+#go-actions button{height:auto !important;min-height:46px;padding:8px 10px !important;font-size:17px !important;letter-spacing:1px !important;line-height:1.15}
+#go-actions .btn-orange{background:#ffc400 !important;color:#0a0a0c !important}
+#go-actions b{color:#e10600 !important}
+#mission-complete-msg{color:#ffc400 !important;font-family:'Racing Sans One',sans-serif;letter-spacing:1px}
+/* ---- temporada y podio ---- */
+#season-reward,#podio-reward{background:radial-gradient(circle at 50% 40%,rgba(225,6,0,.3),rgba(0,0,0,.95)) !important}
+.sr-card{width:min(90vw,360px);background:#101013 !important;border:0 !important;border-left:8px solid #e10600 !important;border-radius:0 !important;box-shadow:8px 8px 0 #fff !important;font-family:'Saira Semi Condensed','Barlow Condensed',sans-serif}
+.sr-card small{font-family:'Racing Sans One',sans-serif;font-weight:400 !important;font-size:15px !important;letter-spacing:2px !important;color:#ffc400 !important}
+.sr-card h2{font-family:'Racing Sans One',sans-serif;font-style:normal !important;font-weight:400 !important;font-size:38px !important;text-shadow:3px 3px 0 #e10600}
+.sr-card h2[style*="f1c40f"]{color:#fff !important}
+.sr-card p{color:#c9c9d0 !important;font-weight:600;font-size:15px !important}
+.sr-list{background:#17171b !important;border-radius:0 !important;border-left:4px solid #ffc400;color:#fff;font-size:16px !important}
+.sr-card button{min-width:0;width:100%;height:52px;margin:0 !important;padding:0 !important;border:0 !important;border-radius:0 !important;background:#e10600 !important;color:#fff !important;font-family:'Racing Sans One',sans-serif !important;font-size:22px !important;letter-spacing:3px;animation:sbBlink 1.2s ease-in-out infinite}
+/* ---- apertura de cajas ---- */
+.br-prize small{font-family:'Racing Sans One',sans-serif;font-weight:400 !important;font-size:18px !important}
+.br-prize b{font-family:'Racing Sans One',sans-serif;font-weight:400 !important}
+.br-prize em{font-weight:700;letter-spacing:2px}
+/* ---- elegir modo ---- */
+.sb .md-opt{box-sizing:border-box;margin:0 8px 0 0;border:0 !important;border-left:8px solid var(--mc) !important;border-radius:0 !important;background:#17171b !important;box-shadow:none !important;transform:skewX(-4deg);padding:14px 14px 14px 14px}
+.sb .md-opt>*{transform:skewX(4deg)}
+.sb .md-opt:active{transform:skewX(-4deg) scale(.98)}
+.sb .md-opt.sel{box-shadow:6px 6px 0 var(--mc) !important}
+.sb .md-opt.sel::after{content:"ÚLTIMO";transform:skewX(4deg);font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:13px;letter-spacing:2px;top:10px;right:12px;color:#ffc400 !important}
+.sb .md-opt h2{font-family:'Racing Sans One',sans-serif;font-style:normal;font-weight:400;font-size:30px;letter-spacing:1px;line-height:1;margin:0 0 4px}
+.sb .md-opt p{font-size:14px;font-weight:600;color:#c9c9d0;line-height:1.35;margin:0 0 10px}
+.sb .md-road{border-radius:0;background:#000;height:48px}
+.sb .md-road i{color:#fff;border-left-color:rgba(255,255,255,.25)}
+.sb .md-road i.dn{color:#ff5a4a}
+.sb .md-road i.mid{border-left:3px solid #ffc400}
+.sb .md-tags span{border-radius:0;background:#000;border:0;border-left:3px solid var(--mc);font-weight:800;font-size:11px;letter-spacing:1px;padding:4px 8px}
+/* ---- tutorial ---- */
+#tutorial-overlay{background:repeating-linear-gradient(45deg,rgba(255,255,255,.035) 0 3px,transparent 3px 6px),rgba(8,8,10,.95) !important;font-family:'Saira Semi Condensed','Barlow Condensed',sans-serif}
+#tutorial-overlay .tt{width:min(88vw,360px);text-align:center;color:#fff}
+#tutorial-overlay .tt h1{margin:0 0 22px;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:34px;letter-spacing:1px;text-shadow:3px 3px 0 #e10600}
+#tutorial-overlay .tt-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 8px 22px 0}
+#tutorial-overlay .tt-box{padding:18px 8px 14px;background:#17171b;border-top:5px solid #e10600;transform:skewX(-6deg)}
+#tutorial-overlay .tt-box>*{transform:skewX(6deg)}
+#tutorial-overlay .tt-box b{display:block;margin-top:8px;font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:22px;letter-spacing:2px}
+#tutorial-overlay .tt-line{font-family:'Racing Sans One',sans-serif;font-size:26px;letter-spacing:1px;color:#ffc400;margin-bottom:6px}
+#tutorial-overlay .tt-sub{font-weight:700;font-size:17px;color:#c9c9d0}
+#tutorial-overlay .tt-go{margin-top:30px;font-family:'Racing Sans One',sans-serif;font-size:20px;letter-spacing:3px;animation:sbBlink 1.2s ease-in-out infinite}
+#tutorial-overlay .tut-hand{display:flex;justify-content:center}`;
+document.head.appendChild(st);
+
+// ---------- ELEGIR MODO ----------
+(function () {
+    const el = $('mode-select'); if (!el) return;
+    const opts = [...el.querySelectorAll('.md-opt')];
+    const M = kit.mount('mode-select', { title: 'ELEGÍ MODO' });
+    M.screen.querySelector('.sb-pill').remove();   // acá no hace falta mostrar monedas
+    const sc = document.createElement('div'); sc.className = 'sb-scroll';
+    opts.forEach(o => sc.appendChild(o));
+    if (opts[0]) opts[0].style.setProperty('--mc', '#ffffff');
+    if (opts[1]) opts[1].style.setProperty('--mc', '#e10600');
+    M.body.appendChild(sc);
+    M.body.insertAdjacentHTML('beforeend', '<div id="md-note" style="display:none"></div>');   // mejoras10 lo busca al abrir
+})();
+
+// ---------- TUTORIAL ----------
+(function () {
+    const t = $('tutorial-overlay'); if (!t) return;
+    const arrow = d => `<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"><path d="${d}"/></svg>`;
+    t.innerHTML = `<div class="tt"><h1>CÓMO SE JUEGA</h1>
+      <div class="tt-row">
+        <div class="tt-box"><div class="tut-hand">${arrow('M20 12H4M10 5l-7 7 7 7')}</div><b>IZQUIERDA</b></div>
+        <div class="tt-box"><div class="tut-hand">${arrow('M4 12h16M14 5l7 7-7 7')}</div><b>DERECHA</b></div></div>
+      <div class="tt-line">ESQUIVÁ EL TRÁFICO</div>
+      <div class="tt-sub">Agarrá nafta para seguir</div>
+      <div class="tt-go">TOCÁ LA PANTALLA PARA EMPEZAR</div></div>`;
+})();
+} catch (e) { console.error('Mejoras23:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
