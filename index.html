@@ -1634,7 +1634,7 @@ window.updateMenuRankUI = function() {
         const car = MODELS[garage.selected]; 
         const stats = garage.carStats[garage.selected]; // Traemos el garaje a la largada
         assets.player.src = getCarImg(garage.selected); 
-        player = { x: 200 - car.w/2, y: 470, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
+        player = { x: 200 - car.w/2, y: 500, w: car.w, h: car.h, vx: 0, coneHits: 0 }; 
         score = 0; fuel = 100; 
         
         // --- 🛡️ SISTEMA DE VIDAS (Auto + Chasis + Buff de Caja) ---
@@ -1753,7 +1753,7 @@ window.updateMenuRankUI = function() {
         roadY += currentSpeed * dt; score += currentSpeed * 0.05 * dt; 
         
       // Auto siempre abajo
-       player.y = 470;
+       player.y = 500;
         globalZoom = 1;
         
         fuel -= (0.016 - (stats.tanque * 0.0015)) * currentSpeed * dt;
@@ -2298,7 +2298,7 @@ function draw() {
         if ((en.hit && en.type === 'obs') || en.crashed) {
             ctx.translate(en.x + en.w / 2, en.y + en.h / 2);
             ctx.rotate(en.rotation || 0);
-            if (en.type === 'obs') { let sc = Math.max(0.1, 1 - (en.y - 470) * 0.003); ctx.scale(sc, sc); }
+            if (en.type === 'obs') { let sc = Math.max(0.1, 1 - (en.y - 500) * 0.003); ctx.scale(sc, sc); }
             if (en.img && en.img.complete && en.img.naturalWidth > 0) ctx.drawImage(en.img, -en.w / 2, -en.h / 2, en.w, en.h);
             if (en.crashed) {
                 ctx.fillStyle = "rgba(100, 100, 100, 0.7)";
@@ -2419,7 +2419,7 @@ function draw() {
                 ctx.translate(en.x + en.w / 2, en.y + en.h / 2); 
                 ctx.rotate(en.rotation || 0); 
                 if (en.type === 'obs') { 
-                    let sc = Math.max(0.1, 1 - (en.y - 470) * 0.003); ctx.scale(sc, sc); 
+                    let sc = Math.max(0.1, 1 - (en.y - 500) * 0.003); ctx.scale(sc, sc); 
                 }
                 
                 // FIX: Verificación de imagen rota para los choques
@@ -3916,8 +3916,8 @@ document.head.appendChild(st);
 
 // ---------- PERILLAS ----------
 const PIVOTE     = 7.0;    // velocidad (la del auto inicial) a partir de la cual se "comprime" la velocidad real
-const COMPRESION = 0.55;   // 1 = sin cambios | más chico = autos rápidos menos rápidos en la práctica (más tiempo de reacción)
-const DISPLAY    = 1.35;   // factor SOLO visual de los km/h, para que los autos rápidos sigan "sintiéndose" rápidos
+const COMPRESION = 1;   // 1 = sin cambios | más chico = autos rápidos menos rápidos en la práctica (más tiempo de reacción)
+const DISPLAY    = 1;   // factor SOLO visual de los km/h, para que los autos rápidos sigan "sintiéndose" rápidos
 
 // ---------- 1) VELOCIDAD: más tiempo de reacción en autos rápidos ----------
 for (const k in MODELS) { const m = MODELS[k]; if (m.maxSpeed > PIVOTE) m.maxSpeed = PIVOTE + (m.maxSpeed - PIVOTE) * COMPRESION; }
