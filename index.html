@@ -5021,6 +5021,185 @@ function opciones(screenId, contId, title, fnName) {
 opciones('shop-neones', 'neon-container', 'FAROS', 'openNeones');
 opciones('shop-underglow', 'underglow-container', 'NEÓN DE PISO', 'openUnderglow');
 } catch (e) { console.error('Mejoras21:', e); } })();
+// ===== MEJORAS 22 - RANKING, RANGOS, BONUS DIARIO Y CUADROS DE AVISO EN ESTILO "CARRERA DEPORTIVA" (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras21) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+const kit = window.sbKit; if (!kit) { console.error('Mejoras22: falta mejoras19'); return; }
+
+const st = document.createElement('style');
+st.textContent = `
+/* ---- RANKING ---- */
+.sb .rk-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-right:8px;margin:0}
+.sb .rk-tabs button{position:relative;min-width:0;width:100%;height:46px;margin:0;padding:0;cursor:pointer;transform:skewX(-14deg);background:#1b1b20;border:2px solid #444;opacity:1;display:flex;align-items:center;justify-content:center;flex:none}
+.sb .rk-tabs button>span{transform:skewX(14deg);font-family:'Racing Sans One',sans-serif;font-size:21px;letter-spacing:2px;color:#9a9aa3;line-height:1}
+.sb .rk-tabs button.on{background:#e10600;border:0;box-shadow:5px 5px 0 #fff}
+.sb .rk-tabs button.on>span{color:#fff}
+.sb #leaderboard-list{display:flex;flex-direction:column;gap:8px;font-size:inherit;text-align:left;color:#c9c9d0;font-weight:600;padding:0 8px 4px 0;overflow:visible;max-height:none}
+.sb .rk-info{font-weight:700;font-size:13px;letter-spacing:.5px;color:#c9c9d0;text-align:center;margin:0 0 2px;line-height:1.35}
+.sb .rk-row{box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:#17171b;border-left:6px solid #3a3a42;border-bottom:0;border-radius:0;transform:skewX(-6deg);color:#fff;font-size:16px}
+.sb .rk-row>*{transform:skewX(6deg)}
+.sb .rk-row span{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.sb .rk-row b{font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:18px;color:#ffc400;white-space:nowrap}
+.sb .rk-me{background:#f2f2f2;color:#0a0a0c;border-left-color:#ffc400;box-shadow:5px 5px 0 #e10600}
+.sb .rk-me b{color:#e10600}
+.sb .rk-prizes{margin-top:6px;padding:12px 14px;background:#17171b;border-left:6px solid #ffc400;font-size:13px;line-height:1.7;color:#c9c9d0}
+.sb .rk-prizes b{color:#ffc400 !important;letter-spacing:1px}
+.sb .sb-pill small{font-weight:800;font-size:11px;letter-spacing:2px;color:#ffc400}
+.sb .sb-pill b{font-size:17px}
+/* ---- RANGOS ---- */
+.sb .rg-big{font-family:'Racing Sans One',sans-serif;font-size:34px;line-height:1.1;color:#fff}
+.sb .rg-card .sb-ic{width:56px;height:56px}
+.sb .rg-card .sb-ic img{width:44px;height:44px;object-fit:contain}
+.sb .rg-card .sb-name{font-size:22px}
+.sb .rg-card .sb-name{white-space:nowrap;overflow-wrap:normal}
+.sb .rg-card.done .sb-sub{color:#c9c9d0}
+.sb .rg-card.cur .sb-sub{color:#55555e}
+.sb .rg-card .tag{font-family:'Racing Sans One',sans-serif;font-size:15px;letter-spacing:1px;white-space:nowrap}
+.sb .rg-card.cur .sb-name{color:#0a0a0c !important}
+.sb .rg-card.lock .sb-ic img{filter:grayscale(1)}
+.sb .rg-card.lock{opacity:.8}
+.sb .rg-warn{margin-top:6px;font-weight:700;font-size:13px;color:#ffc400;line-height:1.3}
+/* ---- BONUS DIARIO ---- */
+.sb .dl-sub{font-weight:700;font-size:14px;letter-spacing:1px;color:#c9c9d0;margin:0}
+.sb #daily-days-container{display:grid !important;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px !important;margin:0 !important;padding:2px 10px 8px 2px;justify-content:stretch !important}
+.sb .dl-cell{box-sizing:border-box;min-width:0;height:72px;padding:6px 2px;background:#17171b;border-top:4px solid #3a3a42;border-radius:0;transform:skewX(-6deg);display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center}
+.sb .dl-cell>*{transform:skewX(6deg)}
+.sb .dl-cell small{font-weight:800;font-size:11px;letter-spacing:1px;color:#9a9aa3}
+.sb .dl-cell b{font-family:'Racing Sans One',sans-serif;font-weight:400;font-size:14px;color:#ffc400;line-height:1}
+.sb .dl-cell svg{display:block}
+.sb .dl-cell.sp{border-top-color:#e10600}
+.sb .dl-cell.past{opacity:.5;border-top-color:#2fd17a}
+.sb .dl-cell.past b{color:#2fd17a}
+.sb .dl-cell.today{background:#f2f2f2;border-top-color:#ffc400;box-shadow:4px 4px 0 #e10600;animation:dlPulse 1.2s ease-in-out infinite}
+.sb .dl-cell.today small{color:#0a0a0c}
+.sb .dl-cell.today b{color:#e10600}
+@keyframes dlPulse{0%,100%{transform:skewX(-6deg) scale(1)}50%{transform:skewX(-6deg) scale(1.06)}}
+.sb #btn-claim-daily{margin:0 8px 0 0;width:calc(100% - 8px);min-width:0;height:54px;font-size:22px;animation:sbBlink 1.2s ease-in-out infinite}
+/* ---- CUADROS DE AVISO / CONFIRMACIÓN ---- */
+#info-modal,#upgrade-modal{background:rgba(0,0,0,.82) !important;backdrop-filter:none !important}
+#info-modal .ui-card,#upgrade-modal .ui-card{width:min(88vw,360px) !important;box-sizing:border-box;background:#101013 !important;border:0 !important;border-left:8px solid #e10600 !important;border-radius:0 !important;
+  box-shadow:8px 8px 0 #fff !important;padding:20px 18px 18px !important;text-align:left;font-family:'Saira Semi Condensed','Barlow Condensed',sans-serif}
+#info-modal .ui-card h1,#upgrade-modal .ui-card h1{font-family:'Racing Sans One',sans-serif !important;font-weight:400 !important;font-size:28px !important;letter-spacing:1px;margin:0 0 12px !important;color:#fff !important;text-shadow:3px 3px 0 #e10600;text-align:left}
+#info-modal #info-content,#upgrade-modal .ui-card>div{background:#17171b !important;border-radius:0 !important;border-left:4px solid #ffc400;color:#c9c9d0 !important;font-size:15px !important}
+#upgrade-modal #modal-desc{color:#c9c9d0 !important;font-size:15px !important}
+#info-modal .ui-card button,#upgrade-modal .ui-card button{min-width:0;width:100%;height:50px;margin:12px 0 0 !important;padding:0 !important;border:0 !important;border-radius:0 !important;cursor:pointer;
+  font-family:'Racing Sans One',sans-serif !important;font-size:22px !important;letter-spacing:3px;background:#e10600 !important;color:#fff !important;box-shadow:none !important}
+#upgrade-modal .ui-card button.btn-red{background:transparent !important;border:2px solid #fff !important;color:#fff !important}
+#info-modal .ui-card button:active,#upgrade-modal .ui-card button:active{filter:brightness(.8)}`;
+document.head.appendChild(st);
+
+const IC = {
+    coin: c => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 010 3.6h-3a1.8 1.8 0 000 3.6h4.2"/></svg>`,
+    ticket: c => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M3 8a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 000-4z"/></svg>`,
+    gift: c => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><rect x="3" y="9" width="18" height="12"/><path d="M3 13h18M12 9v12M12 9C9 9 8 4 11 4c2 0 1 5 1 5zM12 9c3 0 4-5 1-5-2 0-1 5-1 5z"/></svg>`,
+    car: c => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M3 14l2-6h14l2 6v4h-3v-2H6v2H3z"/><circle cx="7.5" cy="14" r="1"/><circle cx="16.5" cy="14" r="1"/></svg>`,
+    check: c => `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>`,
+    trophy: c => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M8 4h8v6a4 4 0 01-8 0zM8 6H4v2a3 3 0 003 3M16 6h4v2a3 3 0 01-3 3M12 14v4M8 21h8"/></svg>`,
+    clock: c => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>`
+};
+
+// ---------- RANKING (se reutiliza todo lo de mejoras7: pestañas, lista y datos) ----------
+(function () {
+    const lb = $('leaderboard-screen'); if (!lb) return;
+    const tabsEl = lb.querySelector('.rk-tabs'), listEl = $('leaderboard-list'), hi = $('my-cloud-high');
+    if (!tabsEl || !listEl || !hi) { console.warn('Mejoras22: ranking sin piezas'); return; }
+    [tabsEl, listEl, hi].forEach(n => n.remove());
+    const R = kit.mount('leaderboard-screen', { title: 'RANKING', coin: false });
+    const pill = document.createElement('div'); pill.className = 'sb-pill';
+    pill.innerHTML = `${IC.trophy('#ffc400')}<b></b>`;
+    const bb = pill.querySelector('b'); bb.appendChild(hi); bb.appendChild(document.createTextNode(' m'));
+    R.screen.querySelector('.sb-head').appendChild(pill);
+    tabsEl.querySelectorAll('button').forEach(b => { b.innerHTML = `<span>${b.dataset.t === 'mes' ? 'MES' : 'RÉCORD'}</span>`; });
+    listEl.removeAttribute('style');
+    const sc = document.createElement('div'); sc.className = 'sb-scroll'; sc.appendChild(listEl);
+    R.body.appendChild(tabsEl); R.body.appendChild(sc);
+})();
+
+// ---------- RANGOS (pantalla propia; antes era un cuadro chico) ----------
+(function () {
+    const lb = $('leaderboard-screen'), menuRank = $('rank-display-menu'); if (!lb || typeof window.getRankInfo !== 'function') return;
+    const rs = document.createElement('div'); rs.id = 'ranks-screen'; rs.className = 'overlay hidden'; lb.insertAdjacentElement('afterend', rs);
+    const R = kit.mount('ranks-screen', { title: 'RANGOS', coin: false });
+    const pill = document.createElement('div'); pill.className = 'sb-pill'; pill.innerHTML = `${IC.clock('#ffc400')}<b id="rg-days">0</b>`;
+    R.screen.querySelector('.sb-head').appendChild(pill);
+    R.body.innerHTML = '<div class="sb-scroll" id="rg-list"></div>';
+
+    // arma la lista de rangos preguntándole a getRankInfo (así siempre coincide con mejoras3)
+    function lista() {
+        const out = []; let r = window.getRankInfo(0); out.push(r);
+        for (let k = 0; k < 20; k++) {
+            if (window.getRankInfo(1e9).name === r.name) break;
+            let lo = r.min, hi = 1e9;
+            while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (window.getRankInfo(mid).name === r.name) lo = mid; else hi = mid; }
+            r = window.getRankInfo(hi); out.push(r);
+        }
+        return out;
+    }
+    const nom = n => String(n).replace('_', ' ');
+    const oldOpen = window.openRanks;
+    window.openRanks = function () {
+        try { playSound('click'); } catch (e) { }
+        hideAll();
+        const RK = lista(), mine = garage.seasonHigh || 0, cur = window.getRankInfo(mine), now = new Date();
+        const dias = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+        $('rg-days').textContent = dias + (dias === 1 ? ' DÍA' : ' DÍAS');
+        const L = $('rg-list');
+        let h = `<div class="sb-card" style="--cc:#ffc400"><div class="in"><div class="sb-tx">
+            <div class="sb-sub" style="margin:0">METROS ACUMULADOS ESTA TEMPORADA</div>
+            <div class="rg-big">${Math.floor(mine).toLocaleString()} m</div>
+            <div class="sb-sub" style="font-weight:600;letter-spacing:.3px">La temporada termina en ${dias} día(s) y los rangos vuelven a NOVATO.</div>
+            ${cur.exige ? `<div class="rg-warn">En ${nom(cur.name)}, una carrera de menos de ${cur.exige.toLocaleString()} m te resta puntos.</div>` : ''}
+          </div></div></div>`;
+        RK.forEach((r, i) => {
+            const done = mine >= r.min, isCur = r.name === cur.name, nx = RK[i + 1];
+            const cls = isCur ? 'cur ready' : done ? 'done' : 'lock';
+            const tag = isCur ? `<span class="tag" style="color:#e10600">TU RANGO</span>` : done ? `<span class="tag" style="color:#2fd17a">LOGRADO</span>` : '';
+            const bar = (isCur && nx) ? `<div class="sb-bar"><div style="width:${Math.min(100, (mine - r.min) / (nx.min - r.min) * 100)}%"></div></div><div class="sb-sub">Próximo: ${nom(nx.name)} en ${Math.ceil(nx.min - mine).toLocaleString()} m</div>`
+                : done ? `<div class="sb-sub">Desde ${r.min.toLocaleString()} m</div>`
+                : `<div class="sb-sub" style="color:#ffc400">FALTAN ${Math.ceil(r.min - mine).toLocaleString()} m</div><div class="sb-sub" style="margin-top:2px;font-weight:600">Desde ${r.min.toLocaleString()} m</div>`;
+            h += `<div class="sb-card rg-card ${cls}" data-cur="${isCur ? 1 : 0}" style="--cc:${isCur ? '#ffc400' : r.color}"><div class="in"><div class="sb-ic"><img src="Items/rank_${r.name}.png" alt="" onerror="this.style.visibility='hidden'"></div>
+              <div class="sb-tx"><div class="sb-row"><span class="sb-name" style="color:${isCur ? '#0a0a0c' : r.color}">${nom(r.name)}</span>${tag}</div>${bar}</div></div></div>`;
+        });
+        L.innerHTML = h;
+        rs.classList.remove('hidden');
+        setTimeout(() => { const c = L.querySelector('[data-cur="1"]'); if (c) c.scrollIntoView({ block: 'center' }); }, 60);
+    };
+    if (menuRank) { if (oldOpen) menuRank.removeEventListener('click', oldOpen); menuRank.addEventListener('click', window.openRanks); }
+})();
+
+// ---------- BONUS DIARIO ----------
+(function () {
+    const dl = $('daily-login-screen'); if (!dl) return;
+    const D = kit.mount('daily-login-screen', { title: 'BONUS DIARIO', back: 'closeDailyLogin()', volver: 'CERRAR', coin: false });
+    D.screen.querySelector('.sb-title').style.fontSize = 'clamp(24px,7.4vw,32px)';
+    // renderDailyLogin original busca un ".ui-card" para cambiarle el ancho: se lo dejamos escondido
+    D.screen.insertAdjacentHTML('beforeend', '<div class="ui-card" style="display:none"></div>');
+    D.body.innerHTML = `<p class="dl-sub">Entrá todos los días para ganar más</p>
+      <div class="sb-scroll"><div id="daily-days-container"></div></div>
+      <button id="btn-claim-daily" class="sb-buy" onclick="claimDailyLogin()">RECLAMAR</button>`;
+    // Solo para MOSTRAR cuánto da cada día (el premio real lo da el juego, no esta lista). Si cambiás los premios, cambialos acá también.
+    const V = [500, 600, 700, 800, 900, 1000, 'T', 1200, 1400, 1600, 1800, 2000, 2200, 'T', 'S', 2500, 2800, 3100, 3400, 'S', 4500, 5000, 5500, 6000, 'T', 10000, 11000, 12000, 13000, 'A'];
+    const _rd = window.renderDailyLogin;
+    window.renderDailyLogin = function () {
+        const r = _rd.apply(this, arguments);
+        try {
+            const cont = $('daily-days-container'), streak = garage.loginStreak || 0;
+            [...cont.children].forEach((c, i) => {
+                const v = V[i], past = i < streak, today = i === streak, esp = typeof v === 'string';
+                const col = today ? '#0a0a0c' : past ? '#2fd17a' : '#ffffff';
+                const ico = past ? IC.check('#2fd17a') : v === 'T' ? IC.ticket(col) : v === 'S' ? IC.gift(today ? '#e10600' : '#ffc400') : v === 'A' ? IC.car(today ? '#e10600' : '#ffc400') : IC.coin(today ? '#e10600' : '#ffc400');
+                const txt = v === 'T' ? 'TICKET' : v === 'S' ? 'SKIN' : v === 'A' ? 'AUTO' : Number(v).toLocaleString();
+                c.removeAttribute('style');
+                c.className = 'dl-cell' + (esp ? ' sp' : '') + (past ? ' past' : today ? ' today' : '');
+                c.innerHTML = `<small>DÍA ${i + 1}</small>${ico}<b>${txt}</b>`;
+            });
+            const b = $('btn-claim-daily'); if (b) b.textContent = 'RECLAMAR DÍA ' + (streak + 1);
+            setTimeout(() => { const t = cont.querySelector('.today'); if (t) t.scrollIntoView({ block: 'center' }); }, 80);
+        } catch (e) { console.error('Mejoras22 bonus:', e); }
+        return r;
+    };
+})();
+} catch (e) { console.error('Mejoras22:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
