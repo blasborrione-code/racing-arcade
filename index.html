@@ -3911,6 +3911,37 @@ st.textContent = `
 .touch-btn:active{background:rgba(241,196,15,.55) !important}`;
 document.head.appendChild(st);
 } catch (e) { console.error('Mejoras11:', e); } })();
+// ===== MEJORAS 12 - AVISOS DISCRETOS + TIEMPO DE REACCIÓN (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras11) =====
+(function () { try {
+
+// ---------- PERILLAS ----------
+const PIVOTE     = 7.0;    // velocidad (la del auto inicial) a partir de la cual se "comprime" la velocidad real
+const COMPRESION = 0.55;   // 1 = sin cambios | más chico = autos rápidos menos rápidos en la práctica (más tiempo de reacción)
+const DISPLAY    = 1.35;   // factor SOLO visual de los km/h, para que los autos rápidos sigan "sintiéndose" rápidos
+
+// ---------- 1) VELOCIDAD: más tiempo de reacción en autos rápidos ----------
+for (const k in MODELS) { const m = MODELS[k]; if (m.maxSpeed > PIVOTE) m.maxSpeed = PIVOTE + (m.maxSpeed - PIVOTE) * COMPRESION; }
+const _hud = updateHUD;
+updateHUD = function () { _hud(); const e = document.getElementById('ui-speed'); if (e) e.innerText = (currentSpeed * 12 * DISPLAY) | 0; };
+const _shop = updateShopUI;
+updateShopUI = function () {
+    _shop();
+    try { const k = Object.keys(MODELS)[shopIndex]; document.getElementById('shop-car-speed').innerText = 'VEL: ' + Math.round(MODELS[k].maxSpeed * 12 * DISPLAY) + ' KM/H'; } catch (e) { }
+};
+
+// ---------- 2) AVISOS DURANTE LA CARRERA: chicos, abajo y rápidos ----------
+const st = document.createElement('style');
+st.textContent = `
+.jugando #toast-container{position:fixed !important;top:auto !important;bottom:calc(max(22px, env(safe-area-inset-bottom)) + 84px) !important;width:min(80vw,260px) !important;display:flex;flex-direction:column;align-items:center}
+.jugando .toast{display:flex;gap:8px;align-items:baseline;white-space:nowrap;max-height:30px;padding:5px 12px !important;margin-bottom:4px !important;border-radius:999px !important;border-left-width:3px !important;background:rgba(10,14,24,.72) !important;box-shadow:none !important;animation:toastInP .2s ease-out,toastOutP .3s 1.5s forwards !important}
+.jugando .toast b{font-size:9px !important;letter-spacing:1px !important}
+.jugando .toast b::before,.jugando .toast::after{display:none !important}
+.jugando .toast p{margin:0 !important;font-size:11px !important;font-weight:700;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+@keyframes toastInP{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes toastOutP{to{opacity:0;max-height:0;padding-top:0;padding-bottom:0;margin:0;border-width:0}}`;
+document.head.appendChild(st);
+setInterval(() => document.body.classList.toggle('jugando', state === 'PLAYING'), 200);
+} catch (e) { console.error('Mejoras12:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
