@@ -4256,6 +4256,81 @@ update = function (dt) {
     try { return _up(dt); } finally { car.accel = base; }
 };
 } catch (e) { console.error('Mejoras15:', e); } })();
+// ===== MEJORAS 16 - FASE 4, ENTREGA 1: AUTOS INTEGRADOS A LA ESCENA (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras15) =====
+(function () { try {
+
+// ---------- PERILLAS ----------
+const NITIDO = false;          // true = los autos se dibujan "pixel perfect" (más filosos). Probalo y si no te gusta volvé a false.
+const TINTE = 1;               // 0 = autos sin oscurecer | 1 = normal | 1.5 = más oscuros de noche/lluvia
+const INCLINACION = 1;         // 0 = sin inclinación al girar | 1 = normal | 1.6 = más exagerada
+
+// ---------- 1) SOMBRA MÁS PAREJA: una sombra suave + una más pegada al auto ----------
+carShadow = function (x, y, w, h) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.20)'; ctx.beginPath();
+    ctx.ellipse(x + w / 2 + 2, y + h / 2 + 5, w * 0.56, h * 0.5, 0, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.beginPath();
+    ctx.ellipse(x + w / 2 + 1, y + h / 2 + 3, w * 0.44, h * 0.44, 0, 0, 6.283); ctx.fill();
+    ctx.restore();
+};
+
+// ---------- 2) COLOR DE ESCENA: de noche / lluvia / atardecer los autos toman el color del ambiente ----------
+const TINTES = {   // [r, g, b, fuerza en autos del tránsito, fuerza en tu auto]
+    noche:    [6, 12, 46, 0.40, 0.22],
+    lluvia:   [14, 26, 52, 0.24, 0.12],
+    atardecer: [255, 110, 40, 0.14, 0.08]
+};
+const modoEscena = () => {
+    if (level < 6) return null; const m = (level - 6) % 4;
+    return m === 0 ? 'atardecer' : m === 1 ? 'lluvia' : m === 2 ? 'noche' : null;
+};
+const CACHE = {};
+function teñir(img, modo, esJugador) {
+    if (!(img && img.complete && img.naturalWidth > 0) || !img.src) return null;
+    const T = TINTES[modo], a = Math.min(0.85, T[esJugador ? 4 : 3] * TINTE), key = img.src + '|' + modo + '|' + (esJugador ? 1 : 0) + '|' + a.toFixed(2);
+    if (CACHE[key]) return CACHE[key];
+    const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+    g.globalCompositeOperation = 'source-atop'; g.fillStyle = `rgba(${T[0]},${T[1]},${T[2]},${a})`; g.fillRect(0, 0, cv.width, cv.height);
+    cv.complete = true; cv.naturalWidth = cv.width; cv.naturalHeight = cv.height; cv.src = key;   // para que el juego lo acepte como imagen cargada
+    return (CACHE[key] = cv);
+}
+
+// ---------- 3) DIBUJO: tinte + inclinación al girar ----------
+let tiltJ = 0;
+const proto = CanvasRenderingContext2D.prototype.drawImage;
+const _dr = draw;
+draw = function () {
+    const modo = (state === 'PLAYING' || state === 'PAUSED') ? modoEscena() : null, swaps = [], mapa = new Map();
+    try {
+        enemies.forEach(e => {
+            if (e.type === 'obs') return;
+            if (modo && e.img) { const t = teñir(e.img, modo, false); if (t) { swaps.push([e, 'img', e.img]); e.img = t; } }
+            if (e.chg && !e.crashed && !e.hit && e.tx !== undefined) mapa.set(e.x + ',' + e.y, (e.tx > e.x ? 1 : -1) * 0.11 * INCLINACION);
+        });
+        if (modo && assets.player) { const t = teñir(assets.player, modo, true); if (t) { swaps.push([assets, 'player', assets.player]); assets.player = t; } }
+    } catch (e) { }
+    // inclinación suave del jugador según cuánto está doblando
+    const objetivo = (state === 'PLAYING' && player) ? Math.max(-0.14, Math.min(0.14, player.vx * 0.022)) * INCLINACION : 0;
+    tiltJ += (objetivo - tiltJ) * 0.25;
+    const imgJ = assets.player, autos = new Set(enemies.filter(e => e.type !== 'obs').map(e => e.img)); autos.add(imgJ);
+    ctx.drawImage = function (img, x, y, w, h) {
+        if (arguments.length !== 5 || !autos.has(img)) return proto.apply(ctx, arguments);
+        const esJ = img === imgJ && w === player.w && h === player.h, ang = esJ ? tiltJ : mapa.get(x + ',' + y);
+        if (!ang && !NITIDO) return proto.apply(ctx, arguments);
+        ctx.save();
+        if (NITIDO) ctx.imageSmoothingEnabled = false;
+        if (ang) { ctx.translate(x + w / 2, y + h / 2); ctx.rotate(ang); proto.call(ctx, img, -w / 2, -h / 2, w, h); }
+        else proto.call(ctx, img, x, y, w, h);
+        ctx.restore();
+    };
+    try { _dr(); }
+    finally {
+        delete ctx.drawImage;
+        swaps.forEach(([o, k, v]) => { o[k] = v; });
+    }
+};
+} catch (e) { console.error('Mejoras16:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
