@@ -3946,7 +3946,7 @@ setInterval(() => document.body.classList.toggle('jugando', state === 'PLAYING')
 (function () { try {
 
 // ---------- PERILLAS ----------
-const GAP_MIN = 800, GAP_MAX = 1500;  // distancia de ruta entre autos de frente (más chico = más tráfico en contramano)
+const GAP_MIN = 450, GAP_MAX = 1100;  // distancia de ruta entre autos de frente (más chico = más tráfico en contramano)
 const VEL_FRENTE = [2, 4];            // velocidad propia de los autos que vienen de frente (se suma a la tuya)
 const AVISO = 45;                     // cuadros (60 = 1 seg) que parpadea la alerta antes de que aparezca un auto de frente
 const COSTO_VIDAS = 2;                // vidas que saca un choque de frente
@@ -3985,7 +3985,7 @@ spawnTraffic = function () {
 // ---------- AUTOS DE FRENTE ----------
 function lanesLibres() {
     return [0, 1].filter(l => !(constEvent.active && constEvent.lane === l) &&
-        !enemies.some(e => e.onc && e.l === l && e.y < 300) && !warns.some(w => w.l === l));
+        !enemies.some(e => e.onc && e.l === l && e.y < 260) && !warns.some(w => w.l === l));
 }
 function spawnFrente(l) {
     const truck = level >= 2 && Math.random() < 0.25 && assets.truck;
@@ -4005,8 +4005,11 @@ update = function (dt) {
     if (acc >= nextGap) {
         const libres = lanesLibres();
         if (libres.length) {
+            const r = Math.random(), pDoble = Math.min(0.35, 0.12 + level * 0.025), pSeguido = 0.30;
             const l = libres[(Math.random() * libres.length) | 0];
             warns.push({ l, t: AVISO });
+            if (libres.length === 2 && r < pDoble) warns.push({ l: 1 - l, t: AVISO + (Math.random() < 0.5 ? 0 : 14) });   // los dos carriles a la vez (o casi)
+            else if (r < pDoble + pSeguido) warns.push({ l: Math.random() < 0.5 ? l : 1 - l, t: AVISO + 30 + Math.random() * 50 });   // uno atrás del otro
             acc = 0; nextGap = GAP_MIN + Math.random() * (GAP_MAX - GAP_MIN);
         } else acc = nextGap - 100;
     }
@@ -4121,9 +4124,10 @@ window.finishGame = function () {
 (function () { try {
 
 // ---------- PERILLAS ----------
-const LARGO_JUGADOR = 280, ANCHO_JUGADOR = 62;   // luz de tu auto (el color sale del neón/faro que tengas elegido)
+const LARGO_JUGADOR = 250, ANCHO_JUGADOR = 50;   // luz de tu auto (el color sale del neón/faro que tengas elegido)
 const LARGO_NPC = 175,     ANCHO_NPC = 40;       // luz de los autos del tránsito
-const INTENSIDAD = 1;                            // 1 = normal | 0.7 = más suave | 1.3 = más fuerte
+const INT_JUGADOR = 0.6;                         // intensidad de TU luz (más bajo = más suave)
+const INT_NPC = 0.8;                             // intensidad de la luz de los otros autos
 
 const CACHE = {};
 function haz_sprite(c, len, spread, k) {
@@ -4142,7 +4146,7 @@ function haz_sprite(c, len, spread, k) {
     // 2) núcleo angosto y más intenso (da sensación de alcance)
     g2.save(); g2.translate(W / 2, 16); g2.scale((spread * 0.38) / (len * 0.85), 1);
     g = g2.createRadialGradient(0, 0, 2, 0, 0, len * 0.85);
-    g.addColorStop(0, `rgba(255,255,245,${0.42 * k})`);
+    g.addColorStop(0, `rgba(255,250,235,${0.30 * k})`);
     g.addColorStop(0.4, `rgba(${c[0]},${c[1]},${c[2]},${0.18 * k})`);
     g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
     g2.fillStyle = g; g2.fillRect(-len, -16, 2 * len, len * 0.85 + 16); g2.restore();
@@ -4153,16 +4157,16 @@ function haz_sprite(c, len, spread, k) {
     return (CACHE[key] = { cv, W });
 }
 function haz(x, y, w, h, dir, c, len, spread, fuerte) {
-    const k = INTENSIDAD * (fuerte ? 1 : 0.9), sp = haz_sprite(c, len, spread, k);
+    const k = fuerte ? INT_JUGADOR : INT_NPC, sp = haz_sprite(c, len, spread, k);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     [x + w * 0.22, x + w * 0.78].forEach(sx => {
         const sy = dir < 0 ? y + 7 : y + h - 7;
         ctx.save(); ctx.translate(sx, sy); if (dir < 0) ctx.scale(1, -1);
         ctx.drawImage(sp.cv, -sp.W / 2, -16); ctx.restore();
         // la lámpara: halo + punto brillante
-        const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 13);
-        g.addColorStop(0, `rgba(255,255,255,${0.9 * k})`); g.addColorStop(0.35, `rgba(${c[0]},${c[1]},${c[2]},${0.55 * k})`); g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, 13, 0, 6.283); ctx.fill();
+        const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 10);
+        g.addColorStop(0, `rgba(255,255,255,${0.8 * k})`); g.addColorStop(0.35, `rgba(${c[0]},${c[1]},${c[2]},${0.55 * k})`); g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, 10, 0, 6.283); ctx.fill();
     });
     ctx.restore();
 }
