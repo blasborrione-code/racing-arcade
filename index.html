@@ -6175,19 +6175,39 @@ const VEL_TOPE = 0.82, VEL_TOPE_POR_ESTRELLA = 0.05;   // velocidad máxima de l
 const PATRULLAS = { 2: 1, 3: 2, 4: 3 };   // cuántas patrullas persiguen a la vez según las estrellas
 const ESPERA_PRIMERA = 150;   // frames que tarda en aparecer la primera patrulla al llegar a 2★ (60 = 1 seg)
 const ESPERA_REAPARECE = 300; // frames que tarda en aparecer otra si perdiste a la anterior
-const ARRESTO_RAPIDEZ = 0.16; // qué tan rápido se llena la barra de arresto (1 = como antes, muy rápido | 0.16 = unos 4 seg parado al lado de la patrulla)
-const ARRESTO_CHOQUE = 8;     // % de la barra que suma chocar con una patrulla (antes 25)
-const ARRESTO_BAJA = 0.5;     // cuánto extra baja la barra al estar libre (más rápido que antes)
+const ARRESTO_RAPIDEZ = 0.22; // qué tan rápido se llena la barra de arresto (1 = como antes, muy rápido | 0.22 = unos 3 seg parado al lado de la patrulla)
+const ARRESTO_CHOQUE = 15;    // % de la barra que suma chocar con una patrulla (antes 25)
+const ARRESTO_BAJA = 0.3;     // cuánto extra baja la barra al estar libre (más chico = tarda más en bajar)
+const BLOQUEOS = { 3: 1, 4: 2 };   // cuántas patrullas de ruta (las que vienen de frente) puede haber a la vez según las estrellas
+const BLOQUEO_ESPERA = { 3: 600, 4: 360 };   // frames entre una patrulla de ruta y la siguiente (60 = 1 seg)
+const P_CIERRA = 0.4;         // de las patrullas de ruta, cuántas intentan cerrarte el paso (cambian UNA vez al carril donde vas). El resto sigue derecho
 const LUCES_BORDE = true;     // luces rojo/azul suaves en los costados de la pantalla (en vez de que titile toda la pantalla)
 const LUCES_PATRULLA = true;  // luces rojo/azul sobre cada patrulla
 
 const LX = [75, 157.5, 242.5, 325];
-let topSeen = 0, esperaCD = 0, chPrev = 0, estPrev = 0, spawnCD = 0, pop = [0, 0, 0, 0], hudFade = 0;
+let rbCD = 0, topSeen = 0, esperaCD = 0, chPrev = 0, estPrev = 0, spawnCD = 0, pop = [0, 0, 0, 0], hudFade = 0;
 
 const _sg = startGameLogic;
-startGameLogic = function () { const r = _sg.apply(this, arguments); topSeen = 0; esperaCD = 0; chPrev = 0; estPrev = 0; spawnCD = 0; pop = [0, 0, 0, 0]; hudFade = 0; return r; };
+startGameLogic = function () { const r = _sg.apply(this, arguments); rbCD = 0; topSeen = 0; esperaCD = 0; chPrev = 0; estPrev = 0; spawnCD = 0; pop = [0, 0, 0, 0]; hudFade = 0; return r; };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// la patrulla no atraviesa a nadie: si hay un vehículo (o cono, etc.) adelante en su camino, reduce la velocidad y, si hace falta, queda detrás
+function limitar(e, s) {
+    let o = null, best = 1e9;
+    enemies.forEach(q => {
+        if (q === e || q.onc) return;
+        if (Math.abs((e.x + e.w / 2) - (q.x + q.w / 2)) >= (e.w + q.w) / 2 + 4) return;   // no se cruzan de costado
+        if (q.y >= e.y) return;                                                           // el otro está atrás de la patrulla
+        const d = e.y - (q.y + q.h);                                                      // distancia entre el frente de la patrulla y la cola del otro
+        if (d < 140 && d < best) { best = d; o = q; }
+    });
+    if (!o) return s;
+    const vo = (o.type === 'obs' || o.crashed) ? 0 : (o.speed || 0);
+    s = Math.min(s, vo + clamp((best - 45) * 0.04, -3, 3.5));
+    if (best < 3) e.y = o.y + o.h + 3;                                                    // por si se solaparon: queda justo detrás
+    return Math.max(0, s);
+}
 
 // ---------- UPDATE ----------
 const _up = update;
@@ -6215,11 +6235,25 @@ update = function (dt) {
         }
         estPrev = estrellas;
 
-        // 2) patrullas de ruta (las que aparecen adelante): no te cierran el paso ni frenan delante tuyo
+        // 2) patrullas de ruta (las que aparecen adelante): pocas, no frenan delante tuyo y solo algunas intentan cerrarte el paso (una vez)
+        rbCD = Math.max(0, rbCD - dt);
+        const maxRB = BLOQUEOS[estrellas] || 0;
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const e = enemies[i];
+            if (e.type !== 'police' || e.isChaser || e._ok) continue;
+            const vivas = enemies.filter(q => q.type === 'police' && !q.isChaser && q._ok).length;
+            if (vivas >= maxRB || rbCD > 0) { enemies.splice(i, 1); continue; }   // demasiadas: esta no aparece
+            e._ok = true; e._cierra = Math.random() < P_CIERRA; e._usada = false; rbCD = BLOQUEO_ESPERA[estrellas] || 600;
+        }
         polis.forEach(e => {
-            if (e.isChaser) return;
+            if (e.isChaser || e.crashed || !e._ok) return;
             if (e.blink) { e.blink = false; e.chg = false; }
-            if (!e.crashed && e.baseSpeed) e.speed = e.baseSpeed;
+            if (e.chg) {
+                if (e._cambiando) { /* sigue el único cambio permitido */ }
+                else if (e._cierra && !e._usada) { e._usada = true; e._cambiando = true; }
+                else { e.chg = false; e.tl = e.l; e.x = LX[e.l] - e.w / 2; }       // no puede cambiar: vuelve al centro de su carril
+            } else e._cambiando = false;
+            if (e.baseSpeed) e.speed = limitar(e, e.baseSpeed);
         });
 
         // 3) patrullas perseguidoras: te siguen por detrás a distancia, con velocidad limitada
@@ -6239,6 +6273,7 @@ update = function (dt) {
             else if (gap < 70) s = Math.max(1, currentSpeed - 1.2);    // muy cerca: no te choca, se frena un poco
             else s = currentSpeed + clamp((gap - gapObj) * 0.03, -2.5, 3.5);
             s = Math.min(s, cap);
+            s = limitar(e, s);
             e.speed = s; e.baseSpeed = s;
         });
         // más patrullas según las estrellas
