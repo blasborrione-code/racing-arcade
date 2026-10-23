@@ -5914,32 +5914,23 @@ update = function (dt) {
     } catch (err) { console.error('Mejoras28:', err); }
 };
 } catch (e) { console.error('Mejoras28:', e); } })();
-// ===== MEJORAS 29 - FASE 4 (2): DAÑO VISIBLE EN EL AUTO (rayones, humo pixelado, fuego) + CHISPAS AL CHOCAR (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras28) =====
+// ===== MEJORAS 29 (v2) - FASE 4 (2): DAÑO DEL AUTO: abolladuras y grietas dibujadas SOBRE el auto + humo denso solo con 1 vida (REEMPLAZA la mejoras29 anterior; pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras28) =====
 (function () { try {
 
 // ---------- PERILLAS ----------
-const PIX = 4;                  // tamaño del "pixel" del humo y las chispas (4 = mismo estilo pixelado del juego)
-const HUMO = { 1: 16, 2: 7, 3: 3 };   // cada cuántos frames sale una bocanada de humo según el daño (más chico = más humo)
-const CHISPAS_CHOQUE = 16;      // chispas que salen cuando te chocan
-const MARCAS = { 1: 3, 2: 6, 3: 10 };   // cuántos rayones/abolladuras se ven según el daño
-const FUEGO = true;             // llamitas en el capó cuando queda 1 sola vida
-// Niveles de daño:  0 = auto sano | 1 = chocado (humo suave y rayones) | 2 = muy dañado (humo gris espeso, más rayones) | 3 = crítico, 1 vida (humo negro, fuego y chispas)
+const CHISPAS_CHOQUE = 16;     // chispas que salen cuando te chocan (0 = ninguna)
+const HUMO_CADA = 2;           // con 1 vida: cada cuántos frames sale una bocanada de humo (más chico = más humo)
+const ESCALA_HUMO = 3;         // pixelado del humo (1 = suave | 3 = pixel art | 5 = muy pixelado)
+const BRASAS = true;           // con 1 vida: chispitas/brasas que salen del capó
+const DANIO = { 1: 3, 2: 6, 3: 9 };   // cantidad de abolladuras según el daño (1 = chocado | 2 = muy chocado | 3 = 1 sola vida)
 
-let base = 3, prev = 3, parts = [], marcas = [], tick = 0;
+let base = 3, prev = 3, parts = [], humos = [], tick = 0, semilla = 1;
 const R = (a, b) => a + Math.random() * (b - a);
 
-function nuevasMarcas() {
-    marcas = [];
-    for (let i = 0; i < 10; i++) {
-        const tipo = i % 3;   // 0 = mancha oscura | 1 = rayón claro | 2 = abolladura
-        marcas.push({ tipo, x: R(0.18, 0.78), y: R(0.12, 0.88), w: tipo === 1 ? R(0.12, 0.3) : R(0.1, 0.2), h: tipo === 1 ? 0.025 : R(0.04, 0.08), diag: Math.random() < 0.5 });
-    }
-}
-nuevasMarcas();
-
 const _sg = startGameLogic;
-startGameLogic = function () { const r = _sg.apply(this, arguments); try { base = Math.max(1, lives); prev = lives; parts.length = 0; nuevasMarcas(); } catch (e) { } return r; };
+startGameLogic = function () { const r = _sg.apply(this, arguments); try { base = Math.max(1, lives); prev = lives; parts.length = 0; humos.length = 0; semilla = (Math.random() * 1e9) | 0; cache = {}; } catch (e) { } return r; };
 
+// 0 = sano | 1 = perdiste alguna vida | 2 = perdiste más de la mitad | 3 = te queda 1 sola vida
 function nivel() {
     if (lives <= 0) return 0;
     if (base > 1 && lives === 1) return 3;
@@ -5947,21 +5938,50 @@ function nivel() {
     return lives / base <= 0.5 ? 2 : 1;
 }
 
+// ---------- DAÑO DIBUJADO SOBRE EL AUTO (solo se pinta donde hay auto, nunca afuera) ----------
+let cache = {};
+function rnd() { semilla = (semilla * 1664525 + 1013904223) >>> 0; return semilla / 4294967296; }
+function crearDanio(img, w, h, n) {
+    const S = 4, W = Math.round(w * S), H = Math.round(h * S);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    const sem0 = semilla; semilla = (sem0 + 12345) >>> 0;
+    const marcas = DANIO[n];
+    for (let i = 0; i < marcas; i++) {
+        const x = W * (0.2 + rnd() * 0.6), y = H * (0.12 + rnd() * 0.76), r = W * (0.07 + rnd() * 0.08);
+        const tipo = i % 3;
+        if (tipo === 0) {            // ABOLLADURA: centro oscuro con borde claro del lado de la luz
+            let gr = g.createRadialGradient(x, y, 0, x, y, r);
+            gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(0.7, 'rgba(0,0,0,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+            g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, r * 1.2, r * 0.8, rnd() * 3, 0, 7); g.fill();
+            g.strokeStyle = 'rgba(255,255,255,0.45)'; g.lineWidth = S * 0.5; g.beginPath(); g.arc(x - r * 0.15, y - r * 0.15, r * 0.9, Math.PI * 1.05, Math.PI * 1.65); g.stroke();
+        } else if (tipo === 1) {     // RAYÓN: línea clara con sombra al lado
+            const a = rnd() * 1.2 - 0.6, l = r * 1.7;
+            g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = S * 0.7; g.beginPath(); g.moveTo(x, y + S * 0.8); g.lineTo(x + Math.cos(a) * l, y + S * 0.8 + Math.sin(a) * l); g.stroke();
+            g.strokeStyle = 'rgba(235,235,235,0.5)'; g.lineWidth = S * 0.45; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+        } else {                      // GOLPE CON PINTURA RAJADA: tres rayitas que salen de un punto
+            g.strokeStyle = 'rgba(0,0,0,0.65)'; g.lineWidth = S * 0.5;
+            for (let k = 0; k < 4; k++) { const a = rnd() * 6.28, l = r * (0.6 + rnd() * 0.9); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * 1.3); g.stroke(); }
+            g.fillStyle = 'rgba(0,0,0,0.5)'; g.beginPath(); g.arc(x, y, S * 0.9, 0, 7); g.fill();
+        }
+    }
+    if (n === 3) {                    // hollín en el capó (parte de adelante)
+        const gr = g.createLinearGradient(0, 0, 0, H * 0.45); gr.addColorStop(0, 'rgba(10,8,8,0.7)'); gr.addColorStop(1, 'rgba(10,8,8,0)');
+        g.fillStyle = gr; g.fillRect(0, 0, W, H * 0.45);
+        const gl = g.createRadialGradient(W / 2, H * 0.08, 0, W / 2, H * 0.08, W * 0.5); gl.addColorStop(0, 'rgba(255,110,30,0.35)'); gl.addColorStop(1, 'rgba(255,110,30,0)');
+        g.fillStyle = gl; g.fillRect(0, 0, W, H * 0.4);
+    }
+    g.globalCompositeOperation = 'destination-in'; g.drawImage(img, 0, 0, W, H);   // recorta con la forma del auto
+    semilla = sem0;
+    return c;
+}
+
+// ---------- CHISPAS / HUMO ----------
 function chispas(n) {
     const cx = player.x + player.w / 2;
-    for (let i = 0; i < n; i++) {
-        const a = R(0, Math.PI * 2), v = R(1.5, 5);
-        parts.push({ k: 'chispa', x: cx + R(-player.w / 3, player.w / 3), y: player.y + R(0, player.h * 0.5), vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, vida: R(14, 30), s: Math.random() < 0.5 ? PIX : PIX / 2 });
-    }
-    for (let i = 0; i < 5; i++) parts.push({ k: 'pieza', x: cx + R(-10, 10), y: player.y + R(5, 25), vx: R(-3, 3), vy: R(-2, 2), t: 0, vida: R(25, 45), s: PIX });
+    for (let i = 0; i < n; i++) { const a = R(0, Math.PI * 2), v = R(1.5, 5); parts.push({ x: cx + R(-player.w / 3, player.w / 3), y: player.y + R(0, player.h * 0.5), vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, vida: R(14, 30), s: Math.random() < 0.5 ? 3 : 2 }); }
 }
 
-function humo(n) {
-    const cx = player.x + player.w / 2;
-    parts.push({ k: 'humo', x: cx + R(-player.w * 0.25, player.w * 0.25), y: player.y + 10, vx: R(-0.25, 0.25), vy: R(-1.4, -0.7), t: 0, vida: n === 3 ? R(50, 80) : n === 2 ? R(45, 65) : R(35, 50), s: n === 3 ? R(14, 20) : n === 2 ? R(11, 16) : R(8, 12), niv: n });
-}
-
-// ---------- UPDATE: genera y mueve las partículas (si el juego está en pausa no se mueve nada) ----------
 const _up = update;
 update = function (dt) {
     _up(dt);
@@ -5969,77 +5989,65 @@ update = function (dt) {
         if (state !== 'PLAYING') return;
         tick += dt;
         if (lives > base) base = lives;
-        if (lives < prev && lives > 0) chispas(CHISPAS_CHOQUE);
+        if (lives < prev && lives > 0 && CHISPAS_CHOQUE) chispas(CHISPAS_CHOQUE);
         prev = lives;
         const n = nivel();
-        if (n) {
-            if (tick % HUMO[n] < dt) humo(n);
-            if (n === 3 && Math.random() < 0.18 * dt) { const cx = player.x + player.w / 2; parts.push({ k: 'chispa', x: cx + R(-8, 8), y: player.y + 12, vx: R(-1, 1), vy: R(-3, -1.2), t: 0, vida: R(14, 26), s: PIX / 2 }); }
+        const cx = player.x + player.w / 2;
+        if (n === 3) {
+            if (tick % HUMO_CADA < dt) {
+                const t = Math.random() < 0.5;
+                humos.push({ x: cx + R(-player.w * 0.2, player.w * 0.2), y: player.y + 8, vx: R(-0.35, 0.35), vy: R(-1.7, -0.9), t: 0, vida: R(55, 85), s: R(9, 14), c: t ? 28 : 55 });
+            }
+            if (BRASAS && Math.random() < 0.15 * dt) parts.push({ x: cx + R(-8, 8), y: player.y + 10, vx: R(-1, 1), vy: R(-3, -1.5), t: 0, vida: R(14, 24), s: 2 });
+        }
+        for (let i = humos.length - 1; i >= 0; i--) {
+            const p = humos[i]; p.t += dt; p.x += p.vx * dt; p.y += (p.vy + currentSpeed * 0.25) * dt; p.vy *= Math.pow(0.985, dt); p.s += 0.28 * dt;
+            if (p.t > p.vida || p.y > 850) humos.splice(i, 1);
         }
         for (let i = parts.length - 1; i >= 0; i--) {
-            const p = parts[i]; p.t += dt;
-            p.x += p.vx * dt; p.y += (p.vy + (p.k === 'humo' ? currentSpeed * 0.45 : currentSpeed * 0.9)) * dt;
-            if (p.k === 'humo') { p.s += 0.2 * dt; p.vx *= 0.99; }
-            else { p.vx *= Math.pow(0.94, dt); p.vy *= Math.pow(0.94, dt); }
+            const p = parts[i]; p.t += dt; p.x += p.vx * dt; p.y += (p.vy + currentSpeed * 0.9) * dt; p.vx *= Math.pow(0.94, dt); p.vy *= Math.pow(0.94, dt);
             if (p.t > p.vida || p.y > 820) parts.splice(i, 1);
         }
     } catch (err) { console.error('Mejoras29 update:', err); }
 };
 
 // ---------- DRAW ----------
-const sn = v => Math.round(v / PIX) * PIX;
+let hc = null, hg = null;
 const _dr = draw;
 draw = function () {
-    // el juego dibuja su propio humo (feo) cuando queda 1 vida: se lo apagamos mientras dibuja
-    const l = lives; if (lives === 1) lives = 2;
+    const l = lives; if (lives === 1) lives = 2;   // apaga el humo feo que traía el juego
     try { _dr.apply(this, arguments); } finally { lives = l; }
     try {
-        if (state !== 'PLAYING' && state !== 'PAUSED') { parts.length = 0; return; }
+        if (state !== 'PLAYING' && state !== 'PAUSED') { parts.length = 0; humos.length = 0; return; }
         const n = nivel();
-        // rayones y abolladuras sobre el auto
-        if (n) {
-            const px = player.x | 0, py = player.y | 0, w = player.w, h = player.h;
-            ctx.save();
-            for (let i = 0; i < Math.min(MARCAS[n], marcas.length); i++) {
-                const m = marcas[i], x = px + m.x * w, y = py + m.y * h, mw = Math.max(2, m.w * w), mh = Math.max(2, m.h * h);
-                if (m.tipo === 0) { ctx.fillStyle = 'rgba(15,10,10,0.55)'; ctx.fillRect(sn2(x), sn2(y), sn2(mw) + 2, sn2(mh) + 2); }
-                else if (m.tipo === 1) { ctx.fillStyle = 'rgba(235,235,235,0.7)'; for (let k = 0; k < mw; k += 2) ctx.fillRect(sn2(x + k), sn2(y + (m.diag ? k * 0.5 : 0)), 2, 2); }
-                else { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(sn2(x), sn2(y), sn2(mw) + 2, 2); ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(sn2(x), sn2(y) + 2, sn2(mw) + 2, 2); }
-            }
-            ctx.restore();
+        // abolladuras y grietas sobre el auto
+        if (n && assets.player && assets.player.complete && assets.player.naturalWidth > 0) {
+            const key = assets.player.src + '|' + n + '|' + player.w + 'x' + player.h;
+            if (!cache[key]) cache[key] = crearDanio(assets.player, player.w, player.h, n);
+            ctx.drawImage(cache[key], player.x | 0, player.y | 0, player.w, player.h);
         }
-        // partículas
-        parts.forEach(p => {
-            const f = p.t / p.vida;
+        // humo denso (dibujado en baja resolución y estirado = look pixel art)
+        if (humos.length) {
+            const E = ESCALA_HUMO, W = Math.ceil(400 / E), H = Math.ceil(750 / E);
+            if (!hc) { hc = document.createElement('canvas'); hg = hc.getContext('2d'); }
+            if (hc.width !== W) { hc.width = W; hc.height = H; }
+            hg.clearRect(0, 0, W, H);
+            humos.forEach(p => {
+                const f = p.t / p.vida, a = (f < 0.15 ? f / 0.15 : 1 - (f - 0.15) / 0.85) * 0.75, c = p.c + f * 55, r = p.s / E, x = p.x / E, y = p.y / E;
+                const gr = hg.createRadialGradient(x, y, 0, x, y, r);
+                gr.addColorStop(0, `rgba(${c},${c},${c},${a})`); gr.addColorStop(0.6, `rgba(${c},${c},${c},${a * 0.7})`); gr.addColorStop(1, `rgba(${c},${c},${c},0)`);
+                hg.fillStyle = gr; hg.beginPath(); hg.arc(x, y, r, 0, 7); hg.fill();
+            });
+            ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(hc, 0, 0, W * E, H * E); ctx.restore();
+        }
+        // chispas y brasas
+        if (parts.length) {
             ctx.save();
-            if (p.k === 'humo') {
-                const a = (1 - f) * (p.niv === 3 ? 0.9 : p.niv === 2 ? 0.8 : 0.6), c = p.niv === 3 ? 25 + f * 50 : p.niv === 2 ? 70 + f * 60 : 140 + f * 60, s = sn(p.s);
-                ctx.globalAlpha = a; ctx.fillStyle = `rgb(${c},${c},${c})`;
-                ctx.fillRect(sn(p.x - s / 2), sn(p.y - s / 2), s, s);
-                if (s > PIX * 1.5) { ctx.globalAlpha = a * 0.7; ctx.fillRect(sn(p.x - s / 2) - PIX, sn(p.y) , PIX, PIX); ctx.fillRect(sn(p.x + s / 2), sn(p.y - PIX), PIX, PIX); }
-            } else if (p.k === 'chispa') {
-                ctx.globalAlpha = 1 - f; ctx.fillStyle = f < 0.4 ? '#fff6a0' : f < 0.75 ? '#ff9a1f' : '#d8441a';
-                ctx.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s);
-            } else {
-                ctx.globalAlpha = 1 - f; ctx.fillStyle = '#2b2b2b'; ctx.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s);
-            }
-            ctx.restore();
-        });
-        // fuego en el capó (1 vida)
-        if (FUEGO && n === 3) {
-            const cx = player.x + player.w / 2, fy = player.y + 6, tt = performance.now();
-            ctx.save();
-            for (let i = -1; i <= 1; i++) {
-                const al = 6 + Math.floor((Math.sin(tt / 70 + i * 2) + 1) * 4 + Math.random() * 3);
-                ctx.globalAlpha = 0.9; ctx.fillStyle = '#d8441a'; ctx.fillRect(sn(cx + i * 8) - 2, fy - al, PIX, al);
-                ctx.fillStyle = '#ff9a1f'; ctx.fillRect(sn(cx + i * 8) - 2 + 1, fy - al + 2, PIX - 2, Math.max(2, al - 4));
-                ctx.fillStyle = '#fff6a0'; ctx.fillRect(sn(cx + i * 8) - 2 + 1, fy - Math.max(2, al / 3), PIX - 2, 3);
-            }
+            parts.forEach(p => { const f = p.t / p.vida; ctx.globalAlpha = 1 - f; ctx.fillStyle = f < 0.4 ? '#fff6a0' : f < 0.75 ? '#ff9a1f' : '#d8441a'; ctx.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s); });
             ctx.restore();
         }
     } catch (err) { console.error('Mejoras29 draw:', err); }
 };
-function sn2(v) { return Math.round(v / 2) * 2; }
 } catch (e) { console.error('Mejoras29:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
