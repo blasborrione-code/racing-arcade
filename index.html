@@ -5376,11 +5376,12 @@ function clasificar(m) {
     if (/SKIN/.test(m)) return { col: '#ff8a00', tag: 'EXCLUSIVO' };
     if (/NEÓN/.test(m)) return { col: '#9b5cff', tag: 'ÉPICO' };
     if (/PIEZA/.test(m)) return { col: '#3b9cff', tag: 'RARO' };
+    if (/FARO|TICKET/.test(m)) return { col: '#22e6ff', tag: /TICKET/.test(m) ? 'ESPECIAL' : 'RARO' };
     if (/VIDA/.test(m)) return { col: '#ff3b5c', tag: 'BONUS' };
     if (/SUERTE/.test(m)) return { col: '#ffc400', tag: '¡GRAN PREMIO!' };
     return { col: '#2fd17a', tag: 'PREMIO' };
 }
-const COLS = { common: ['#2fd17a', '#ff3b5c', '#3b9cff', '#ffc400', '#ffffff'], premium: ['#2fd17a', '#9b5cff', '#ff8a00', '#ff2bd6', '#ffc400', '#ffffff'] };
+const COLS = { common: ['#2fd17a', '#ff3b5c', '#3b9cff', '#22e6ff', '#ffc400', '#ffffff'], premium: ['#2fd17a', '#9b5cff', '#ff8a00', '#ff2bd6', '#22e6ff', '#ffc400', '#ffffff'] };
 const SPOTS = [[112, 196], [150, 202], [188, 196], [90, 168], [128, 170], [168, 170], [208, 168], [108, 140], [146, 142], [186, 140], [128, 112], [166, 112], [150, 84], [78, 196], [222, 196]];
 
 let tipo = 'common', timers = [];
@@ -5407,7 +5408,7 @@ function maquina(theme) {
 function mostrar(msg) {
     timers.forEach(clearTimeout); timers = [];
     let o = $('gx'); if (!o) { o = document.createElement('div'); o.id = 'gx'; document.body.appendChild(o); }
-    const c = clasificar(String(msg)), theme = tipo === 'premium' ? 'premium' : 'common';
+    const c = clasificar(String(msg)), theme = (window.__cajaTipo || tipo) === 'premium' ? 'premium' : 'common';
     let ps = ''; for (let i = 0; i < 28; i++) ps += `<i class="gx-p" style="--a:${i * (360 / 28)}deg"></i>`;
     const leg = (COLS[theme]).filter(x => x !== '#ffffff').map(x => `<i style="--bc:${x}"></i>`).join('');
     o.style.setProperty('--bc', c.col);
@@ -5448,6 +5449,187 @@ window.showToast = function (title, msg) {
     return _st.apply(this, arguments);
 };
 } catch (e) { console.error('Mejoras24:', e); } })();
+// ===== MEJORAS 25 - PASADA DE LÓGICA 1: CAJAS DE LA TIENDA (premios nuevos, garantía, videos y arreglos) (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras24) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+
+// ---------- PERILLAS ----------
+const PRECIO_NORMAL = 2500;      // monedas de la caja normal
+const GARANTIA_PREMIUM = 10;     // cada tantas cajas premium seguidas sin premio raro, la siguiente trae uno seguro (0 = sin garantía)
+const AUTO_EPICO_DESDE = 40000;  // el auto mítico solo puede ser de la tienda con precio igual o mayor a este
+const CARO = 'ARCOÍRIS';         // el neón de piso exclusivo de temporada no sale en cajas
+
+// ---------- TABLAS DE PREMIOS (el texto del botón "i" se arma desde acá, así siempre coincide) ----------
+// p = porcentaje (cada tabla suma 100) | col = color en el texto de probabilidades | txt = descripción
+const NORMAL = [
+    { id: 'coin1', p: 35, col: '#2fd17a', txt: 'Monedas ($1.000 a $3.000)' },
+    { id: 'coin2', p: 15, col: '#2fd17a', txt: 'Monedas grandes ($3.500 a $6.000)' },
+    { id: 'vida', p: 20, col: '#ff3b5c', txt: '+1, +2 o +3 vidas (próxima carrera)' },
+    { id: 'pieza', p: 12, col: '#3b9cff', txt: 'Pieza de mejora gratis' },
+    { id: 'faro', p: 8, col: '#22e6ff', txt: 'Faro de color para uno de tus autos' },
+    { id: 'ticket', p: 6, col: '#22e6ff', txt: '1 ticket premium' },
+    { id: 'jack', p: 4, col: '#ffc400', txt: '¡Premio mayor! ($10.000)' }
+];
+const PREMIUM = [
+    { id: 'coin1', p: 28, col: '#2fd17a', txt: 'Monedas ($6.000 a $12.000)' },
+    { id: 'coin2', p: 10, col: '#ffc400', txt: '¡Premio mayor! ($15.000 a $25.000)' },
+    { id: 'faro', p: 20, col: '#22e6ff', txt: 'Faro raro para uno de tus autos' },
+    { id: 'piso', p: 12, col: '#9b5cff', txt: 'Neón de piso para uno de tus autos' },
+    { id: 'skin', p: 15, col: '#ff8a00', txt: 'Skin exclusiva de oro' },
+    { id: 'pieza2', p: 8, col: '#3b9cff', txt: 'Dos piezas de mejora gratis' },
+    { id: 'vida3', p: 5, col: '#ff3b5c', txt: '+3 vidas (próxima carrera)' },
+    { id: 'auto', p: 2, col: '#ff2bd6', txt: 'MÍTICO: un auto épico de la tienda' }
+];
+const RAROS = ['faro', 'piso', 'skin', 'auto'];   // lo que cuenta como "premio raro" para la garantía
+
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = arr => arr[(Math.random() * arr.length) | 0];
+function tirar(tabla) { let r = Math.random() * 100, acc = 0; for (const x of tabla) { acc += x.p; if (r < acc) return x.id; } return tabla[0].id; }
+const SKIN_ORO = ['auto_rosa', 'camioneta4x4', 'compact_retro', 'furgoneta', 'muscle_pony', 'luxury_white', 'sport_black', 'super_yellow'];
+
+// ---------- PREMIOS ----------
+function monedas(n, extra) { garage.coins += n; return `+💰${n.toLocaleString()}${extra || ''}`; }
+
+function darPieza(veces) {
+    // mejora gratis en un auto que tengas; si ya está todo al máximo, da monedas
+    const out = [];
+    for (let i = 0; i < veces; i++) {
+        const cand = [];
+        garage.owned.forEach(c => {
+            const st = garage.carStats[c] || (garage.carStats[c] = { motor: 0, tanque: 0, frenos: 0, chasis: 0, aero: 0, gomas: 0 });
+            Object.keys(st).forEach(k => { if (st[k] < 5) cand.push([c, k]); });
+        });
+        if (!cand.length) { out.push(monedas(2500, ' (venta de piezas)')); continue; }
+        const [c, k] = pick(cand); garage.carStats[c][k]++;
+        const nom = { motor: 'MOTOR', tanque: 'TANQUE', frenos: 'FRENOS', chasis: 'CHASIS', aero: 'AERO', gomas: 'GOMAS' }[k] || k.toUpperCase();
+        out.push(`¡PIEZA: ${nom} de ${MODELS[c].name}!`);
+    }
+    return out.join('  ');
+}
+
+function darFaro(sinBlanco) {
+    // un faro que ese auto todavía no tenga (se guarda por auto, que es donde lo lee la pantalla de Faros)
+    const pares = [];
+    garage.owned.forEach(c => {
+        const tiene = (garage.ownedNeons && garage.ownedNeons[c]) || ['white'];
+        Object.keys(NEONES).forEach(k => { if (k !== 'white' && !tiene.includes(k)) pares.push([c, k]); });
+    });
+    if (!pares.length) return monedas(sinBlanco ? 15000 : 5000, ' (ya tenés todos los faros)');
+    const [c, k] = pick(pares);
+    if (!garage.ownedNeons[c]) garage.ownedNeons[c] = ['white'];
+    garage.ownedNeons[c].push(k);
+    return `¡FARO ${NEONES[k].name}: ${MODELS[c].name}!`;
+}
+
+function darPiso() {
+    const pares = [];
+    garage.owned.forEach(c => {
+        const tiene = (garage.ownedUnderglows && garage.ownedUnderglows[c]) || ['none'];
+        Object.keys(UNDERGLOW).forEach(k => { if (k !== 'none' && !String(UNDERGLOW[k].name).includes(CARO) && !tiene.includes(k)) pares.push([c, k]); });
+    });
+    if (!pares.length) return monedas(15000, ' (ya tenés todos los neones de piso)');
+    const [c, k] = pick(pares);
+    if (!garage.ownedUnderglows[c]) garage.ownedUnderglows[c] = ['none'];
+    garage.ownedUnderglows[c].push(k);
+    return `¡NEÓN DE PISO ${UNDERGLOW[k].name}: ${MODELS[c].name}!`;
+}
+
+function darSkin() {
+    const c = pick(SKIN_ORO.filter(k => MODELS[k]));
+    if (!garage.ownedColors[c]) garage.ownedColors[c] = [MODELS[c].colors[0]];
+    if (!garage.ownedColors[c].includes('oro')) { garage.ownedColors[c].push('oro'); return `¡SKIN ORO: ${MODELS[c].name}!`; }
+    return monedas(20000, ' (skin de oro repetida)');
+}
+
+function darAuto() {
+    const faltan = Object.keys(MODELS).filter(k => !garage.owned.includes(k) && (MODELS[k].price || 0) >= AUTO_EPICO_DESDE);
+    if (!faltan.length) return monedas(50000, ' (ya tenés todos los autos épicos)');
+    const k = pick(faltan); garage.owned.push(k);
+    return `¡AUTO ÉPICO: ${MODELS[k].name}!`;
+}
+
+function vidas(n) {
+    garage.nextRunBonusLife = (garage.nextRunBonusLife || 0) + n;
+    return `+❤️ ${n} ${n === 1 ? 'VIDA EXTRA' : 'VIDAS EXTRAS'} (próxima carrera)`;
+}
+
+function resolver(tipo) {
+    if (tipo === 'common') {
+        switch (tirar(NORMAL)) {
+            case 'coin1': return monedas(rnd(1000, 3000));
+            case 'coin2': return monedas(rnd(3500, 6000));
+            case 'vida': { const s = Math.random() * 100; return vidas(s > 90 ? 3 : s > 65 ? 2 : 1); }
+            case 'pieza': return darPieza(1);
+            case 'faro': return darFaro(false);
+            case 'ticket': garage.tickets = (garage.tickets || 0) + 1; return '+🎫 1 TICKET PREMIUM';
+            case 'jack': return monedas(10000, ' (¡SUERTE!)');
+        }
+    }
+    // premium, con garantía de premio raro
+    let id = tirar(PREMIUM);
+    if (GARANTIA_PREMIUM > 0 && (garage.boxesSinRaro || 0) >= GARANTIA_PREMIUM - 1 && !RAROS.includes(id)) id = pick(['faro', 'piso', 'skin']);
+    garage.boxesSinRaro = RAROS.includes(id) ? 0 : (garage.boxesSinRaro || 0) + 1;
+    switch (id) {
+        case 'coin1': return monedas(rnd(6000, 12000));
+        case 'coin2': return monedas(rnd(15000, 25000), ' (¡SUERTE!)');
+        case 'faro': return darFaro(true);
+        case 'piso': return darPiso();
+        case 'skin': return darSkin();
+        case 'pieza2': return darPieza(2);
+        case 'vida3': return vidas(3);
+        case 'auto': return darAuto();
+    }
+}
+
+// ---------- APERTURA DE CAJA (misma lógica de cobro de antes, premios nuevos) ----------
+let abriendo = false;
+window.openBox = function (type, isFree) {
+    if (abriendo) return;
+    window.__cajaTipo = type;   // lo lee la máquina de bolitas (mejoras24) para elegir el modelo
+    if (!isFree) {
+        if (type === 'common') {
+            if (garage.coins < PRECIO_NORMAL) { showToast('ERROR', 'No tienes suficientes monedas'); return; }
+            garage.coins -= PRECIO_NORMAL;
+        } else if (type === 'premium') {
+            if (!garage.tickets || garage.tickets < 1) { showToast('ERROR', 'No tienes tickets'); return; }
+            garage.tickets--;
+        }
+        playSound('coin'); save();
+    }
+    abriendo = true;
+    try { screenShake = 15; } catch (e) { }
+    try { playSound('explosion'); } catch (e) { }
+    // el premio se decide y se entrega ahora; la máquina solo lo muestra
+    let premio = '';
+    try { premio = resolver(type); } catch (e) { console.error('Mejoras25 premio:', e); premio = monedas(1000); }
+    save(); updateBlackMarketUI();
+    setTimeout(() => { abriendo = false; showToast('🎁 ¡PREMIO!', premio, true); }, 300);
+};
+
+// ---------- VIDEOS: un toque, un video (antes, tocar dos veces rápido contaba dos) ----------
+const _wa = window.watchAdForBox;
+let viendo = false;
+window.watchAdForBox = function (type) {
+    if (viendo) return;
+    viendo = true; setTimeout(() => { viendo = false; }, 2300);
+    return _wa.apply(this, arguments);
+};
+
+// ---------- TEXTO DE PROBABILIDADES (se arma desde las tablas de arriba) ----------
+window.showProbabilities = function (type) {
+    try { playSound('click'); } catch (e) { }
+    const T = type === 'premium' ? PREMIUM : NORMAL;
+    let h = T.map(x => `<b style="color:${x.col}">${x.p}%</b> - ${x.txt}`).join('<br>');
+    h += `<br><span style="font-size:12px;opacity:.8">El color de la bolita que sale te adelanta el premio.</span>`;
+    if (type === 'premium' && GARANTIA_PREMIUM > 0) h += `<br><span style="font-size:12px;color:#ffc400">Garantía: cada ${GARANTIA_PREMIUM} cajas premium seguidas sin premio raro, la siguiente trae uno (faro, neón de piso o skin).</span>`;
+    $('info-title').innerText = type === 'premium' ? 'CAJA PREMIUM' : 'CAJA NORMAL';
+    $('info-content').innerHTML = h;
+    $('info-modal').classList.remove('hidden');
+};
+
+// ---------- BOTÓN DE COMPRA CON EL PRECIO ACTUAL ----------
+try { const b = document.querySelector("#black-market-screen .sb-buy[onclick*=\"'common'\"]"); if (b) b.textContent = 'COMPRAR ($' + PRECIO_NORMAL.toLocaleString() + ')'; } catch (e) { }
+} catch (e) { console.error('Mejoras25:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
