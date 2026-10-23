@@ -5637,6 +5637,101 @@ try { const b = document.querySelector("#black-market-screen .sb-buy[onclick*=\"
 // los usan las recompensas del bonus diario (mejoras26)
 window.__premios = { monedas, darSkin, darPiso, darAuto, darFaro, darPieza, vidas };
 } catch (e) { console.error('Mejoras25:', e); } })();
+// ===== MEJORAS 26 - PASADA DE LÓGICA 2: VIDEOS DE LAS CAJAS, BONUS DIARIO Y LOGROS (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras25) =====
+(function () { try {
+const $ = id => document.getElementById(id);
+
+// ---------- PERILLAS ----------
+const CAJA = {
+    common:  { videos: 5,  limite: 15 },   // caja normal: 5 videos por caja, máximo 15 videos por día (3 cajas)
+    premium: { videos: 10, limite: 5 }     // caja premium: 10 videos por caja, máximo 5 por día (hacen falta 2 días)
+};
+const PREMIO_LOGRO = 1000;                  // monedas por cada nivel de logro
+
+// ---------- VIDEOS DE LAS CAJAS ----------
+function diaNuevo() {
+    const hoy = new Date().toDateString();
+    if (garage.lastBoxDate !== hoy) { garage.dailyCommonAds = 0; garage.dailyPremiumAds = 0; garage.lastBoxDate = hoy; }
+    ['dailyCommonAds', 'dailyPremiumAds', 'progressCommonBox', 'progressPremiumBox'].forEach(k => { if (typeof garage[k] !== 'number') garage[k] = 0; });
+}
+
+updateBlackMarketUI = function () {
+    try { diaNuevo(); } catch (e) { }
+    updateShopCoinDisplays();
+    const t = $('ui-tickets-display'); if (t) t.innerText = (garage.tickets || 0);
+    [['common', 'btn-ad-common', 'dailyCommonAds', 'progressCommonBox'], ['premium', 'btn-ad-premium', 'dailyPremiumAds', 'progressPremiumBox']].forEach(([tipo, id, vistos, prog]) => {
+        const b = $(id); if (!b) return;
+        const C = CAJA[tipo];
+        if (garage[vistos] >= C.limite) { b.innerHTML = '📺 LÍMITE DIARIO ALCANZADO<br><small>Vuelve mañana</small>'; b.style.opacity = '0.5'; }
+        else { b.innerHTML = `📺 VER VIDEO (${garage[vistos]}/${C.limite})<br><small style="color:#f1c40f;">Progreso Caja: ${garage[prog]}/${C.videos}</small>`; b.style.opacity = '1'; }
+    });
+};
+
+let viendo = false;
+window.watchAdForBox = function (tipo) {
+    const C = CAJA[tipo]; if (!C || viendo) return;
+    diaNuevo();
+    const vistos = tipo === 'common' ? 'dailyCommonAds' : 'dailyPremiumAds', prog = tipo === 'common' ? 'progressCommonBox' : 'progressPremiumBox';
+    if (garage[vistos] >= C.limite) { showToast('ERROR', 'Límite diario alcanzado'); return; }
+    viendo = true;
+    try { playSound('click'); } catch (e) { }
+    const termino = () => {
+        viendo = false;
+        diaNuevo();
+        garage[vistos]++; garage[prog]++;
+        if (garage[prog] >= C.videos) { garage[prog] = 0; save(); openBox(tipo, true); }
+        else { save(); updateBlackMarketUI(); showToast('PROGRESO', `Video sumado. Te faltan ${C.videos - garage[prog]} para la caja.`); }
+    };
+    // si más adelante conectás los anuncios reales, solo hay que reemplazar window.mostrarAnuncioRecompensado (recibe una función que se llama al terminar el video)
+    if (typeof window.mostrarAnuncioRecompensado === 'function') window.mostrarAnuncioRecompensado(termino);
+    else { showToast('ANUNCIO', 'Simulando video... (Espera 2 seg)'); setTimeout(termino, 2000); }
+};
+
+// ---------- BONUS DIARIO: error del día 12 y premios reales en los días 15, 20 y 30 ----------
+window.claimDailyLogin = function () {
+    if (!dailyRewardAvailable) return;
+    const p = DAILY_REWARDS[garage.loginStreak]; if (!p) return;
+    dailyRewardAvailable = false;
+    const tipo = p.tipo || p.type;          // el día 12 venía con "type" en vez de "tipo"
+    const P = window.__premios;             // viene de mejoras25
+    const dia = garage.loginStreak + 1;
+    try {
+        if (dia === 15 && P) showToast('¡SKIN NUEVA!', P.darSkin(), true);
+        else if (dia === 20 && P) showToast('¡NEÓN NUEVO!', P.darPiso(), true);
+        else if (dia === 30 && P) showToast('¡AUTO ÉPICO!', P.darAuto(), true);
+        else if (tipo === 'ticket') { garage.tickets = (garage.tickets || 0) + (p.valor || 1); showToast('BONUS', `+🎫 ${p.valor || 1} TICKET(S)`); }
+        else { const v = typeof p.valor === 'number' ? p.valor : 1000; garage.coins += v; garage.totalCoinsRec += v; showToast('BONUS', `+💰 ${v.toLocaleString()}`); }
+    } catch (e) { console.error('Mejoras26 bonus:', e); garage.coins += 1000; }
+    garage.loginStreak++;
+    garage.lastLoginDate = new Date().toDateString();
+    save(); updateShopCoinDisplays(); closeDailyLogin();
+};
+
+// en el calendario, los días especiales dicen qué dan
+const _rd = window.renderDailyLogin;
+window.renderDailyLogin = function () {
+    const r = _rd.apply(this, arguments);
+    try {
+        const cont = $('daily-days-container');
+        [[14, 'SKIN ORO'], [19, 'NEÓN'], [29, 'ÉPICO']].forEach(([i, txt]) => { const b = cont && cont.children[i] && cont.children[i].querySelector('b'); if (b) b.textContent = txt; });
+    } catch (e) { }
+    return r;
+};
+
+// ---------- LOGROS: si en una partida llegás a varios niveles de golpe, se cobran todos ----------
+function logros() {
+    let n = 0;
+    Object.keys(MILESTONES).forEach(k => {
+        const val = k === 'totalDist' ? garage.totalDist : k === 'totalCoins' ? garage.totalCoinsRec : k === 'totalNear' ? garage.totalNear : garage.totalPlays;
+        while ((garage.unlockedLogros[k] || 0) < MILESTONES[k].length && val >= MILESTONES[k][garage.unlockedLogros[k] || 0]) {
+            garage.unlockedLogros[k] = (garage.unlockedLogros[k] || 0) + 1; garage.coins += PREMIO_LOGRO; n++;
+        }
+    });
+    if (n) showToast('¡LOGROS!', `${n} nivel${n > 1 ? 'es' : ''} más (+💰${(n * PREMIO_LOGRO).toLocaleString()})`, true);
+}
+const _save = save;
+save = function () { try { logros(); } catch (e) { console.error('Mejoras26 logros:', e); } return _save.apply(this, arguments); };
+} catch (e) { console.error('Mejoras26:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
