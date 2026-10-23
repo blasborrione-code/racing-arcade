@@ -5732,6 +5732,100 @@ function logros() {
 const _save = save;
 save = function () { try { logros(); } catch (e) { console.error('Mejoras26 logros:', e); } return _save.apply(this, arguments); };
 } catch (e) { console.error('Mejoras26:', e); } })();
+// ===== MEJORAS 27 - FASE 4 (1): TRÁNSITO MÁS VARIADO: 8 autos nuevos, colectivos, motos y camiones largos (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras26) =====
+// Necesita en la carpeta Autos/: auto_1..auto_8.png, bus_1.png, bus_2.png, moto_1.png, moto_2.png, camion_largo_1.png, camion_largo_2.png
+(function () { try {
+
+// ---------- PERILLAS ----------
+const P_BUS = 0.07;          // probabilidad de que un vehículo del tránsito sea colectivo
+const P_MOTO = 0.07;         // ... moto
+const P_LARGO = 0.05;        // ... camión largo
+const NIVEL_MOTO = 2, NIVEL_BUS = 3, NIVEL_LARGO = 4;   // desde qué nivel aparece cada uno
+const VEL_BUS = [1.2, 2.4], VEL_LARGO = [1.0, 2.0], VEL_MOTO = [4.0, 6.0];   // velocidad propia (los autos comunes van de 1.5 a 4.5)
+const ANCHO = { auto: 45, bus: 50, moto: 24, largo: 44 };   // ancho en el juego (el alto sale solo de la imagen)
+const P_FILTRA = 0.6;        // de las motos, cuántas van "filtrando" por el medio de dos carriles (0 = ninguna | 1 = todas)
+const P_FRENTE_NUEVO = 0.5;  // en modo Difícil: parte de los autos que vienen de frente que son modelos nuevos (autos, colectivos y motos)
+
+// ---------- IMÁGENES ----------
+const NOMBRES = {
+    auto: ['auto_1', 'auto_2', 'auto_3', 'auto_4', 'auto_5', 'auto_6', 'auto_7', 'auto_8'],
+    bus: ['bus_1', 'bus_2'],
+    moto: ['moto_1', 'moto_2'],
+    largo: ['camion_largo_1', 'camion_largo_2']
+};
+const IMGS = {};
+Object.keys(NOMBRES).forEach(t => { IMGS[t] = NOMBRES[t].map(n => { const i = new Image(); i.src = 'Autos/' + n + '.png'; return i; }); });
+const lista = t => IMGS[t].filter(i => i.complete && i.naturalWidth > 0);   // solo las que ya cargaron bien
+const pick = a => a[(Math.random() * a.length) | 0];
+const LX = [75, 157.5, 242.5, 325];
+
+// ---------- CAMBIA UN VEHÍCULO DEL TRÁNSITO POR UNO DE LOS NUEVOS ----------
+function aplicar(e, tipo) {
+    const l = lista(tipo); if (!l.length) return false;
+    const img = pick(l), w = ANCHO[tipo], h = Math.round(w * img.naturalHeight / img.naturalWidth), cx = e.x + e.w / 2;
+    const ny = tipo === 'largo' || tipo === 'bus' ? Math.min(e.y, -h - 20) : e.y;
+    // que no quede encima de otro vehículo de su carril
+    if (enemies.some(o => o !== e && (o.l === e.l || o.tl === e.l) && o.y < ny + h + 50 && o.y + o.h > ny - 50)) return false;
+    e.img = img; e.w = w; e.h = h; e.x = cx - w / 2; e.y = ny; e.tipoNuevo = tipo;
+    if (tipo === 'bus' || tipo === 'largo') e.grande = true;
+    const v = tipo === 'bus' ? VEL_BUS : tipo === 'largo' ? VEL_LARGO : tipo === 'moto' ? VEL_MOTO : null;
+    if (v) { e.baseSpeed = e.speed = v[0] + Math.random() * (v[1] - v[0]); }
+    if (tipo === 'moto' && Math.random() < P_FILTRA && !filtrar(e)) { /* si no hay lugar queda en su carril */ }
+    return true;
+}
+
+// moto que "filtra": va por el medio de dos carriles. Cuenta como ocupando los dos para que los autos no se le metan encima.
+function filtrar(e) {
+    const dificil = window.gameMode === 'dificil';
+    const izq = dificil ? 2 : Math.min(e.l, 2);          // en modo Difícil solo hay tránsito en los 2 carriles de la derecha
+    if (enemies.some(o => o !== e && (o.l === izq || o.l === izq + 1 || o.tl === izq || o.tl === izq + 1) && o.y < e.y + e.h + 60 && o.y + o.h > e.y - 60)) return false;
+    e.filtra = true; e.l = izq; e.tl = izq + 1; e.x = (LX[izq] + LX[izq + 1]) / 2 - e.w / 2;
+    return true;
+}
+
+const _st = spawnTraffic;
+spawnTraffic = function () {
+    const n = enemies.length; _st.apply(this, arguments);
+    if (enemies.length <= n) return;
+    const e = enemies[enemies.length - 1];
+    if (!e || e.type !== 'normal' || e.onc || e.tipoNuevo) return;
+    const r = Math.random(), esCisterna = e.img === assets.truck;
+    let tipo = null, acc = 0;
+    if (level >= NIVEL_LARGO && r < (acc += P_LARGO)) tipo = 'largo';
+    else if (level >= NIVEL_BUS && r < (acc += P_BUS)) tipo = 'bus';
+    else if (level >= NIVEL_MOTO && r < (acc += P_MOTO)) tipo = 'moto';
+    else if (!esCisterna && Math.random() < lista('auto').length / (lista('auto').length + assets.npcs.length)) tipo = 'auto';   // todos los modelos (viejos y nuevos) con la misma chance
+    if (tipo) aplicar(e, tipo);
+};
+
+// ---------- UPDATE: motos que filtran, camiones largos que chocan sin girar, autos de frente que también varían ----------
+const _up = update;
+update = function (dt) {
+    _up(dt);
+    try {
+        enemies.forEach(e => {
+            // modo Difícil: los autos que vienen de frente (los crea mejoras13) también usan modelos nuevos
+            if (e.onc && !e.tipoNuevo && !e.cheq) {
+                e.cheq = true;
+                if (Math.random() < P_FRENTE_NUEVO) {
+                    const r = Math.random(), t = r < 0.08 ? 'bus' : r < 0.2 ? 'moto' : 'auto';
+                    const l = lista(t);
+                    if (l.length) {
+                        const img = pick(l), w = ANCHO[t], h = Math.round(w * img.naturalHeight / img.naturalWidth);
+                        e.img = img; e.w = w; e.h = h; e.x = LX[e.l] - w / 2; e.tipoNuevo = t;
+                    }
+                }
+            }
+            if (e.filtra && !e.crashed && !e.hit) {
+                // va a su ritmo, sin frenar por los autos de al lado, y siempre por el medio de sus dos carriles
+                e.y += (e.speed - e.baseSpeed) * dt; e.speed = e.baseSpeed;
+                e.blink = false; e.chg = false; e.tl = e.l + 1; e.x = (LX[e.l] + LX[e.l + 1]) / 2 - e.w / 2;
+            }
+            if (e.grande && e.crashed && !e.onc) e.rotation = 0.05;   // un camión de 200 px no puede girar 15° sin invadir otros carriles
+        });
+    } catch (err) { console.error('Mejoras27 update:', err); }
+};
+} catch (e) { console.error('Mejoras27:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
