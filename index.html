@@ -6088,7 +6088,7 @@ const ok = i => i && i.complete && i.naturalWidth > 0;
 
 // ---------- ANIMACIÓN ----------
 const LX = [75, 157.5, 242.5, 325];
-let W = 0, H = 0, S = 1, UH = 750, off = 0, t = 0, trafico = [], stop = false, sig = 0;
+let W = 0, H = 0, S = 1, UH = 750, off = 0, t = 0, trafico = [], stop = false, sig = 0, jl = 1, jx = 157.5, jEspera = 60;
 
 function medir() {
     const r = ls.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
@@ -6131,7 +6131,7 @@ function frame() {
     }
     // tránsito
     if (trafico.length < MAX_AUTOS && t > sig) {
-        const lane = (Math.random() * 4) | 0, libre = !trafico.some(a => a.l === lane && a.y < 140), imgs = autos.filter(ok);
+        const lane = (Math.random() * 4) | 0, libre = lane !== jl && !trafico.some(a => a.l === lane && a.y < 140), imgs = autos.filter(ok);
         if (libre && imgs.length) { const im = imgs[(Math.random() * imgs.length) | 0]; trafico.push({ l: lane, y: -120, v: 2.5 + Math.random() * 4.5, im, w: im.src.includes('bus') ? 50 : im.src.includes('moto') ? 24 : 45 }); sig = t + 25 + Math.random() * 30; }
     }
     for (let i = trafico.length - 1; i >= 0; i--) {
@@ -6140,8 +6140,18 @@ function frame() {
         const h = dibujarAuto(a.im, x, a.y, a.w, 0);
         if (a.y - h > UH + 40) trafico.splice(i, 1);
     }
-    // auto del jugador con luces
-    const px = 200 + Math.sin(t / 38) * 62, py = UH * 0.74, tilt = Math.cos(t / 38) * 0.09;
+    // auto del jugador: cambia de carril solo si el carril de destino está libre, y se corre si le viene un auto de frente en su carril
+    const py = UH * 0.74;
+    const ocupado = (l, arriba, abajo) => trafico.some(a => a.l === l && a.y > py - arriba && a.y < py + abajo);
+    jEspera--;
+    const enPeligro = ocupado(jl, 330, 140);
+    if (Math.abs(jx - LX[jl]) < 3 && (enPeligro || jEspera <= 0)) {
+        const vec = [jl - 1, jl + 1].filter(l => l >= 0 && l <= 3 && !ocupado(l, 99999, 190));
+        if (vec.length) { jl = vec[(Math.random() * vec.length) | 0]; jEspera = 90 + Math.random() * 120; }
+        else if (!enPeligro) jEspera = 40;
+    }
+    const antes = jx; jx += (LX[jl] - jx) * 0.07;
+    const px = jx, tilt = (LX[jl] - jx) * 0.006;
     const faro = g.createRadialGradient(px, py - 40, 5, px, py - 150, 170); faro.addColorStop(0, 'rgba(255,245,190,.45)'); faro.addColorStop(1, 'rgba(255,245,190,0)');
     g.fillStyle = faro; g.beginPath(); g.moveTo(px - 18, py - 30); g.lineTo(px - 80, py - 320); g.lineTo(px + 80, py - 320); g.lineTo(px + 18, py - 30); g.closePath(); g.fill();
     const J = ok(jug) ? jug : autos.find(ok);
