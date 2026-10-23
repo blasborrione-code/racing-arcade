@@ -5733,7 +5733,7 @@ const _save = save;
 save = function () { try { logros(); } catch (e) { console.error('Mejoras26 logros:', e); } return _save.apply(this, arguments); };
 } catch (e) { console.error('Mejoras26:', e); } })();
 // ===== MEJORAS 27 - FASE 4 (1): TRÁNSITO MÁS VARIADO: 8 autos nuevos, colectivos, motos y camiones largos (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras26) =====
-// Necesita en la carpeta Autos/: auto_1..auto_8.png, bus_1.png, bus_2.png, moto_1.png, moto_2.png, camion_largo_1.png, camion_largo_2.png
+// Necesita en la carpeta Autos/: auto_1..auto_8.png, bus_1.png, bus_2.png, moto_1.png, moto_2.png, moto_1_sola.png, moto_2_sola.png, piloto_1.png, piloto_2.png, camion_largo_1.png, camion_largo_2.png
 (function () { try {
 
 // ---------- PERILLAS ----------
@@ -5742,7 +5742,9 @@ const P_MOTO = 0.07;         // ... moto
 const P_LARGO = 0.05;        // ... camión largo
 const NIVEL_MOTO = 2, NIVEL_BUS = 3, NIVEL_LARGO = 4;   // desde qué nivel aparece cada uno
 const VEL_BUS = [1.2, 2.4], VEL_LARGO = [1.0, 2.0], VEL_MOTO = [4.0, 6.0];   // velocidad propia (los autos comunes van de 1.5 a 4.5)
-const ANCHO = { auto: 45, bus: 50, moto: 24, largo: 44 };   // ancho en el juego (el alto sale solo de la imagen)
+const ANCHO = { auto: 45, bus: 50, moto: 24, largo: 44, piloto: 40 };
+const DURACION_PILOTO = 240;   // cuánto tiempo (en frames) queda el piloto tirado antes de desaparecer
+const TEXTO_AUCH = true;       // mostrar "¡AUCH!" cuando el piloto sale volando   // ancho en el juego (el alto sale solo de la imagen)
 const P_FILTRA = 0.6;        // de las motos, cuántas van "filtrando" por el medio de dos carriles (0 = ninguna | 1 = todas)
 const P_FRENTE_NUEVO = 0.5;  // en modo Difícil: parte de los autos que vienen de frente que son modelos nuevos (autos, colectivos y motos)
 
@@ -5753,7 +5755,8 @@ const NOMBRES = {
     moto: ['moto_1', 'moto_2'],
     largo: ['camion_largo_1', 'camion_largo_2']
 };
-const IMGS = {};
+const IMGS = {}, SOLAS = ['moto_1_sola', 'moto_2_sola'].map(n => { const i = new Image(); i.src = 'Autos/' + n + '.png'; return i; }), PILOTOS = ['piloto_1', 'piloto_2'].map(n => { const i = new Image(); i.src = 'Autos/' + n + '.png'; return i; });
+const ok = i => i && i.complete && i.naturalWidth > 0;
 Object.keys(NOMBRES).forEach(t => { IMGS[t] = NOMBRES[t].map(n => { const i = new Image(); i.src = 'Autos/' + n + '.png'; return i; }); });
 const lista = t => IMGS[t].filter(i => i.complete && i.naturalWidth > 0);   // solo las que ya cargaron bien
 const pick = a => a[(Math.random() * a.length) | 0];
@@ -5767,6 +5770,7 @@ function aplicar(e, tipo) {
     // que no quede encima de otro vehículo de su carril
     if (enemies.some(o => o !== e && (o.l === e.l || o.tl === e.l) && o.y < ny + h + 50 && o.y + o.h > ny - 50)) return false;
     e.img = img; e.w = w; e.h = h; e.x = cx - w / 2; e.y = ny; e.tipoNuevo = tipo;
+    if (tipo === 'moto') e.motoIdx = IMGS.moto.indexOf(img);
     if (tipo === 'bus' || tipo === 'largo') e.grande = true;
     const v = tipo === 'bus' ? VEL_BUS : tipo === 'largo' ? VEL_LARGO : tipo === 'moto' ? VEL_MOTO : null;
     if (v) { e.baseSpeed = e.speed = v[0] + Math.random() * (v[1] - v[0]); }
@@ -5798,10 +5802,42 @@ spawnTraffic = function () {
     if (tipo) aplicar(e, tipo);
 };
 
+// ---------- PILOTOS TIRADOS (solo decoración, no afectan al jugador) ----------
+const pilotos = [];
+function moverPilotos(dt) {
+    for (let i = pilotos.length - 1; i >= 0; i--) {
+        const p = pilotos[i]; p.t += dt;
+        p.x += p.vx * dt; p.y += (p.vy + currentSpeed * 0.5) * dt;      // el camino se mueve, el piloto se queda atrás
+        p.vx *= Math.pow(0.93, dt); p.vy *= Math.pow(0.93, dt); p.vr *= Math.pow(0.94, dt); p.rot += p.vr * dt;
+        if (p.t > DURACION_PILOTO || p.y > 900) pilotos.splice(i, 1);
+    }
+}
+const _dr = draw;
+draw = function () {
+    _dr.apply(this, arguments);
+    try {
+        if (!pilotos.length) return;
+        if (state !== 'PLAYING' && state !== 'PAUSED') { pilotos.length = 0; return; }
+        pilotos.forEach(p => {
+            const a = p.t > DURACION_PILOTO - 40 ? Math.max(0, (DURACION_PILOTO - p.t) / 40) : 1;
+            ctx.save(); ctx.globalAlpha = a; ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+            ctx.drawImage(p.img, -p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+            if (TEXTO_AUCH && p.t < 50) {
+                ctx.save(); ctx.globalAlpha = 1 - p.t / 50; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.fillStyle = '#f1c40f';
+                const tx = p.x, ty = p.y - 30 - p.t * 0.5; ctx.strokeText('¡AUCH!', tx, ty); ctx.fillText('¡AUCH!', tx, ty); ctx.restore();
+            }
+        });
+    } catch (err) { console.error('Mejoras27 draw:', err); }
+};
+
 // ---------- UPDATE: motos que filtran, camiones largos que chocan sin girar, autos de frente que también varían ----------
 const _up = update;
 update = function (dt) {
-    _up(dt);
+    // colectivos y camiones largos aguantan 2 choques, como la cisterna (el juego solo trata así a la imagen de la cisterna, así que se la "prestamos" durante el update)
+    const prestados = [];
+    try { enemies.forEach(e => { if (e.grande && !e.onc && !e.crashed && assets.truck) { prestados.push([e, e.img]); e.img = assets.truck; } }); } catch (err) { }
+    try { _up(dt); } finally { prestados.forEach(([e, img]) => { e.img = img; }); }
+    try { moverPilotos(dt); } catch (err) { }
     try {
         enemies.forEach(e => {
             // modo Difícil: los autos que vienen de frente (los crea mejoras13) también usan modelos nuevos
@@ -5813,6 +5849,7 @@ update = function (dt) {
                     if (l.length) {
                         const img = pick(l), w = ANCHO[t], h = Math.round(w * img.naturalHeight / img.naturalWidth);
                         e.img = img; e.w = w; e.h = h; e.x = LX[e.l] - w / 2; e.tipoNuevo = t;
+                        if (t === 'moto') e.motoIdx = IMGS.moto.indexOf(img);
                     }
                 }
             }
@@ -5820,6 +5857,17 @@ update = function (dt) {
                 // va a su ritmo, sin frenar por los autos de al lado, y siempre por el medio de sus dos carriles
                 e.y += (e.speed - e.baseSpeed) * dt; e.speed = e.baseSpeed;
                 e.blink = false; e.chg = false; e.tl = e.l + 1; e.x = (LX[e.l] + LX[e.l + 1]) / 2 - e.w / 2;
+            }
+            // moto chocada: el piloto sale volando y la moto queda vacía
+            if (e.tipoNuevo === 'moto' && e.crashed && !e._caido && !e.onc) {
+                e._caido = true;
+                const sola = SOLAS[e.motoIdx], pil = PILOTOS[e.motoIdx] && ok(PILOTOS[e.motoIdx]) ? PILOTOS[e.motoIdx] : pick(PILOTOS.filter(ok));
+                if (ok(sola)) e.img = sola;
+                if (pil) {
+                    const w = ANCHO.piloto, h = Math.round(w * pil.naturalHeight / pil.naturalWidth), dir = Math.random() < 0.5 ? -1 : 1;
+                    pilotos.push({ img: pil, w, h, x: e.x + e.w / 2, y: e.y + e.h * 0.35, vx: dir * (1.2 + Math.random() * 1.4), vy: -(2.5 + Math.random() * 2), rot: (Math.random() - 0.5) * 1.2, vr: dir * (0.12 + Math.random() * 0.1), t: 0 });
+                    if (pilotos.length > 6) pilotos.shift();
+                }
             }
             if (e.grande && e.crashed && !e.onc) e.rotation = 0.05;   // un camión de 200 px no puede girar 15° sin invadir otros carriles
         });
