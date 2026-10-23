@@ -5534,11 +5534,16 @@ function darPiso() {
     return `¡NEÓN DE PISO ${UNDERGLOW[k].name}: ${MODELS[c].name}!`;
 }
 
-function darSkin() {
-    const c = pick(SKIN_ORO.filter(k => MODELS[k]));
+function darSkin(preferido) {
+    // prioriza un auto que todavía no tenga la skin de oro (primero el que pidan, después los que ya tenés, después cualquiera)
+    const lista = SKIN_ORO.filter(k => MODELS[k]);
+    const sinOro = k => !(garage.ownedColors[k] || []).includes('oro');
+    const c = (preferido && lista.includes(preferido) && sinOro(preferido)) ? preferido
+        : pick(lista.filter(k => sinOro(k) && garage.owned.includes(k))) || pick(lista.filter(sinOro));
+    if (!c) return monedas(20000, ' (skin de oro repetida)');
     if (!garage.ownedColors[c]) garage.ownedColors[c] = [MODELS[c].colors[0]];
-    if (!garage.ownedColors[c].includes('oro')) { garage.ownedColors[c].push('oro'); return `¡SKIN ORO: ${MODELS[c].name}!`; }
-    return monedas(20000, ' (skin de oro repetida)');
+    garage.ownedColors[c].push('oro');
+    return `¡SKIN ORO: ${MODELS[c].name}!`;
 }
 
 function darAuto() {
@@ -5629,6 +5634,8 @@ window.showProbabilities = function (type) {
 
 // ---------- BOTÓN DE COMPRA CON EL PRECIO ACTUAL ----------
 try { const b = document.querySelector("#black-market-screen .sb-buy[onclick*=\"'common'\"]"); if (b) b.textContent = 'COMPRAR ($' + PRECIO_NORMAL.toLocaleString() + ')'; } catch (e) { }
+// los usan las recompensas del bonus diario (mejoras26)
+window.__premios = { monedas, darSkin, darPiso, darAuto, darFaro, darPieza, vidas };
 } catch (e) { console.error('Mejoras25:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
