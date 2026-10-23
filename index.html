@@ -5743,6 +5743,10 @@ const P_LARGO = 0.05;        // ... camión largo
 const NIVEL_MOTO = 2, NIVEL_BUS = 3, NIVEL_LARGO = 4;   // desde qué nivel aparece cada uno
 const VEL_BUS = [1.2, 2.4], VEL_LARGO = [1.0, 2.0], VEL_MOTO = [4.0, 6.0];   // velocidad propia (los autos comunes van de 1.5 a 4.5)
 const ANCHO = { auto: 45, bus: 50, moto: 24, largo: 44, piloto: 40 };
+const ALTO_AUTO = 80;                 // alto de los autos comunes (igual que los autos viejos del juego: 45x80)
+const PICKUPS = [4, 6];               // cuáles de los autos nuevos son camionetas: auto_5 y auto_7 (empieza a contar desde 0)
+const PICKUP_TAM = [50, 90];          // ancho y alto de las camionetas (más grandes que los autos)
+const PICKUP_VIEJA = 0;               // cuál de los npcs viejos es la camioneta azul (0 = el primero: npc_azul). Poné -1 si no querés tocarla
 const DURACION_PILOTO = 240;   // cuánto tiempo (en frames) queda el piloto tirado antes de desaparecer
 const TEXTO_AUCH = true;       // mostrar "¡AUCH!" cuando el piloto sale volando   // ancho en el juego (el alto sale solo de la imagen)
 const P_FILTRA = 0.6;        // de las motos, cuántas van "filtrando" por el medio de dos carriles (0 = ninguna | 1 = todas)
@@ -5763,9 +5767,18 @@ const pick = a => a[(Math.random() * a.length) | 0];
 const LX = [75, 157.5, 242.5, 325];
 
 // ---------- CAMBIA UN VEHÍCULO DEL TRÁNSITO POR UNO DE LOS NUEVOS ----------
+// tamaño en el juego de cada vehículo nuevo: autos con el mismo alto que los viejos, camionetas más grandes
+function medidas(tipo, img) {
+    const r = img.naturalHeight / img.naturalWidth;
+    if (tipo === 'auto') {
+        if (PICKUPS.indexOf(IMGS.auto.indexOf(img)) >= 0) return PICKUP_TAM;
+        return [Math.round(ALTO_AUTO / r), ALTO_AUTO];
+    }
+    return [ANCHO[tipo], Math.round(ANCHO[tipo] * r)];
+}
 function aplicar(e, tipo) {
     const l = lista(tipo); if (!l.length) return false;
-    const img = pick(l), w = ANCHO[tipo], h = Math.round(w * img.naturalHeight / img.naturalWidth), cx = e.x + e.w / 2;
+    const img = pick(l), [w, h] = medidas(tipo, img), cx = e.x + e.w / 2;
     const ny = tipo === 'largo' || tipo === 'bus' ? Math.min(e.y, -h - 20) : e.y;
     // que no quede encima de otro vehículo de su carril
     if (enemies.some(o => o !== e && (o.l === e.l || o.tl === e.l) && o.y < ny + h + 50 && o.y + o.h > ny - 50)) return false;
@@ -5793,6 +5806,7 @@ spawnTraffic = function () {
     if (enemies.length <= n) return;
     const e = enemies[enemies.length - 1];
     if (!e || e.type !== 'normal' || e.onc || e.tipoNuevo) return;
+    if (PICKUP_VIEJA >= 0 && e.img === assets.npcs[PICKUP_VIEJA]) { const cx = e.x + e.w / 2; e.w = PICKUP_TAM[0]; e.h = PICKUP_TAM[1]; e.x = cx - e.w / 2; return; }
     const r = Math.random(), esCisterna = e.img === assets.truck;
     let tipo = null, acc = 0;
     if (level >= NIVEL_LARGO && r < (acc += P_LARGO)) tipo = 'largo';
@@ -5807,7 +5821,7 @@ const pilotos = [];
 function moverPilotos(dt) {
     for (let i = pilotos.length - 1; i >= 0; i--) {
         const p = pilotos[i]; p.t += dt;
-        p.x += p.vx * dt; p.y += (p.vy + currentSpeed * 0.5) * dt;      // el camino se mueve, el piloto se queda atrás
+        p.x += p.vx * dt; p.y += (p.vy + currentSpeed) * dt;      // el piloto queda quieto sobre el asfalto: se mueve igual que el camino
         p.vx *= Math.pow(0.93, dt); p.vy *= Math.pow(0.93, dt); p.vr *= Math.pow(0.94, dt); p.rot += p.vr * dt;
         if (p.t > DURACION_PILOTO || p.y > 900) pilotos.splice(i, 1);
     }
@@ -5847,7 +5861,7 @@ update = function (dt) {
                     const r = Math.random(), t = r < 0.08 ? 'bus' : r < 0.2 ? 'moto' : 'auto';
                     const l = lista(t);
                     if (l.length) {
-                        const img = pick(l), w = ANCHO[t], h = Math.round(w * img.naturalHeight / img.naturalWidth);
+                        const img = pick(l), [w, h] = medidas(t, img);
                         e.img = img; e.w = w; e.h = h; e.x = LX[e.l] - w / 2; e.tipoNuevo = t;
                         if (t === 'moto') e.motoIdx = IMGS.moto.indexOf(img);
                     }
