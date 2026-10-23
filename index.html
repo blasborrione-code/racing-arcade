@@ -5888,6 +5888,32 @@ update = function (dt) {
     } catch (err) { console.error('Mejoras27 update:', err); }
 };
 } catch (e) { console.error('Mejoras27:', e); } })();
+// ===== MEJORAS 28 - ARREGLO: AUTO QUE SE TE TIRA ENCIMA EN EL CARRIL DEL BORDE Y TE DEJA TRABADO (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras27) =====
+(function () { try {
+
+const LX = [75, 157.5, 242.5, 325];
+const EMPUJE = 3;   // cuánto se corre (px por frame) un auto chocado que te tiene aplastado contra el borde
+
+const _up = update;
+update = function (dt) {
+    _up(dt);
+    try {
+        enemies.forEach(e => {
+            if (!e.crashed || e.type === 'obs') return;
+            // 1) un auto chocado se queda EXACTAMENTE donde chocó: se cancela el cambio de carril que estaba haciendo
+            e.chg = false; e.blink = false;
+            const cx = e.x + e.w / 2;
+            let mejor = 0; LX.forEach((x, i) => { if (Math.abs(cx - x) < Math.abs(cx - LX[mejor])) mejor = i; });
+            e.l = mejor; e.tl = mejor;      // pasa a "pertenecer" al carril donde quedó (así los demás autos lo esquivan bien)
+            // 2) salvavidas: si te tiene apretado contra el borde, se corre hacia el centro hasta soltarte
+            if (checkCollision(player, e)) {
+                if (player.x <= 36) e.x += EMPUJE * dt;
+                else if (player.x >= 364 - player.w) e.x -= EMPUJE * dt;
+            }
+        });
+    } catch (err) { console.error('Mejoras28:', err); }
+};
+} catch (e) { console.error('Mejoras28:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
