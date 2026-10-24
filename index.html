@@ -6141,10 +6141,22 @@ function frame() {
     // tránsito
     if (trafico.length < MAX_AUTOS && t > sig) {
         const lane = (Math.random() * 4) | 0, libre = lane !== jl && !trafico.some(a => a.l === lane && a.y < 140), imgs = autos.filter(ok);
-        if (libre && imgs.length) { const im = imgs[(Math.random() * imgs.length) | 0]; trafico.push({ l: lane, y: -120, v: 2.5 + Math.random() * 4.5, im, w: im.src.includes('bus') ? 50 : im.src.includes('moto') ? 24 : 45 }); sig = t + 25 + Math.random() * 30; }
+        if (libre && imgs.length) { const im = imgs[(Math.random() * imgs.length) | 0], w = im.src.includes('bus') ? 50 : im.src.includes('moto') ? 24 : 45; trafico.push({ l: lane, y: -120, v: 2.5 + Math.random() * 4.5, ve: 0, im, w, h: w * im.naturalHeight / im.naturalWidth }); sig = t + 25 + Math.random() * 30; }
     }
+    // cada auto va a su velocidad, pero si alcanza al que tiene adelante (en su mismo carril) se queda detrás: nunca se atraviesan
+    trafico.sort((p, q) => p.y - q.y);
+    trafico.forEach(a => {
+        let ve = a.v, lider = null;
+        trafico.forEach(q => { if (q !== a && q.l === a.l && q.y < a.y && (!lider || q.y > lider.y)) lider = q; });
+        if (lider) {
+            const gap = (a.y - a.h / 2) - (lider.y + lider.h / 2), vl = lider.ve || lider.v;
+            if (gap < 90) ve = Math.min(ve, vl);
+            if (gap < 35) ve = Math.min(ve, vl - 2);
+        }
+        a.ve = ve;
+    });
     for (let i = trafico.length - 1; i >= 0; i--) {
-        const a = trafico[i]; a.y += VEL - a.v;
+        const a = trafico[i]; a.y += VEL - a.ve;
         const x = LX[a.l];
         const h = dibujarAuto(a.im, x, a.y, a.w, 0);
         if (a.y - h > UH + 40) trafico.splice(i, 1);
@@ -6410,6 +6422,66 @@ draw = function () {
     } catch (err) { console.error('Mejoras31 draw:', err); }
 };
 } catch (e) { console.error('Mejoras31:', e); } })();
+// ===== MEJORAS 32 - ARREGLOS: NEÓN ARCOÍRIS YA NO SE COMPRA + SKIN QUE NO SE VE (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras31) =====
+(function () { try {
+
+// ---------- PERILLAS ----------
+const LIMPIAR_ARCOIRIS_GRATIS = false;   // true = una sola vez, saca el neón ARCOÍRIS LEYENDA de todos los autos del jugador (sirve para borrar el que se compró gratis por el error). OJO: también se lo saca a quien lo haya ganado de verdad
+const NEON_ID = 's_arcoiris';
+
+// ---------- 1) NEÓN ARCOÍRIS LEYENDA: no se vende, solo se gana ----------
+// (el cartel de la tienda lo volvía a mostrar por el rediseño de mejoras21)
+const _ou = window.openUnderglow;
+window.openUnderglow = function () {
+    const r = _ou.apply(this, arguments);
+    try {
+        const c = document.getElementById('underglow-container');
+        [...c.children].forEach(el => { const t = el.textContent; if (/ARCO/i.test(t) && t.indexOf('$') >= 0) el.style.display = 'none'; });
+    } catch (e) { console.error('Mejoras32 neón:', e); }
+    return r;
+};
+try {
+    if (LIMPIAR_ARCOIRIS_GRATIS && !garage.fixArcoirisGratis) {
+        Object.keys(garage.ownedUnderglows || {}).forEach(k => { garage.ownedUnderglows[k] = garage.ownedUnderglows[k].filter(x => x !== NEON_ID); });
+        Object.keys(garage.selectedUnderglows || {}).forEach(k => { if (garage.selectedUnderglows[k] === NEON_ID) garage.selectedUnderglows[k] = 'none'; });
+        garage.fixArcoirisGratis = true; save();
+    }
+} catch (e) { }
+
+// ---------- 2) SKIN CUYA IMAGEN NO SE ENCUENTRA (o está vacía): se usa la imagen normal del auto en vez de dejarlo invisible ----------
+function conRespaldo(img, ck) {
+    const normal = 'Autos/' + MODELS[ck].img;
+    img.addEventListener('error', () => {
+        if (img.src.indexOf(MODELS[ck].img) >= 0) return;
+        console.warn('Mejoras32: no se encontró ' + img.src + ' - se usa ' + normal);
+        img.src = normal;
+        try { showToast('AVISO', 'Falta la imagen de esa skin: se usa la normal'); } catch (e) { }
+    }, { once: true });
+    img.addEventListener('load', () => {
+        try {
+            if (img.src.indexOf(MODELS[ck].img) >= 0) return;
+            const c = document.createElement('canvas'); c.width = 24; c.height = 24;
+            const g = c.getContext('2d'); g.drawImage(img, 0, 0, 24, 24);
+            const d = g.getImageData(0, 0, 24, 24).data; let visibles = 0;
+            for (let i = 3; i < d.length; i += 4) if (d[i] > 30) visibles++;
+            if (visibles < 20) { console.warn('Mejoras32: imagen vacía ' + img.src); img.src = normal; }
+        } catch (e) { }
+    }, { once: true });
+}
+const _sg = startGameLogic;
+startGameLogic = function () {
+    const r = _sg.apply(this, arguments);
+    try { conRespaldo(assets.player, garage.selected); } catch (e) { console.error('Mejoras32 skin:', e); }
+    return r;
+};
+// vista previa del taller
+document.addEventListener('error', e => {
+    const t = e.target;
+    try {
+        if (t && t.id === 'upgrade-car-preview' && !t.dataset.fb) { t.dataset.fb = '1'; t.src = 'Autos/' + MODELS[garage.selected].img; setTimeout(() => { delete t.dataset.fb; }, 800); }
+    } catch (err) { }
+}, true);
+} catch (e) { console.error('Mejoras32:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
