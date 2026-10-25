@@ -6482,6 +6482,220 @@ document.addEventListener('error', e => {
     } catch (err) { }
 }, true);
 } catch (e) { console.error('Mejoras32:', e); } })();
+// ===== MEJORAS 33 - INTELIGENCIA DE LOS NPC (tránsito, camiones, colectivos, motos) Y CARRERAS CALLEJERAS NUEVAS (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras32) =====
+(function () { try {
+
+// ---------- PERILLAS: TRÁNSITO ----------
+const DIST_SEGURA = 45;       // distancia (px) que cada auto trata de dejar con el de adelante (incluido VOS: ya no te chocan de atrás si frenás)
+const DIST_VER = 160;         // desde qué distancia (px) empiezan a frenar por el de adelante
+const MARGEN_CAMBIO = 60;     // hueco mínimo (px) que necesita un auto para meterse en otro carril, además de lo que se acerca mientras cambia
+const ANTICIPO = 40;          // cuánto "mira hacia adelante" al cambiar de carril (en cuadros): más grande = más cuidadoso
+const P_ADELANTA = 0.03;      // chance por cuadro de que un auto trabado detrás de uno más lento se cambie de carril para pasarlo
+const P_ADELANTA_CHOCADO = 0.15;   // lo mismo cuando lo que tiene adelante es un auto chocado o un obstáculo (esquiva más rápido)
+const ESPERA_CAMBIO = 150;    // cuadros que espera un auto entre una maniobra de pasar y la siguiente (60 = 1 seg)
+
+// ---------- PERILLAS: CARRERAS CALLEJERAS ----------
+const DESAFIO_VISTA = 230;    // a qué distancia (px) el rival se interesa en vos y se pone a tu lado
+const T_INTERES = 60;         // cuadros que tenés que estar a su lado para que acepte el desafío (60 = 1 seg)
+const T_NUMERO = 36;          // duración de cada número de la cuenta 3-2-1 (cuadros). Antes era 60 cada uno
+const RITMO = 0.975;          // ritmo medio del rival respecto a tu velocidad (0.975 = si vas a fondo y limpio, lo vas alcanzando de a poco; 1.0 = parejo; más = más difícil)
+const AMPLITUD = 0.05;        // cuánto sube y baja el ritmo del rival (0.05 = ±5%): hace que se adelanten el uno al otro
+const ALCANCE_RIVAL = 0.16;   // cuánto más rápido va el rival si quedó muy atrás (para que la carrera sea pareja)
+const TOPE_RIVAL = 1.03;      // velocidad máxima del rival respecto a la tuya a fondo (1.03 = si vas a fondo y manejás bien, lo podés ganar)
+
+const LX = [75, 157.5, 242.5, 325];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const laneOf = x => { let m = 0; LX.forEach((l, i) => { if (Math.abs(x - l) < Math.abs(x - LX[m])) m = i; }); return m; };
+const jugador = () => ({ player: true, x: player.x, y: player.y, w: player.w, h: player.h, speed: currentSpeed, l: laneOf(player.x + player.w / 2) });
+const velDe = q => q.player ? currentSpeed : (q.type === 'obs' || q.crashed) ? 0 : (q.speed || 0);
+let topR = 0;
+
+const _sg = startGameLogic;
+startGameLogic = function () { const r = _sg.apply(this, arguments); topR = 0; return r; };
+
+// ¿hay un vehículo adelante en mi camino? (el más cercano; incluye autos chocados, obstáculos y, si se pide, al jugador)
+function lider(e, conJugador) {
+    let best = null, bd = 1e9;
+    const todos = conJugador ? enemies.concat([jugador()]) : enemies;
+    todos.forEach(q => {
+        if (q === e || q.onc || q.type === 'police' && !q.crashed) return;
+        if (Math.abs((e.x + e.w / 2) - (q.x + q.w / 2)) >= (e.w + q.w) / 2 + 4) return;
+        if (q.y >= e.y) return;
+        const d = e.y - (q.y + q.h);
+        if (d < bd) { bd = d; best = q; }
+    });
+    return best;
+}
+// frena si se está acercando demasiado al de adelante
+function frenar(e, dt, conJugador, vista) {
+    const q = lider(e, conJugador); if (!q) return;
+    const gap = e.y - (q.y + q.h); if (gap > (vista || DIST_VER)) return;
+    const s = Math.max(0, Math.min(e.speed, velDe(q) + clamp((gap - DIST_SEGURA) * 0.04, -3, 3.5)));
+    if (s < e.speed) { e.y += (e.speed - s) * dt; e.speed = s; }
+    if (gap < 4) e.y = q.y + q.h + 4;
+}
+// ¿puedo meterme en ese carril sin que me choquen ni chocar a nadie? (tiene en cuenta cómo se acercan)
+function seguro(e, lane, margen) {
+    if (lane < 0 || lane > 3) return false;
+    if (constEvent && constEvent.active && constEvent.lane === lane) return false;
+    const cx = LX[lane], mg = margen == null ? MARGEN_CAMBIO : margen;
+    const todos = enemies.concat([jugador()]);
+    for (const q of todos) {
+        if (q === e || q.onc) continue;
+        const qx = q.x + q.w / 2;
+        const ocupa = Math.abs(qx - cx) < (e.w + q.w) / 2 + 10 || (q.tl !== undefined && q.tl !== q.l && Math.abs(LX[q.tl] - cx) < 20);
+        if (!ocupa) continue;
+        const ve = e.speed, vq = velDe(q);
+        if (q.y < e.y) { if (e.y - (q.y + q.h) < mg + Math.max(0, ve - vq) * ANTICIPO) return false; }
+        else if (q.y - (e.y + e.h) < mg + Math.max(0, vq - ve) * ANTICIPO) return false;
+    }
+    return true;
+}
+function arrancaCambio(e, lane) { e._mine = true; e.blink = true; e.bCount = 0; e.bTimer = 0; e.tx = LX[lane] - e.w / 2; e.tl = lane; }
+
+// ---------- CARRERAS ----------
+function arrancarCarrera(e) {
+    e.isRacing = true; e.startDist = score; e._cnt = false; e._rt = 0; e._ct = 0; e._go = performance.now(); e._ph = Math.random() * 6.28; e._ref = currentSpeed;
+    e.baseSpeed = Math.max(currentSpeed * 1.05, 6.5);
+    try { showToast('🏁 ¡CARRERA!', '1.000 metros. ¡Dale gas!', true); playSound('near'); if (navigator.vibrate) navigator.vibrate([80, 40, 80]); } catch (err) { }
+    screenShake = 3;
+}
+function carreras(dt) {
+    enemies.forEach(e => {
+        if (e.type !== 'racer') return;
+        e.raceTimer = 0;                                    // apaga el sistema viejo (contador lento)
+        if (e.isRacing) {
+            // ritmo del rival: pareja pero ganable. Sube y baja solo, se esfuerza si quedó atrás y se relaja si va adelante
+            const lead = e.y - player.y, t = performance.now() / 1000;
+            let f = RITMO + AMPLITUD * Math.sin(t / 5 + (e._ph || 0));
+            if (lead > 350) f += ALCANCE_RIVAL; else if (lead > 120) f += ALCANCE_RIVAL * 0.45; else if (lead < -350) f -= 0.1; else if (lead < -150) f -= 0.05;
+            e._ref = Math.max(currentSpeed, (e._ref || 0) - 0.02 * dt);       // un frenazo corto tuyo no lo deja clavado
+            e.baseSpeed = clamp(e._ref * f, 4.5, Math.max(6, topR * (TOPE_RIVAL + (lead > 350 ? 0.14 : lead > 150 ? 0.06 : 0))));
+            return;
+        }
+        if (e.crashed || e.hit) { e._rt = 0; e._cnt = false; return; }
+        const dy = e.y - player.y, dl = Math.abs(laneOf(e.x + e.w / 2) - laneOf(player.x + player.w / 2));
+        const cerca = Math.abs(dy) < DESAFIO_VISTA && dl <= 1;
+        if (cerca || e._cnt) {
+            // se pone a tu lado, a tu velocidad
+            const s = clamp(currentSpeed + clamp(dy * 0.04, -2.5, 2.5), 3.5, 14);
+            e.y += (e.speed - s) * dt; e.speed = s; e.baseSpeed = s;
+            if (!e.blink && !e.chg) e._mine = false;
+            if (e.blink && !e._mine) { e.blink = false; e.bCount = 0; e.bTimer = 0; e.tl = e.l; }   // mientras se interesa en vos no cambia de carril por su cuenta
+            if (dl === 0 && !e._cnt && !e.blink && !e.chg && Math.abs(player.x + player.w / 2 - LX[laneOf(player.x + player.w / 2)]) < 18) {                // mismo carril: se corre al de al lado
+                const pl = laneOf(player.x + player.w / 2), opts = [pl - 1, pl + 1].filter(l => seguro(e, l, 30));
+                if (opts.length && Math.random() < 0.05 * dt) arrancaCambio(e, opts[(Math.random() * opts.length) | 0]);
+            }
+            if (!e._cnt) {
+                const al_lado = dl === 1 && Math.abs(dy) < 70;
+                e._rt = al_lado ? (e._rt || 0) + dt : Math.max(0, (e._rt || 0) - 2 * dt);
+                if (e._rt >= T_INTERES) { e._cnt = true; e._ct = 0; e._lastK = 0; try { showToast('🏁 ¡DESAFÍO!', 'Seguí a su lado...', true); } catch (err) { } }
+            } else {
+                if (Math.abs(dy) > 160 || dl > 1) { e._cnt = false; e._rt = 0; try { showToast('🏁 CARRERA CANCELADA', 'Te alejaste'); } catch (err) { } }
+                else {
+                    e._ct += dt;
+                    const k = 3 - Math.floor(e._ct / T_NUMERO);
+                    if (k !== e._lastK && k >= 1) { e._lastK = k; try { playSound('click'); } catch (err) { } }
+                    if (e._ct >= 3 * T_NUMERO) arrancarCarrera(e);
+                }
+            }
+        } else { e._rt = Math.max(0, (e._rt || 0) - 3 * dt); if (e.baseSpeed !== 5.5) e.baseSpeed = 5.5; }
+    });
+}
+
+// ---------- UPDATE ----------
+const _up = update;
+update = function (dt) {
+    _up(dt);
+    try {
+        if (state !== 'PLAYING') return;
+        if (currentSpeed > topR) topR = currentSpeed;
+        carreras(dt);
+        const dificil = window.gameMode === 'dificil';
+        enemies.forEach(e => {
+            if (e.type !== 'normal' && e.type !== 'racer') return;
+            if (e.onc || e.crashed || e.type === 'obs') return;
+            const corriendo = e.type === 'racer' && e.isRacing, interes = e.type === 'racer' && (e._cnt || (e._rt || 0) > 0);
+            // 1) no chocarse con el de adelante (ni con vos)
+            if (!e.filtra) frenar(e, dt, !interes, corriendo ? 90 : 0);
+            // 2) cambios de carril seguros: si el hueco ya no está, se cancela el cambio
+            const mg = corriendo ? 30 : null;
+            if (e.blink && !seguro(e, e.tl, mg)) { e.blink = false; e.bCount = 0; e.bTimer = 0; e.tl = e.l; }
+            if (e.chg) {
+                if (!e._cg) { e._cg = true; if (!seguro(e, e.tl, mg)) { e.chg = false; e.tl = e.l; e.x = LX[e.l] - e.w / 2; e._cg = false; } }
+            } else e._cg = false;
+            // 3) pasar al que va lento (o esquivar un auto chocado) cuando hay lugar
+            e._ocd = (e._ocd || 0) - dt;
+            if ((e.type === 'normal' || corriendo) && !e.filtra && !e.blink && !e.chg && !e.hit && e._ocd <= 0) {
+                const q = lider(e, false);
+                if (q) {
+                    const gap = e.y - (q.y + q.h), vq = velDe(q), bloqueo = q.crashed || q.type === 'obs';
+                    if (gap < 170 && (bloqueo || vq < e.baseSpeed - 0.4) && Math.random() < (corriendo ? 0.2 : bloqueo ? P_ADELANTA_CHOCADO : P_ADELANTA * (e.grande ? 0.5 : 1)) * dt) {
+                        const opts = [e.l - 1, e.l + 1].filter(l => (!dificil || l >= 2) && seguro(e, l, corriendo ? 30 : null));
+                        if (opts.length) { arrancaCambio(e, opts[(Math.random() * opts.length) | 0]); e._ocd = ESPERA_CAMBIO; }
+                    }
+                }
+            }
+        });
+    } catch (err) { console.error('Mejoras33 update:', err); }
+};
+
+// ---------- DIBUJO: cuenta regresiva grande, luces del rival y barra de carrera ----------
+const _dr = draw;
+draw = function () {
+    _dr.apply(this, arguments);
+    try {
+        if (state !== 'PLAYING' && state !== 'PAUSED') return;
+        const now = performance.now();
+        enemies.forEach(e => {
+            if (e.type !== 'racer') return;
+            // luces del rival: parpadean cuando te desafía
+            if (!e.isRacing && ((e._rt || 0) > 8 || e._cnt)) {
+                const on = Math.floor(now / 140) % 2;
+                ctx.save();
+                [0.28, 0.72].forEach((fx, i) => {
+                    const x = e.x + e.w * fx, y = e.y + 8, gr = ctx.createRadialGradient(x, y, 0, x, y, on === i ? 22 : 8);
+                    gr.addColorStop(0, 'rgba(255,250,200,' + (on === i ? 0.9 : 0.3) + ')'); gr.addColorStop(1, 'rgba(255,250,200,0)');
+                    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, on === i ? 22 : 8, 0, 7); ctx.fill();
+                });
+                ctx.restore();
+            }
+            // cuenta regresiva grande en el centro
+            if (e._cnt) {
+                const k = 3 - Math.floor(e._ct / T_NUMERO);
+                if (k >= 1 && k <= 3) {
+                    const p = (e._ct % T_NUMERO) / T_NUMERO, esc = 1 + 0.7 * Math.pow(1 - p, 2);
+                    ctx.save(); ctx.translate(200, 300); ctx.scale(esc, esc); ctx.globalAlpha = p > 0.8 ? (1 - p) / 0.2 : 1;
+                    ctx.font = 'italic 900 120px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 10; ctx.strokeStyle = '#000';
+                    ctx.shadowColor = k === 3 ? '#ff3b3b' : k === 2 ? '#ffa31a' : '#ffe14a'; ctx.shadowBlur = 25;
+                    ctx.fillStyle = k === 3 ? '#ff5555' : k === 2 ? '#ffb43a' : '#ffe86a';
+                    ctx.strokeText(k, 0, 0); ctx.fillText(k, 0, 0); ctx.restore();
+                }
+            }
+            // ¡YA!
+            if (e._go && now - e._go < 800) {
+                const p = (now - e._go) / 800, esc = 1 + 0.8 * Math.pow(1 - p, 3);
+                ctx.save(); ctx.translate(200, 300); ctx.scale(esc, esc); ctx.globalAlpha = p > 0.6 ? (1 - p) / 0.4 : 1;
+                ctx.font = 'italic 900 90px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 9; ctx.strokeStyle = '#000';
+                ctx.shadowColor = '#3dff7a'; ctx.shadowBlur = 28; ctx.fillStyle = '#6dff9a';
+                ctx.strokeText('¡YA!', 0, 0); ctx.fillText('¡YA!', 0, 0); ctx.restore();
+            }
+            // progreso de la carrera
+            if (e.isRacing) {
+                const p = clamp((score - e.startDist) / 1000, 0, 1), delante = player.y < e.y, x = 110, y = 190, w = 180;
+                ctx.save();
+                ctx.font = '900 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000';
+                const txt = delante ? '🏁 ¡VAS ADELANTE!' : '🏁 EL RIVAL VA ADELANTE'; ctx.fillStyle = delante ? '#6dff9a' : '#ff8a8a';
+                ctx.strokeText(txt, 200, y - 6); ctx.fillText(txt, 200, y - 6);
+                ctx.fillStyle = 'rgba(8,6,20,.8)'; ctx.fillRect(x, y, w, 10);
+                ctx.fillStyle = delante ? '#2fd17a' : '#ff5252'; ctx.fillRect(x + 2, y + 2, (w - 4) * p, 6);
+                ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, w, 10);
+                ctx.restore();
+            }
+        });
+    } catch (err) { console.error('Mejoras33 draw:', err); }
+};
+} catch (e) { console.error('Mejoras33:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
