@@ -6517,7 +6517,9 @@ const CAMBIO_TOPE = 0.010;        // ... y en el nivel tope (0.010 = cada auto s
 const NIVEL_TOPE = 15;            // nivel en el que llega al tope. Del nivel 1 a este va subiendo de a poco
 const PARPADEO_BASE = 110;        // cuadros que parpadea el guiño antes de moverse en el nivel 1 (antes eran 120)
 const PARPADEO_MIN = 30;          // ... y en el nivel tope (avisa menos tiempo, más difícil de prever)
-const prog = () => clamp(((typeof level === 'number' ? level : 1) - 1) / (NIVEL_TOPE - 1), 0, 1);
+const NIVEL_INICIO = 2;           // desde qué nivel los autos empiezan a cambiarse de carril por su cuenta (en el nivel 1 solo esquivan obras y autos chocados)
+const nivelAct = () => (typeof level === 'number' ? level : 1);
+const prog = () => clamp((nivelAct() - NIVEL_INICIO) / (NIVEL_TOPE - NIVEL_INICIO), 0, 1);
 
 // ---------- PERILLAS: QUÉ TANTO LE HACEN CASO A VOS AL CAMBIAR DE CARRIL ----------
 // Cuando un auto quiere cambiarse y vos venís por el carril de destino, mira cuánto lugar te queda. Estos números son ese lugar mínimo (en px)
@@ -6728,7 +6730,7 @@ update = function (dt) {
                 }
             }
             // 2a) agresivos: se tiran al carril donde vas vos, con aviso y dejándote lugar para reaccionar
-            if (e._agr) {
+            if (e._agr && nivelAct() >= NIVEL_INICIO) {
                 if (!e.blink && !e.chg) e._agrOn = false;
                 if (!e.blink && !e.chg && !e.hit && !e.filtra && (e._ag = (e._ag || 0) - dt) <= 0) {
                     e._ag = 6;
@@ -6746,7 +6748,7 @@ update = function (dt) {
             if (e.blink && !e._fast && e.type === 'normal') { e._fast = true; const ini = 6 - Math.ceil((PARPADEO_BASE + (PARPADEO_MIN - PARPADEO_BASE) * prog()) / 20); if (e.bCount < ini) e.bCount = ini; }
             if (!e.blink) e._fast = false;
             // 2c) cambios de carril por iniciativa propia: cada vez más seguido con el nivel (con tope)
-            if (e.type === 'normal' && !e.filtra && !e.blink && !e.chg && !e.hit && (e._rnd = (e._rnd || 0) - dt) <= 0) {
+            if (nivelAct() >= NIVEL_INICIO && e.type === 'normal' && !e.filtra && !e.blink && !e.chg && !e.hit && (e._rnd = (e._rnd || 0) - dt) <= 0) {
                 e._rnd = 20;
                 const pr = (CAMBIO_BASE + (CAMBIO_TOPE - CAMBIO_BASE) * prog()) * 20 * (e.grande || e.img === assets.truck ? 0.4 : 1);
                 if (Math.random() < pr) {
@@ -6771,7 +6773,7 @@ update = function (dt) {
                 const q = lider(e, false);
                 if (q) {
                     const gap = e.y - (q.y + q.h), vq = velDe(q), bloqueo = q.crashed || q.type === 'obs';
-                    if (gap < (q.type === 'obs' ? 450 : 170) && (bloqueo || vq < e.baseSpeed - 0.4) && Math.random() < (corriendo ? 0 : bloqueo ? P_ADELANTA_CHOCADO : P_ADELANTA * (e.grande ? 0.5 : 1)) * dt) {
+                    if (gap < (q.type === 'obs' ? 450 : 170) && (bloqueo || (nivelAct() >= NIVEL_INICIO && vq < e.baseSpeed - 0.4)) && Math.random() < (corriendo ? 0 : bloqueo ? P_ADELANTA_CHOCADO : P_ADELANTA * (e.grande ? 0.5 : 1)) * dt) {
                         const opts = [e.l - 1, e.l + 1].filter(l => (!dificil || l >= 2) && seguro(e, l, corriendo ? 30 : null));
                         if (opts.length) { arrancaCambio(e, opts[(Math.random() * opts.length) | 0], bloqueo); e._ocd = bloqueo ? 20 : ESPERA_CAMBIO; }
                     }
