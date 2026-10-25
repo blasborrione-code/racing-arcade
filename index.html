@@ -6519,6 +6519,14 @@ const PARPADEO_BASE = 110;        // cuadros que parpadea el guiño antes de mov
 const PARPADEO_MIN = 30;          // ... y en el nivel tope (avisa menos tiempo, más difícil de prever)
 const prog = () => clamp(((typeof level === 'number' ? level : 1) - 1) / (NIVEL_TOPE - 1), 0, 1);
 
+// ---------- PERILLAS: AUTOS "AGRESIVOS" (algunos se te cruzan a propósito) ----------
+const AGRESIVOS_BASE = 0.08;      // proporción de autos agresivos en el nivel 1 (0.04 = 1 de cada 25)
+const AGRESIVOS_TOPE = 0.30;      // ... y en el nivel tope (0.30 = más o menos 1 de cada 3). Nunca pasa de ahí
+const AGR_ESPERA_BASE = 300;      // cuadros mínimos entre una cruzada agresiva y la siguiente en el nivel 1 (60 = 1 seg)
+const AGR_ESPERA_MIN = 110;       // ... y en el nivel tope
+const AGR_AVISO = 4;              // el guiño dura (6 - este número) x 20 cuadros antes de moverse: 4 = 40 cuadros de aviso (más alto = menos aviso)
+const AGR_HUECO = 70;             // cuánto lugar (px) te tiene que quedar, como mínimo, cuando se termina de cruzar delante tuyo (más chico = más injusto)
+
 // ---------- PERILLAS: RIVAL MÁS "SACADO" ----------
 const RIVAL_MARGEN = 8;           // hueco mínimo (px) con el que el rival se manda en otro carril (0 = se tira aunque roce)
 const RIVAL_GANAS = 0.35;         // chance por cuadro de que el rival, trabado en el tránsito, busque pasar
@@ -6529,10 +6537,10 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const laneOf = x => { let m = 0; LX.forEach((l, i) => { if (Math.abs(x - l) < Math.abs(x - LX[m])) m = i; }); return m; };
 const jugador = () => ({ player: true, x: player.x, y: player.y, w: player.w, h: player.h, speed: currentSpeed, l: laneOf(player.x + player.w / 2) });
 const velDe = q => q.player ? currentSpeed : (q.type === 'obs' || q.crashed) ? 0 : (q.speed || 0);
-let topR = 0;
+let topR = 0, agrCD = 0;
 
 const _sg = startGameLogic;
-startGameLogic = function () { const r = _sg.apply(this, arguments); topR = 0; return r; };
+startGameLogic = function () { const r = _sg.apply(this, arguments); topR = 0; agrCD = 600; return r; };
 
 // ¿hay un vehículo adelante en mi camino? (el más cercano; incluye autos chocados, obstáculos y, si se pide, al jugador)
 function lider(e, conJugador) {
@@ -6564,12 +6572,12 @@ function frenar(e, dt, conJugador, vista) {
     if (!q.player && gap >= 0 && gap < 4) e.y = q.y + q.h + 4;
 }
 // ¿puedo meterme en ese carril sin que me choquen ni chocar a nadie? (tiene en cuenta cómo se acercan)
-function seguro(e, lane, margen, ant) {
+function seguro(e, lane, margen, ant, sinJug) {
     const ANT = ant == null ? ANTICIPO : ant;
     if (lane < 0 || lane > 3) return false;
     if (constEvent && constEvent.active && constEvent.lane === lane) return false;
     const cx = LX[lane], mg = margen == null ? MARGEN_CAMBIO : margen;
-    const todos = enemies.concat([jugador()]);
+    const todos = sinJug ? enemies : enemies.concat([jugador()]);
     for (const q of todos) {
         if (q === e || q.onc) continue;
         const qx = q.x + q.w / 2;
@@ -6653,6 +6661,7 @@ update = function (dt) {
                 else { const ix = enemies.indexOf(e); if (ix >= 0) enemies.splice(ix, 1); return; }
             }
             const rango = (a) => a[0] + Math.random() * (a[1] - a[0]);
+            if (e.type === 'normal' && !e.grande && e.img !== assets.truck && e.tipoNuevo !== 'moto' && e.tipoNuevo !== 'bus' && e.tipoNuevo !== 'largo') e._agr = Math.random() < AGRESIVOS_BASE + (AGRESIVOS_TOPE - AGRESIVOS_BASE) * prog();
             if (e.tipoNuevo === 'bus') e.baseSpeed = e.speed = rango(VEL_BUS);
             if (e.tipoNuevo === 'largo') {
                 e.baseSpeed = e.speed = rango(VEL_LARGO);
@@ -6666,6 +6675,7 @@ update = function (dt) {
     try {
         if (state !== 'PLAYING') return;
         if (currentSpeed > topR) topR = currentSpeed;
+        agrCD = Math.max(0, agrCD - dt);
         carreras(dt);
         const dificil = window.gameMode === 'dificil';
         enemies.forEach(e => {
@@ -6676,9 +6686,9 @@ update = function (dt) {
             if (!e.filtra) frenar(e, dt, !interes, corriendo ? 90 : 0);
             // 2) cambios de carril seguros: si el hueco ya no está, se cancela el cambio
             const mg = corriendo ? RIVAL_MARGEN : null, ant = corriendo ? 10 : null;
-            if (e.blink && !seguro(e, e.tl, mg, ant)) { e.blink = false; e.bCount = 0; e.bTimer = 0; e.tl = e.l; }
+            if (e.blink && !seguro(e, e.tl, mg, ant, e._agrOn)) { e.blink = false; e.bCount = 0; e.bTimer = 0; e.tl = e.l; }
             if (e.chg) {
-                if (!e._cg) { e._cg = true; if (!seguro(e, e.tl, mg, ant)) { e.chg = false; e.tl = e.l; e.x = LX[e.l] - e.w / 2; e._cg = false; } }
+                if (!e._cg) { e._cg = true; if (!seguro(e, e.tl, mg, ant, e._agrOn)) { e.chg = false; e.tl = e.l; e.x = LX[e.l] - e.w / 2; e._cg = false; } }
             } else e._cg = false;
             if (corriendo) {
                 // cambia de carril más rápido que el resto
@@ -6702,6 +6712,21 @@ update = function (dt) {
                             const lim = Math.max(0.4, velDe(q0) - 1.3);
                             if (e.speed > lim) e.speed = Math.max(lim, e.speed - 0.3 * dt);
                         }
+                    }
+                }
+            }
+            // 2a) agresivos: se tiran al carril donde vas vos, con aviso y dejándote lugar para reaccionar
+            if (e._agr) {
+                if (!e.blink && !e.chg) e._agrOn = false;
+                if (!e.blink && !e.chg && !e.hit && !e.filtra && (e._ag = (e._ag || 0) - dt) <= 0) {
+                    e._ag = 6;
+                    const pl = laneOf(player.x + player.w / 2), centrado = Math.abs(player.x + player.w / 2 - LX[pl]) < 22;
+                    const cierre = Math.max(0, currentSpeed - e.speed), hueco = player.y - (e.y + e.h);
+                    const necesario = AGR_HUECO + cierre * 55;
+                    if (agrCD <= 0 && centrado && Math.abs(pl - e.l) === 1 && (!dificil || pl >= 2) && hueco > necesario && hueco < necesario + 200
+                        && Math.random() < 0.6 && seguro(e, pl, 40, 12, true)) {
+                        arrancaCambio(e, pl, true); e.bCount = AGR_AVISO; e._agrOn = true; e._fast = true;
+                        agrCD = AGR_ESPERA_BASE + (AGR_ESPERA_MIN - AGR_ESPERA_BASE) * prog();
                     }
                 }
             }
