@@ -6489,6 +6489,7 @@ document.addEventListener('error', e => {
 const DIST_SEGURA = 45;       // distancia (px) que cada auto trata de dejar con el de adelante (incluido VOS: ya no te chocan de atrás si frenás)
 const DIST_VER = 160;         // desde qué distancia (px) empiezan a frenar por el de adelante
 const MARGEN_CAMBIO = 60;     // hueco mínimo (px) que necesita un auto para meterse en otro carril, además de lo que se acerca mientras cambia
+const FRENADA = 0.25;         // cuánto puede bajar la velocidad de un auto por cuadro al frenar (más chico = frenadas más suaves)
 const ANTICIPO = 40;          // cuánto "mira hacia adelante" al cambiar de carril (en cuadros): más grande = más cuidadoso
 const P_ADELANTA = 0.03;      // chance por cuadro de que un auto trabado detrás de uno más lento se cambie de carril para pasarlo
 const P_ADELANTA_CHOCADO = 0.15;   // lo mismo cuando lo que tiene adelante es un auto chocado o un obstáculo (esquiva más rápido)
@@ -6519,20 +6520,23 @@ function lider(e, conJugador) {
     const todos = conJugador ? enemies.concat([jugador()]) : enemies;
     todos.forEach(q => {
         if (q === e || q.onc || q.type === 'police' && !q.crashed) return;
-        if (Math.abs((e.x + e.w / 2) - (q.x + q.w / 2)) >= (e.w + q.w) / 2 + 4) return;
+        // al jugador solo lo toma como "el de adelante" si está claramente en su carril (rozarlo de costado no cuenta)
+        const marg = q.player ? -8 : 4;
+        if (Math.abs((e.x + e.w / 2) - (q.x + q.w / 2)) >= (e.w + q.w) / 2 + marg) return;
         if (q.y >= e.y) return;
         const d = e.y - (q.y + q.h);
+        if (d < (q.player ? 0 : -1e9)) return;      // si ya están a la par, no frena
         if (d < bd) { bd = d; best = q; }
     });
     return best;
 }
-// frena si se está acercando demasiado al de adelante
+// frena (suave, sin saltos) si se está acercando demasiado al de adelante
 function frenar(e, dt, conJugador, vista) {
     const q = lider(e, conJugador); if (!q) return;
     const gap = e.y - (q.y + q.h); if (gap > (vista || DIST_VER)) return;
-    const s = Math.max(0, Math.min(e.speed, velDe(q) + clamp((gap - DIST_SEGURA) * 0.04, -3, 3.5)));
-    if (s < e.speed) { e.y += (e.speed - s) * dt; e.speed = s; }
-    if (gap < 4) e.y = q.y + q.h + 4;
+    const objetivo = Math.max(0, velDe(q) + clamp((gap - DIST_SEGURA) * 0.04, -3, 3.5));
+    if (objetivo < e.speed) e.speed = Math.max(objetivo, e.speed - FRENADA * (gap < 25 ? 3 : 1) * dt);
+    if (!q.player && gap >= 0 && gap < 4) e.y = q.y + q.h + 4;
 }
 // ¿puedo meterme en ese carril sin que me choquen ni chocar a nadie? (tiene en cuenta cómo se acercan)
 function seguro(e, lane, margen) {
@@ -6578,7 +6582,9 @@ function carreras(dt) {
         const cerca = Math.abs(dy) < DESAFIO_VISTA && dl <= 1;
         if (cerca || e._cnt) {
             // se pone a tu lado, a tu velocidad
-            const s = clamp(currentSpeed + clamp(dy * 0.04, -2.5, 2.5), 3.5, 14);
+            let s = clamp(currentSpeed + clamp(dy * 0.04, -2.5, 2.5), 3.5, 14);
+            const ql = lider(e, false);                                      // sin chocar al de adelante mientras te acompaña
+            if (ql) { const g = e.y - (ql.y + ql.h); if (g < DIST_VER) s = Math.max(0, Math.min(s, velDe(ql) + clamp((g - DIST_SEGURA) * 0.04, -3, 3.5))); }
             e.y += (e.speed - s) * dt; e.speed = s; e.baseSpeed = s;
             if (!e.blink && !e.chg) e._mine = false;
             if (e.blink && !e._mine) { e.blink = false; e.bCount = 0; e.bTimer = 0; e.tl = e.l; }   // mientras se interesa en vos no cambia de carril por su cuenta
