@@ -6511,6 +6511,14 @@ const VEL_LARGO = [2.4, 3.6];             // camiones largos (antes 1.0 a 2.0)
 const VEL_CISTERNA = [2.8, 4.0];          // camión cisterna (antes 1.5 a 4.5 como cualquier auto, y muchas veces quedaba lentísimo)
 const VEL_MIN_OBRAS = 2.0;                // velocidad mínima con la que se acercan a las obras (no se clavan; buscan cambiar de carril y recién frenan al llegar)
 
+// ---------- PERILLAS: CAMBIOS DE CARRIL (suben con el nivel) ----------
+const CAMBIO_BASE = 0.0015;       // chance por cuadro de que un auto se cambie de carril por las suyas en el nivel 1 (60 cuadros = 1 seg)
+const CAMBIO_TOPE = 0.010;        // ... y en el nivel tope (0.010 = cada auto se cambia más o menos cada 2 segundos). No pasa de ahí
+const NIVEL_TOPE = 15;            // nivel en el que llega al tope. Del nivel 1 a este va subiendo de a poco
+const PARPADEO_BASE = 110;        // cuadros que parpadea el guiño antes de moverse en el nivel 1 (antes eran 120)
+const PARPADEO_MIN = 30;          // ... y en el nivel tope (avisa menos tiempo, más difícil de prever)
+const prog = () => clamp(((typeof level === 'number' ? level : 1) - 1) / (NIVEL_TOPE - 1), 0, 1);
+
 // ---------- PERILLAS: RIVAL MÁS "SACADO" ----------
 const RIVAL_MARGEN = 8;           // hueco mínimo (px) con el que el rival se manda en otro carril (0 = se tira aunque roce)
 const RIVAL_GANAS = 0.35;         // chance por cuadro de que el rival, trabado en el tránsito, busque pasar
@@ -6532,6 +6540,8 @@ function lider(e, conJugador) {
     const todos = conJugador ? enemies.concat([jugador()]) : enemies;
     todos.forEach(q => {
         if (q === e || q.onc || q.type === 'police' && !q.crashed) return;
+        // las obras (y los conos de la línea) pertenecen a UN carril: los de otros carriles no las ven como obstáculo
+        if (q.type === 'obs' && !(e.l === q.l || (e.tl !== undefined && e.tl === q.l && (e.chg || e.blink)))) return;
         // al jugador solo lo toma como "el de adelante" si está claramente en su carril (rozarlo de costado no cuenta)
         const marg = q.player ? -8 : 4;
         if (Math.abs((e.x + e.w / 2) - (q.x + q.w / 2)) >= (e.w + q.w) / 2 + marg) return;
@@ -6563,6 +6573,7 @@ function seguro(e, lane, margen, ant) {
     for (const q of todos) {
         if (q === e || q.onc) continue;
         const qx = q.x + q.w / 2;
+        if (q.type === 'obs' && q.l !== lane) continue;
         const ocupa = Math.abs(qx - cx) < (e.w + q.w) / 2 + 10 || (q.tl !== undefined && q.tl !== q.l && Math.abs(LX[q.tl] - cx) < 20);
         if (!ocupa) continue;
         const ve = e.speed, vq = velDe(q);
@@ -6632,6 +6643,15 @@ update = function (dt) {
         enemies.forEach(e => {
             if (e._v33 || e.type !== 'normal' || e.onc) return;
             e._v33 = true;
+            // si aparece justo en un carril con obras adelante (o encima), lo pasa a un carril libre o lo saca
+            const obras = enemies.filter(o => o.type === 'obs' && !o.crashed);
+            if (obras.some(o => o.l === e.l && o.y < e.y + e.h + 40 && o.y + o.h > e.y - 560)) {
+                const libres = [0, 1, 2, 3].filter(l => !(window.gameMode === 'dificil' && l < 2) && !(constEvent && constEvent.active && constEvent.lane === l)
+                    && !obras.some(o => o.l === l && o.y < e.y + e.h + 40 && o.y + o.h > e.y - 560)
+                    && !enemies.some(o => o !== e && (o.l === l || o.tl === l) && o.y < e.y + e.h + 80 && o.y + o.h > e.y - 80));
+                if (libres.length) { const l = libres[(Math.random() * libres.length) | 0]; e.l = l; e.tl = l; e.x = LX[l] - e.w / 2; }
+                else { const ix = enemies.indexOf(e); if (ix >= 0) enemies.splice(ix, 1); return; }
+            }
             const rango = (a) => a[0] + Math.random() * (a[1] - a[0]);
             if (e.tipoNuevo === 'bus') e.baseSpeed = e.speed = rango(VEL_BUS);
             if (e.tipoNuevo === 'largo') {
@@ -6684,6 +6704,29 @@ update = function (dt) {
                         }
                     }
                 }
+            }
+            // 2b) guiños más cortos según el nivel (también los cambios que arranca el juego solo)
+            if (e.blink && !e._fast && e.type === 'normal') { e._fast = true; const ini = 6 - Math.ceil((PARPADEO_BASE + (PARPADEO_MIN - PARPADEO_BASE) * prog()) / 20); if (e.bCount < ini) e.bCount = ini; }
+            if (!e.blink) e._fast = false;
+            // 2c) cambios de carril por iniciativa propia: cada vez más seguido con el nivel (con tope)
+            if (e.type === 'normal' && !e.filtra && !e.blink && !e.chg && !e.hit && (e._rnd = (e._rnd || 0) - dt) <= 0) {
+                e._rnd = 20;
+                const pr = (CAMBIO_BASE + (CAMBIO_TOPE - CAMBIO_BASE) * prog()) * 20 * (e.grande || e.img === assets.truck ? 0.4 : 1);
+                if (Math.random() < pr) {
+                    const opts = [e.l - 1, e.l + 1].filter(l => (!dificil || l >= 2) && seguro(e, l));
+                    if (opts.length) { arrancaCambio(e, opts[(Math.random() * opts.length) | 0], false); const ini = 6 - Math.ceil((PARPADEO_BASE + (PARPADEO_MIN - PARPADEO_BASE) * prog()) / 20); if (e.bCount < ini) e.bCount = ini; e._fast = true; }
+                }
+            }
+            // 2d) trabado contra obras o un auto chocado: si no se puede salir, relaja el hueco que pide
+            {
+                const qb = lider(e, false);
+                if (qb && (qb.type === 'obs' || qb.crashed) && e.speed < 0.6 && e.y - (qb.y + qb.h) < 90) {
+                    e._trab = (e._trab || 0) + dt;
+                    if (e._trab > 30 && !e.blink && !e.chg && Math.random() < 0.3 * dt) {
+                        const opts = [e.l - 1, e.l + 1].filter(l => (!dificil || l >= 2) && seguro(e, l, 12, 5));
+                        if (opts.length) { arrancaCambio(e, opts[(Math.random() * opts.length) | 0], true); e._trab = 0; }
+                    }
+                } else e._trab = 0;
             }
             // 3) pasar al que va lento (o esquivar un auto chocado) cuando hay lugar
             e._ocd = (e._ocd || 0) - dt;
