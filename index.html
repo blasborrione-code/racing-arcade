@@ -6519,6 +6519,14 @@ const PARPADEO_BASE = 110;        // cuadros que parpadea el guiño antes de mov
 const PARPADEO_MIN = 30;          // ... y en el nivel tope (avisa menos tiempo, más difícil de prever)
 const prog = () => clamp(((typeof level === 'number' ? level : 1) - 1) / (NIVEL_TOPE - 1), 0, 1);
 
+// ---------- PERILLAS: QUÉ TANTO LE HACEN CASO A VOS AL CAMBIAR DE CARRIL ----------
+// Cuando un auto quiere cambiarse y vos venís por el carril de destino, mira cuánto lugar te queda. Estos números son ese lugar mínimo (en px)
+// MENOS = más atrevidos (se te meten igual y tenés que frenar o esquivar). Van bajando solos con el nivel, del valor "NIVEL 1" al valor "TOPE"
+const JUG_PUEDE = [45, 8];        // [nivel 1, tope] lugar que te piden para ARRANCAR el cambio
+const JUG_ANTICIPA = [22, 5];     // [nivel 1, tope] cuánto "calculan" que te acercás mientras cambian (más alto = más cuidadosos)
+const JUG_CANCELA = [18, 2];      // [nivel 1, tope] lugar mínimo para que NO cancelen el cambio a mitad de camino (casi siempre lo terminan)
+const mezcla = a => a[0] + (a[1] - a[0]) * prog();
+
 // ---------- PERILLAS: AUTOS "AGRESIVOS" (algunos se te cruzan a propósito) ----------
 const AGRESIVOS_BASE = 0.08;      // proporción de autos agresivos en el nivel 1 (0.04 = 1 de cada 25)
 const AGRESIVOS_TOPE = 0.30;      // ... y en el nivel tope (0.30 = más o menos 1 de cada 3). Nunca pasa de ahí
@@ -6572,7 +6580,7 @@ function frenar(e, dt, conJugador, vista) {
     if (!q.player && gap >= 0 && gap < 4) e.y = q.y + q.h + 4;
 }
 // ¿puedo meterme en ese carril sin que me choquen ni chocar a nadie? (tiene en cuenta cómo se acercan)
-function seguro(e, lane, margen, ant, sinJug) {
+function seguro(e, lane, margen, ant, sinJug, cancela) {
     const ANT = ant == null ? ANTICIPO : ant;
     if (lane < 0 || lane > 3) return false;
     if (constEvent && constEvent.active && constEvent.lane === lane) return false;
@@ -6585,8 +6593,12 @@ function seguro(e, lane, margen, ant, sinJug) {
         const ocupa = Math.abs(qx - cx) < (e.w + q.w) / 2 + 10 || (q.tl !== undefined && q.tl !== q.l && Math.abs(LX[q.tl] - cx) < 20);
         if (!ocupa) continue;
         const ve = e.speed, vq = velDe(q);
-        if (q.y < e.y) { if (e.y - (q.y + q.h) < mg + Math.max(0, ve - vq) * ANT) return false; }
-        else if (q.y - (e.y + e.h) < mg + Math.max(0, vq - ve) * ANT) return false;
+        // al jugador se le pide menos lugar que a otro auto (los autos entre sí siguen cuidándose bien)
+        let m1 = mg, a1 = ANT;
+        if (q.player) { m1 = cancela ? mezcla(JUG_CANCELA) : Math.min(mg, mezcla(JUG_PUEDE)); a1 = cancela ? 2 : Math.min(ANT, mezcla(JUG_ANTICIPA)); }
+        else if (cancela) { m1 = Math.min(mg, 24); a1 = Math.min(ANT, 14); }
+        if (q.y < e.y) { if (e.y - (q.y + q.h) < m1 + Math.max(0, ve - vq) * a1) return false; }
+        else if (q.y - (e.y + e.h) < m1 + Math.max(0, vq - ve) * a1) return false;
     }
     return true;
 }
@@ -6686,9 +6698,9 @@ update = function (dt) {
             if (!e.filtra) frenar(e, dt, !interes, corriendo ? 90 : 0);
             // 2) cambios de carril seguros: si el hueco ya no está, se cancela el cambio
             const mg = corriendo ? RIVAL_MARGEN : null, ant = corriendo ? 10 : null;
-            if (e.blink && !seguro(e, e.tl, mg, ant, e._agrOn)) { e.blink = false; e.bCount = 0; e.bTimer = 0; e.tl = e.l; }
+            if (e.blink && !seguro(e, e.tl, mg, ant, e._agrOn, true)) { e.blink = false; e.bCount = 0; e.bTimer = 0; e.tl = e.l; }
             if (e.chg) {
-                if (!e._cg) { e._cg = true; if (!seguro(e, e.tl, mg, ant, e._agrOn)) { e.chg = false; e.tl = e.l; e.x = LX[e.l] - e.w / 2; e._cg = false; } }
+                if (!e._cg) { e._cg = true; if (!seguro(e, e.tl, mg, ant, e._agrOn, true)) { e.chg = false; e.tl = e.l; e.x = LX[e.l] - e.w / 2; e._cg = false; } }
             } else e._cg = false;
             if (corriendo) {
                 // cambia de carril más rápido que el resto
@@ -6825,6 +6837,140 @@ draw = function () {
     } catch (err) { console.error('Mejoras33 draw:', err); }
 };
 } catch (e) { console.error('Mejoras33:', e); } })();
+// ===== MEJORAS 34 - CONFETI AL ROMPER UN RÉCORD + ANIMACIÓN AL SUBIR DE RANGO (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras33) =====
+(function () { try {
+
+// ---------- PERILLAS ----------
+const CONFETI_CANTIDAD = 170;       // cuántos papelitos (más = más fiesta, pero más pesado para celulares viejos)
+const CONFETI_DURACION = 4200;      // cuánto dura la lluvia de confeti (en milisegundos)
+const COLORES = ['#ffd23f', '#ff4d6d', '#3ddc97', '#4cc9f0', '#b388ff', '#ff9f1c', '#ffffff'];
+const RANGO_DURACION = 3600;        // cuánto queda en pantalla la animación de rango (ms). También se cierra tocándola
+const RANGO_DELAY = 1500;           // espera (ms) después del Game Over antes de mostrar la animación de rango (para que se vean antes los contadores)
+const VIBRAR = true;                // vibración corta al celebrar (solo en celulares que lo permiten)
+
+const $ = id => document.getElementById(id);
+const pausa = ms => new Promise(r => setTimeout(r, ms));
+const sonido = n => { try { if (typeof playSound === 'function') playSound(n); } catch (e) { } };
+const vibra = p => { try { if (VIBRAR && navigator.vibrate) navigator.vibrate(p); } catch (e) { } };
+
+// ---------- ESTILOS ----------
+const st = document.createElement('style');
+st.textContent = `
+#m34-conf{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:2147483000}
+#m34-rango{position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;flex-direction:column;
+  background:radial-gradient(circle at 50% 45%,rgba(20,14,40,.9),rgba(0,0,0,.96));opacity:0;transition:opacity .35s;cursor:pointer;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#m34-rango.on{opacity:1}
+#m34-rango .rayos{position:absolute;left:50%;top:44%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;opacity:.38;
+  background:repeating-conic-gradient(from 0deg,var(--c) 0deg 7deg,transparent 7deg 22deg);
+  -webkit-mask-image:radial-gradient(circle,#000 0,transparent 55%);mask-image:radial-gradient(circle,#000 0,transparent 55%);animation:m34giro 14s linear infinite}
+@keyframes m34giro{to{transform:rotate(360deg)}}
+#m34-rango .halo{position:absolute;left:50%;top:44%;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;
+  background:radial-gradient(circle,var(--c) 0,transparent 68%);opacity:.55;animation:m34pulso 1.4s ease-in-out infinite}
+@keyframes m34pulso{50%{transform:scale(1.18);opacity:.8}}
+#m34-rango .ins{position:relative;font:900 15px/1 sans-serif;letter-spacing:5px;color:#fff;text-shadow:0 2px 0 #000,0 0 14px var(--c);
+  opacity:0;transform:translateY(-14px);animation:m34txt .5s .25s forwards}
+#m34-rango .medalla{position:relative;width:min(58vw,230px);height:min(58vw,230px);margin:18px 0 10px;display:flex;align-items:center;justify-content:center;
+  transform:scale(0) rotate(-25deg);animation:m34pop .75s .1s cubic-bezier(.2,1.5,.4,1) forwards;filter:drop-shadow(0 0 22px var(--c))}
+#m34-rango .medalla img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+#m34-rango .medalla .alt{font:900 64px/1 sans-serif;color:var(--c);text-shadow:0 4px 0 #000}
+@keyframes m34pop{to{transform:scale(1) rotate(0)}}
+#m34-rango .nombre{position:relative;font:italic 900 clamp(34px,11vw,54px)/1 sans-serif;color:var(--c);text-align:center;padding:0 12px;
+  -webkit-text-stroke:3px #000;paint-order:stroke fill;text-shadow:0 6px 0 rgba(0,0,0,.5),0 0 26px var(--c);opacity:0;transform:scale(.6);animation:m34txt2 .55s .55s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes m34txt{to{opacity:1;transform:none}}
+@keyframes m34txt2{to{opacity:1;transform:scale(1)}}
+#m34-rango .sub{position:relative;margin-top:14px;font:700 12px sans-serif;color:#cfd3dc;letter-spacing:1px;opacity:0;animation:m34txt .5s 1.1s forwards}
+#m34-rango .brillo{position:absolute;inset:0;background:#fff;opacity:0;animation:m34flash .6s forwards;pointer-events:none}
+@keyframes m34flash{0%{opacity:.85}100%{opacity:0}}
+`;
+document.head.appendChild(st);
+
+// ---------- CONFETI (canvas propio, se borra solo) ----------
+let confActivo = false;
+window.lanzarConfeti = function (cant, dur) {
+    if (confActivo) return;
+    confActivo = true;
+    const cv = document.createElement('canvas'); cv.id = 'm34-conf';
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = window.innerWidth, H = window.innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    document.body.appendChild(cv);
+    const c = cv.getContext('2d'); c.scale(dpr, dpr);
+    const N = cant || CONFETI_CANTIDAD, DUR = dur || CONFETI_DURACION, ps = [];
+    for (let i = 0; i < N; i++) {
+        // dos cañones, uno de cada costado de abajo, disparando hacia arriba y al centro (más una lluvia desde arriba)
+        const lado = i % 3, ang = lado === 0 ? -Math.PI / 2 + 0.55 + Math.random() * 0.5 : lado === 1 ? -Math.PI / 2 - 0.55 - Math.random() * 0.5 : Math.PI / 2;
+        const v = lado === 2 ? 1 + Math.random() * 3 : 11 + Math.random() * 11;
+        ps.push({
+            x: lado === 0 ? 0 : lado === 1 ? W : Math.random() * W, y: lado === 2 ? -20 - Math.random() * 200 : H * (0.75 + Math.random() * 0.2),
+            vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, w: 6 + Math.random() * 7, h: 3 + Math.random() * 6,
+            r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.4, col: COLORES[(Math.random() * COLORES.length) | 0],
+            osc: Math.random() * 6.28, delay: lado === 2 ? Math.random() * 900 : Math.random() * 250
+        });
+    }
+    const t0 = performance.now();
+    (function f(t) {
+        const el = t - t0;
+        c.clearRect(0, 0, W, H);
+        let vivos = 0;
+        ps.forEach(p => {
+            if (el < p.delay) { vivos++; return; }
+            p.vy += 0.32; p.vx *= 0.985; p.vy *= 0.985; p.x += p.vx + Math.sin(p.osc += 0.08) * 0.9; p.y += p.vy; p.r += p.vr;
+            if (p.y > H + 30) return;
+            vivos++;
+            const fade = el > DUR - 700 ? Math.max(0, (DUR - el) / 700) : 1;
+            c.save(); c.globalAlpha = fade; c.translate(p.x, p.y); c.rotate(p.r); c.scale(1, Math.cos(p.osc * 2));   // el cos simula que el papelito da vueltas
+            c.fillStyle = p.col; c.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); c.restore();
+        });
+        if (el < DUR && vivos) requestAnimationFrame(f); else { cv.remove(); confActivo = false; }
+    })(t0);
+    vibra([60, 40, 60]);
+};
+
+// ---------- ANIMACIÓN DE SUBIDA DE RANGO ----------
+let rangoActivo = false;
+window.mostrarSubidaRango = function (nombre, color, texto) {
+    if (rangoActivo) return;
+    rangoActivo = true;
+    const bonito = (nombre || '').replace(/_/g, ' ');
+    const d = document.createElement('div'); d.id = 'm34-rango'; d.style.setProperty('--c', color || '#f1c40f');
+    d.innerHTML = '<div class="rayos"></div><div class="halo"></div><div class="brillo"></div>' +
+        '<div class="ins">' + (texto || '¡SUBISTE DE RANGO!') + '</div>' +
+        '<div class="medalla"><img src="Items/rank_' + (nombre || '') + '.png" alt=""></div>' +
+        '<div class="nombre">' + bonito + '</div><div class="sub">TOCÁ PARA CONTINUAR</div>';
+    const img = d.querySelector('img');
+    img.onerror = () => { img.replaceWith(Object.assign(document.createElement('div'), { className: 'alt', textContent: '★' })); };   // si falta la imagen del rango, muestra una estrella
+    document.body.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('on'));
+    sonido('coin'); vibra([90, 50, 90, 50, 160]);
+    setTimeout(() => window.lanzarConfeti(120, 3200), 700);
+    const cerrar = () => { if (!d.parentNode) return; d.classList.remove('on'); setTimeout(() => { d.remove(); rangoActivo = false; }, 380); };
+    d.addEventListener('click', cerrar);
+    setTimeout(cerrar, RANGO_DURACION);
+};
+
+// ---------- ENGANCHE: al terminar la partida ----------
+const _fg = window.finishGame;
+if (typeof _fg === 'function') window.finishGame = function () {
+    let antes = null;
+    try { antes = window.getRankInfo(garage.seasonHigh || 0).name; } catch (e) { }
+    const r = _fg.apply(this, arguments);
+    try {
+        const titulo = ($('over-title') || {}).innerText || '';
+        const record = titulo.indexOf('RÉCORD') >= 0;
+        const ahora = window.getRankInfo(garage.seasonHigh || 0);
+        const subio = antes && ahora.name !== antes;
+        // solo celebra si de verdad subió (no si bajó): comparamos la posición en la lista de rangos
+        let sube = false;
+        if (subio) {
+            const orden = ['NOVATO', 'BRONCE', 'PLATA', 'ORO', 'PLATINO', 'DIAMANTE', 'GRAN_MAESTRO', 'LEYENDA'];
+            sube = orden.indexOf(ahora.name) > orden.indexOf(antes);
+        }
+        if (record) setTimeout(() => { try { window.lanzarConfeti(); sonido('heart'); } catch (e) { } }, 450);
+        if (sube) setTimeout(() => { try { window.mostrarSubidaRango(ahora.name, ahora.color); } catch (e) { } }, record ? RANGO_DELAY + 900 : RANGO_DELAY);
+    } catch (e) { console.error('Mejoras34:', e); }
+    return r;
+};
+} catch (e) { console.error('Mejoras34:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
