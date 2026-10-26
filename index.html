@@ -7175,15 +7175,14 @@ draw = function () {
 const FORZAR_ESCENARIO = null;     // PARA PROBAR: 'playa_izq', 'playa_der', 'playa_ambos' o 'ruta' y ese escenario queda fijo. Dejalo en null para el juego normal
 const ESCALA_OBJETOS = 1.3;        // tamaño de gente, sombrillas, toallas, tablas, objetos del mar, etc. (1 = como antes | 1.3 = 30% más grandes | 1.4 = máximo recomendado)
 const ESCALA_PALMERAS = 1.0;       // tamaño de las palmeras (1 = como antes)
-// ORDEN DE LOS TRAMOS (se repite en bucle). e = escenario, mar = de qué lado está el mar ('izq', 'der' o 'ambos'), m = cuántos metros dura
-const TRAMOS = [
-    { e: 'ruta', m: 1500 },
-    { e: 'playa', mar: 'izq', m: 2000 },
-    { e: 'ruta', m: 800 },
-    { e: 'playa', mar: 'der', m: 2000 },
-    { e: 'ruta', m: 800 },
-    { e: 'playa', mar: 'ambos', m: 1000 },
-    { e: 'ruta', m: 800 }
+// CÓMO SE ARMA LA RUTA: arranca con un tramo de ruta normal y después se van alternando escenarios y ruta, siempre en distinto orden y con el mar en un lado, el otro o ambos.
+const RUTA_INICIAL = 1500;         // metros de ruta normal al comienzo de la partida
+const RUTA_ENTRE = [500, 900];     // metros de ruta normal entre un escenario y el siguiente (mínimo, máximo)
+// Escenarios que pueden salir: e = escenario, mar = lado del mar, m = [mínimo, máximo] de metros que dura, p = qué tan seguido sale (1 = normal)
+const ESCENARIOS = [
+    { e: 'playa', mar: 'izq', m: [800, 1100], p: 1 },
+    { e: 'playa', mar: 'der', m: [800, 1100], p: 1 },
+    { e: 'playa', mar: 'ambos', m: [600, 800], p: 0.7 }
 ];
 const DENSIDAD = 1;                // cuántos objetos hay en la playa (1 = normal | 0.5 = la mitad | 1.5 = más cargada)
 const MOVIMIENTO = 1;              // cuánto se mueven las palmeras con el viento (0 = quietas)
@@ -7207,7 +7206,26 @@ function M2W(m) {                                     // metros del marcador -> 
     return (m - cum) * M2Y;
 }
 const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
-const TOTAL = TRAMOS.reduce((a, t) => a + t.m, 0);
+
+// ---------- ARMADO ALEATORIO DE LA RUTA (distinto en cada partida) ----------
+const GEN = { lista: [], fin: 0, semilla: 1, ult: -1 };
+function reiniciarRuta() { GEN.lista = []; GEN.fin = 0; GEN.ult = -1; GEN.semilla = 1 + Math.floor(Math.random() * 1e6); }
+function generarTramo() {
+    const k = GEN.lista.length, a = GEN.fin, r = n => H(GEN.semilla * 31 + k * 7 + n);
+    let t, m;
+    if (k === 0) { t = { e: 'ruta' }; m = RUTA_INICIAL; }
+    else if (k % 2 === 0) { t = { e: 'ruta' }; m = Math.round(RUTA_ENTRE[0] + r(1) * (RUTA_ENTRE[1] - RUTA_ENTRE[0])); }
+    else {
+        let tot = 0; ESCENARIOS.forEach((x, i) => { if (i !== GEN.ult || ESCENARIOS.length < 2) tot += x.p; });
+        let q = r(2) * tot, el = 0;
+        for (let i = 0; i < ESCENARIOS.length; i++) { if (i === GEN.ult && ESCENARIOS.length > 1) continue; q -= ESCENARIOS[i].p; if (q <= 0) { el = i; break; } el = i; }
+        GEN.ult = el; const x = ESCENARIOS[el];
+        t = { e: x.e }; if (x.mar) t.mar = x.mar;
+        m = Math.round(x.m[0] + r(3) * (x.m[1] - x.m[0]));
+    }
+    GEN.lista.push({ t, a, b: a + m }); GEN.fin = a + m;
+}
+reiniciarRuta();
 
 // ---------- QUÉ TRAMO HAY EN CADA METRO ----------
 function tramoEn(metros) {
@@ -7215,9 +7233,9 @@ function tramoEn(metros) {
         const p = FORZAR_ESCENARIO.split('_');
         return { t: p[0] === 'ruta' ? { e: 'ruta' } : { e: p[0], mar: p[1] || 'izq' }, a: -1e9, b: 1e9 };
     }
-    const base = Math.floor(metros / TOTAL) * TOTAL; let m = metros - base, acc = 0;
-    for (const t of TRAMOS) { if (m < acc + t.m) return { t, a: base + acc, b: base + acc + t.m }; acc += t.m; }
-    return { t: TRAMOS[0], a: base, b: base + TOTAL };
+    while (GEN.fin <= metros) generarTramo();
+    for (let k = GEN.lista.length - 1; k >= 0; k--) { const g = GEN.lista[k]; if (metros >= g.a) return g; }
+    return GEN.lista[0];
 }
 window.escenarioActual = () => tramoEn(W2M(typeof roadY === 'number' ? roadY : 0)).t;
 
@@ -7432,7 +7450,7 @@ update = function (dt) {
     _up(dt);
     try {
         const s1 = typeof score === 'number' ? score : 0, r1 = typeof roadY === 'number' ? roadY : 0;
-        if (r1 < ultR - 1 || r1 < r0 - 1) { SW = []; SC = []; }     // partida nueva: se reinicia la cuenta
+        if (r1 < ultR - 1 || r1 < r0 - 1) { SW = []; SC = []; reiniciarRuta(); }     // partida nueva: se reinicia la cuenta
         else { const b = (s1 - s0) - (r1 - r0) / M2Y; if (b > 0.5) { SW.push(r1 + 150); SC.push((SC.length ? SC[SC.length - 1] : 0) + b); } }
         ultR = r1;
         if (state !== 'PLAYING' || typeof scenery === 'undefined') return;
