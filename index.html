@@ -1681,7 +1681,7 @@ window.updateMenuRankUI = function() {
         if(nextLvl > level) heartSpawnedInLevel = false;
         level = nextLvl;
         let mSpd = car.maxSpeed + (stats.motor * 0.3); let hndl = car.handling; 
-      let rain = (level >= 6 && (level - 6) % 4 === 1); 
+      let rain = window.climaResbala ? window.climaResbala() : (level >= 6 && (level - 6) % 4 === 1);
         let turnInertia = 0.85; 
         
         // --- 🛞 NEUMÁTICOS (GOMAS) ---
@@ -2280,7 +2280,7 @@ function draw() {
     ctx.save();
     if (screenShake > 0.1) ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
 
-    let sunset = (level >= 6 && (level - 6) % 4 === 0), rain = (level >= 6 && (level - 6) % 4 === 1), night = (level >= 6 && (level - 6) % 4 === 2);
+    let sunset = window.climaEs ? window.climaEs('atardecer') : (level >= 6 && (level - 6) % 4 === 0), rain = window.climaLluvia ? window.climaLluvia() : (level >= 6 && (level - 6) % 4 === 1), night = window.climaEs ? window.climaEs('noche') : (level >= 6 && (level - 6) % 4 === 2);
 
     drawRoad();
 
@@ -4201,7 +4201,7 @@ const _dr = draw;
 draw = function () {
     _dr();
     try {
-        const oscuro = level >= 6 && [0, 1, 2].includes((level - 6) % 4);
+        const oscuro = window.climaOscuro ? window.climaOscuro() : (level >= 6 && [0, 1, 2].includes((level - 6) % 4));
         if (!oscuro || state === 'MENU') return;
         enemies.forEach(e => {
             if (e.onc && !e.crashed && e.y > -e.h && e.y < 760) haz(e.x, e.y, e.w, e.h, 1, [255, 240, 205], LARGO_NPC, ANCHO_NPC, false);
@@ -4283,7 +4283,7 @@ const TINTES = {   // [r, g, b, fuerza en autos del tránsito, fuerza en tu auto
     atardecer: [255, 110, 40, 0.20, 0.10]
 };
 const modoEscena = () => {
-    if (level < 6) return null; const m = (level - 6) % 4;
+    if (window.modoEscenaClima) return window.modoEscenaClima(); if (level < 6) return null; const m = (level - 6) % 4;
     return m === 0 ? 'atardecer' : m === 1 ? 'lluvia' : m === 2 ? 'noche' : null;
 };
 const CACHE = {}, LUZ = new Map();
@@ -6973,6 +6973,207 @@ if (typeof _fg === 'function') window.finishGame = function () {
     return r;
 };
 } catch (e) { console.error('Mejoras34:', e); } })();
+// ===== MEJORAS 35 - SISTEMA DE CLIMAS NUEVO: niebla, tormenta, nieve, tormenta de arena, viento con hojas, amanecer (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras34) =====
+// ¡IMPORTANTE! Este bloque necesita 4 cambios chiquitos en el código viejo (están en el archivo  cambios_mejoras35.txt ). Sin esos cambios no se rompe nada, pero tampoco se ven los climas nuevos.
+(function () { try {
+
+// ---------- PERILLAS ----------
+const FORZAR_CLIMA = null;        // PARA PROBAR: poné 'niebla', 'tormenta', 'nieve', 'arena', 'viento', 'amanecer', 'lluvia', 'noche', 'atardecer' o 'sol' y ese clima queda fijo siempre. Dejalo en null para el juego normal
+const NIVEL_CLIMA = 3;            // desde qué nivel puede cambiar el clima (antes era el 6). Los niveles anteriores son siempre de día
+const PESADOS_DESDE = 7;          // desde qué nivel pueden salir los climas "duros" (tormenta, nieve, arena)
+const PERMITIDOS = ['sol', 'atardecer', 'amanecer', 'noche', 'lluvia', 'niebla', 'tormenta'];   // climas que pueden salir en la ruta normal. (nieve, arena y viento los van a usar los escenarios nuevos: nieve, desierto y bosque)
+const PESO = { sol: 3, atardecer: 1.6, amanecer: 1.2, noche: 1.6, lluvia: 1.6, niebla: 1.3, tormenta: 1, nieve: 1.4, arena: 1.4, viento: 1.4 };   // qué tan seguido sale cada uno
+const PESADOS = ['tormenta', 'nieve', 'arena'];
+const FUNDIDO = 2500;             // cuánto tarda (ms) en aparecer o irse un clima de forma gradual
+const AVISO_CLIMA = true;         // cartelito cuando cambia el clima
+// efectos sobre el manejo
+const VIENTO_FUERZA = { viento: 0.16, tormenta: 0.13, arena: 0.12 };   // cuánto empuja de costado el viento (0 = nada). Ojo: cuando llueve el auto desliza más, así que se nota más
+const VIENTO_CADA = [380, 900];   // cada cuántos cuadros hay una ráfaga (mínimo y máximo; 60 cuadros = 1 seg)
+const VIENTO_DURA = 100;          // cuánto dura una ráfaga (cuadros). Antes de empezar hay un aviso con una flecha
+const FRENO_ARENA = 0.985;        // la tormenta de arena te frena un poquito (1 = nada, 0.97 = bastante)
+
+const INFO = {
+    sol:      ['☀️', 'SOL', 'Día despejado'],
+    atardecer:['🌇', 'ATARDECER', 'Poca luz, ojo con los faros'],
+    amanecer: ['🌅', 'AMANECER', 'Se despeja el cielo'],
+    noche:    ['🌙', 'NOCHE', 'Prendé las luces'],
+    lluvia:   ['🌧️', 'LLUVIA', 'El auto desliza más'],
+    niebla:   ['🌫️', 'NIEBLA', 'Casi no se ve adelante'],
+    tormenta: ['⛈️', 'TORMENTA', 'Lluvia, rayos y viento'],
+    nieve:    ['❄️', 'NEVADA', 'Poco agarre'],
+    arena:    ['🏜️', 'TORMENTA DE ARENA', 'Mala visibilidad y viento'],
+    viento:   ['🍂', 'VIENTO', 'Ráfagas que te empujan']
+};
+
+// ---------- QUÉ CLIMA TOCA EN CADA NIVEL ----------
+let semilla = (Math.random() * 1e9) | 0;
+const memo = {};
+function rnd(n) { let t = (semilla + n * 0x6D2B79F5) | 0; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+function permitidos() { return (typeof window.climasPermitidos === 'function' ? window.climasPermitidos() : PERMITIDOS); }
+function climaDe(L) {
+    if (FORZAR_CLIMA) return FORZAR_CLIMA;
+    if (L < NIVEL_CLIMA) return 'sol';
+    const k = L + '|' + permitidos().join(',');
+    if (memo[k]) return memo[k];
+    const ant = L > NIVEL_CLIMA ? climaDe(L - 1) : 'sol';
+    const lista = permitidos().filter(c => c !== ant && (L >= PESADOS_DESDE || PESADOS.indexOf(c) < 0));
+    if (!lista.length) return memo[k] = 'sol';
+    let tot = 0; lista.forEach(c => tot += PESO[c] || 1);
+    let r = rnd(L) * tot, el = lista[0];
+    for (const c of lista) { r -= PESO[c] || 1; if (r <= 0) { el = c; break; } }
+    return memo[k] = el;
+}
+const nivelAct = () => (typeof level === 'number' ? level : 1);
+window.climaActual = () => climaDe(nivelAct());
+window.climaEs = n => window.climaActual() === n;
+window.climaLluvia = () => { const c = window.climaActual(); return c === 'lluvia' || c === 'tormenta'; };       // para el dibujo viejo (gotas + luces)
+window.climaResbala = () => { const c = window.climaActual(); return c === 'lluvia' || c === 'tormenta' || c === 'nieve'; };   // para el manejo viejo (agarre)
+window.climaOscuro = () => { const c = window.climaActual(); return c === 'atardecer' || c === 'lluvia' || c === 'tormenta' || c === 'noche'; };
+window.modoEscenaClima = () => { const c = window.climaActual(); return c === 'atardecer' || c === 'amanecer' ? 'atardecer' : c === 'lluvia' || c === 'tormenta' ? 'lluvia' : c === 'noche' ? 'noche' : null; };
+
+// ---------- CAMBIO DE CLIMA: fundido + cartel ----------
+let previo = 'sol', actual = 'sol', tCambio = 0;
+function vigilar() {
+    const c = window.climaActual();
+    if (c !== actual) {
+        previo = actual; actual = c; tCambio = performance.now();
+        if (AVISO_CLIMA && state === 'PLAYING') { try { const i = INFO[c]; showToast(i[0] + ' ' + i[1], i[2]); } catch (e) { } }
+        rafagas.cd = 200 + Math.random() * 300; rafagas.t = 0;
+    }
+}
+const fade = () => Math.min(1, (performance.now() - tCambio) / FUNDIDO);
+
+const _sg = startGameLogic;
+startGameLogic = function () {
+    const r = _sg.apply(this, arguments);
+    semilla = (Math.random() * 1e9) | 0; for (const k in memo) delete memo[k];
+    previo = actual = window.climaActual(); tCambio = -1e9; rafagas.cd = 500; rafagas.t = 0; rafagas.av = 0; pt.length = 0;
+    return r;
+};
+
+// ---------- RÁFAGAS DE VIENTO (empujan el auto, con aviso) ----------
+const rafagas = { cd: 500, t: 0, av: 0, dir: 1 };
+const _up = update;
+update = function (dt) {
+    _up(dt);
+    try {
+        if (state !== 'PLAYING') return;
+        vigilar();
+        const F = VIENTO_FUERZA[actual];
+        if (actual === 'arena') currentSpeed *= Math.pow(FRENO_ARENA, dt);
+        if (!F) { rafagas.t = 0; rafagas.av = 0; return; }
+        if (rafagas.t > 0) {
+            rafagas.t -= dt;
+            // el empujón se ajusta al agarre: si el auto ya desliza (lluvia/nieve) la fuerza baja, para que siempre se pueda contrarrestar girando
+            let inercia = 0.85, resbala = false; try { resbala = window.climaResbala(); if (resbala) inercia = 0.97 - (stats.gomas * 0.024); } catch (e) { }
+            player.vx += rafagas.dir * F * (0.15 / Math.max(0.05, 1 - inercia)) * (resbala ? 0.28 : 1) * dt;
+        } else if (rafagas.av > 0) {
+            rafagas.av -= dt; if (rafagas.av <= 0) { rafagas.t = VIENTO_DURA; }
+        } else {
+            rafagas.cd -= dt;
+            if (rafagas.cd <= 0) { rafagas.dir = Math.random() < 0.5 ? -1 : 1; rafagas.av = 50; rafagas.cd = VIENTO_CADA[0] + Math.random() * (VIENTO_CADA[1] - VIENTO_CADA[0]); try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) { } }
+        }
+    } catch (e) { console.error('Mejoras35 update:', e); }
+};
+
+// ---------- DIBUJO DE CADA CLIMA ----------
+const pt = [];            // partículas (copos, hojas, arena)
+let ult = performance.now(), rayo = { t: 0, x: 200, prox: 0 };
+function sembrar(tipo, n) {
+    for (let i = 0; i < n; i++) {
+        if (tipo === 'nieve') pt.push({ k: 'n', x: Math.random() * 420 - 10, y: Math.random() * 760 - 10, v: 1.2 + Math.random() * 2.2, s: 1.3 + Math.random() * 2.6, o: Math.random() * 6.28, a: 0.5 + Math.random() * 0.5 });
+        if (tipo === 'hojas') pt.push({ k: 'h', x: Math.random() * 520 - 60, y: Math.random() * 760, v: 1.5 + Math.random() * 2, w: 3 + Math.random() * 3, s: 4.5 + Math.random() * 4, r: Math.random() * 6.28, c: ['#d9822b', '#c0392b', '#e6b422', '#7d9b3a', '#a0522d'][(Math.random() * 5) | 0] });
+        if (tipo === 'arena') pt.push({ k: 'a', x: Math.random() * 480 - 40, y: Math.random() * 760, v: 7 + Math.random() * 8, l: 12 + Math.random() * 30, a: 0.15 + Math.random() * 0.25 });
+    }
+}
+function avanzar(dt, tipo, viento) {
+    const emp = (rafagas.t > 0 ? rafagas.dir : 0) * 2.5;
+    pt.forEach(p => {
+        if (p.k === 'n') { p.y += p.v * dt * 0.9 + currentSpeed * 0.25 * dt; p.o += 0.04 * dt; p.x += Math.sin(p.o) * 0.6 * dt + emp * 0.6 * dt; }
+        else if (p.k === 'h') { p.x += (p.v * (tipo === 'hojas' ? 1.1 : 0.6) + 0.5) * dt * 1.2 * (viento || 1); p.y += (Math.sin(p.r) * 0.8 + currentSpeed * 0.18) * dt; p.r += 0.12 * dt; }
+        else if (p.k === 'a') { p.x -= p.v * dt; p.y += currentSpeed * 0.15 * dt; }
+        if (p.y > 770) { p.y = -10; p.x = Math.random() * 420; }
+        if (p.k === 'h' && p.x > 470) { p.x = -30; p.y = Math.random() * 760; }
+        if (p.k === 'a' && p.x < -50) { p.x = 450; p.y = Math.random() * 760; }
+        if (p.k === 'n') { if (p.x > 420) p.x = -10; if (p.x < -10) p.x = 420; }
+    });
+}
+const nubes = (() => { const c = document.createElement('canvas'); c.width = 400; c.height = 400; const g = c.getContext('2d');
+    for (let i = 0; i < 26; i++) { const x = Math.random() * 400, y = Math.random() * 400, r = 60 + Math.random() * 90, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(235,240,245,0.40)'); gr.addColorStop(1, 'rgba(235,240,245,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    return c; })();
+
+function pintar(tipo, a, dt, avanza) {
+    if (a <= 0.01) return;
+    ctx.save(); ctx.globalAlpha = a;
+    if (tipo === 'amanecer') {
+        const g = ctx.createLinearGradient(0, 0, 0, 750); g.addColorStop(0, 'rgba(255,150,110,0.30)'); g.addColorStop(0.5, 'rgba(255,200,140,0.14)'); g.addColorStop(1, 'rgba(255,230,170,0.06)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, 400, 750);
+        const s = ctx.createRadialGradient(200, -20, 0, 200, -20, 300); s.addColorStop(0, 'rgba(255,240,190,0.55)'); s.addColorStop(1, 'rgba(255,240,190,0)'); ctx.fillStyle = s; ctx.fillRect(0, 0, 400, 400);
+    } else if (tipo === 'niebla') {
+        const g = ctx.createLinearGradient(0, 0, 0, 750); g.addColorStop(0, 'rgba(205,214,224,0.93)'); g.addColorStop(0.42, 'rgba(205,214,224,0.62)'); g.addColorStop(0.75, 'rgba(205,214,224,0.20)'); g.addColorStop(1, 'rgba(205,214,224,0.04)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, 400, 750);
+        const o = (performance.now() * 0.012) % 400;
+        ctx.globalAlpha = a * 0.55; ctx.drawImage(nubes, -o, 0, 400, 750); ctx.drawImage(nubes, 400 - o, 0, 400, 750);
+    } else if (tipo === 'tormenta') {
+        ctx.fillStyle = 'rgba(8,14,32,0.34)'; ctx.fillRect(0, 0, 400, 750);
+        ctx.strokeStyle = 'rgba(200,220,255,0.5)'; ctx.lineWidth = 1.2; ctx.beginPath();
+        const inc = rafagas.t > 0 ? rafagas.dir * 10 : -6;
+        for (let r = 0; r < 70; r++) { const rx = Math.random() * 440, ry = Math.random() * 750; ctx.moveTo(rx, ry); ctx.lineTo(rx + inc, ry + 24); }
+        ctx.stroke();
+        if (avanza) { rayo.prox -= dt; if (rayo.prox <= 0 && a > 0.8) { rayo.t = 14; rayo.x = 40 + Math.random() * 320; rayo.prox = 240 + Math.random() * 480; } if (rayo.t > 0) rayo.t -= dt; }
+        if (rayo.t > 0) {
+            const k = rayo.t / 14; ctx.fillStyle = `rgba(230,240,255,${0.55 * k})`; ctx.fillRect(0, 0, 400, 750);
+            if (rayo.t > 7) { ctx.strokeStyle = `rgba(255,255,255,${k})`; ctx.lineWidth = 3; ctx.beginPath(); let x = rayo.x, y = 0; ctx.moveTo(x, y); for (let i = 0; i < 9; i++) { x += (Math.random() - 0.5) * 44; y += 30 + Math.random() * 24; ctx.lineTo(x, y); } ctx.stroke(); }
+        }
+    } else if (tipo === 'nieve') {
+        ctx.fillStyle = 'rgba(215,230,255,0.14)'; ctx.fillRect(0, 0, 400, 750);
+        if (!pt.some(p => p.k === 'n')) sembrar('nieve', 170);
+        ctx.fillStyle = '#fff';
+        pt.forEach(p => { if (p.k !== 'n') return; ctx.globalAlpha = a * p.a; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 6.283); ctx.fill(); });
+        const g = ctx.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, 'rgba(235,242,255,0.35)'); g.addColorStop(1, 'rgba(235,242,255,0)'); ctx.globalAlpha = a; ctx.fillStyle = g; ctx.fillRect(0, 0, 400, 200);
+    } else if (tipo === 'arena') {
+        ctx.fillStyle = 'rgba(196,128,56,0.17)'; ctx.fillRect(0, 0, 400, 750);
+        const g = ctx.createLinearGradient(0, 0, 0, 750); g.addColorStop(0, 'rgba(206,140,70,0.58)'); g.addColorStop(0.5, 'rgba(206,140,70,0.22)'); g.addColorStop(1, 'rgba(206,140,70,0.03)'); ctx.fillStyle = g; ctx.fillRect(0, 0, 400, 750);
+        if (!pt.some(p => p.k === 'a')) sembrar('arena', 90);
+        ctx.strokeStyle = '#f0d9a8'; ctx.lineWidth = 1.5;
+        pt.forEach(p => { if (p.k !== 'a') return; ctx.globalAlpha = a * p.a; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.l, p.y + 2); ctx.stroke(); });
+    } else if (tipo === 'viento') {
+        ctx.fillStyle = 'rgba(255,210,140,0.05)'; ctx.fillRect(0, 0, 400, 750);
+        if (!pt.some(p => p.k === 'h')) sembrar('hojas', 36);
+        pt.forEach(p => { if (p.k !== 'h') return; ctx.globalAlpha = a; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.w, 0, 0, 6.283); ctx.fill(); ctx.restore(); });
+    }
+    ctx.restore();
+}
+
+function flechaViento() {
+    if (rafagas.av <= 0 && rafagas.t <= 0) return;
+    const now = performance.now(), parp = rafagas.av > 0 ? (Math.floor(now / 110) % 2) : 1;
+    if (!parp) return;
+    ctx.save(); ctx.font = '900 20px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#000';
+    const txt = (rafagas.dir > 0 ? '💨 ' : '') + (rafagas.av > 0 ? '¡RÁFAGA!' : 'VIENTO') + (rafagas.dir < 0 ? ' 💨' : '') + (rafagas.dir > 0 ? ' ➜' : ''), x = 200, y = 120;
+    const t2 = rafagas.dir < 0 ? '⬅ ' + txt : txt;
+    ctx.strokeText(t2, x, y); ctx.fillStyle = rafagas.av > 0 ? '#ffd23f' : '#fff'; ctx.fillText(t2, x, y); ctx.restore();
+}
+
+const _dr = draw;
+draw = function () {
+    _dr.apply(this, arguments);
+    try {
+        if (state !== 'PLAYING' && state !== 'PAUSED') return;
+        const ahora = performance.now(), dt = Math.min(3, (ahora - ult) / 16.67); ult = ahora;
+        vigilar();
+        const avanza = state === 'PLAYING';
+        const tipos = new Set([actual, previo]);
+        if (avanza) avanzar(dt, actual === 'viento' || previo === 'viento' ? 'hojas' : actual, 1);
+        const f = fade();
+        if (previo !== actual && f < 1) pintar(previo, 1 - f, dt, avanza);
+        pintar(actual, f, dt, avanza);
+        if (state === 'PLAYING') flechaViento();
+        // limpia las partículas de un clima que ya se fue
+        if (f >= 1 && pt.length && !['nieve', 'viento', 'arena'].includes(actual)) pt.length = 0;
+    } catch (e) { console.error('Mejoras35 draw:', e); }
+};
+} catch (e) { console.error('Mejoras35:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
