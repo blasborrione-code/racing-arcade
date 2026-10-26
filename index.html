@@ -7470,6 +7470,145 @@ if (typeof window.climaActual === 'function') {
     };
 }
 } catch (e) { console.error('Mejoras36:', e); } })();
+// ===== MEJORAS 37 - OBRAS NUEVAS: 5 máquinas, obreros con cartel de STOP (izq/der), obreros con pala y obreros que salen volando al chocarlos (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras36 o mejoras35) =====
+// Imágenes: carpeta  Items/  (las 4 que ya existían se reemplazan: topadora, pavimentadora, valla, cono  +  8 nuevas: excavadora, volquete, camioneta_obras, obrero_stop_izq, obrero_stop_der, obrero_pala, obrero_caido_pala, obrero_caido_stop)
+(function () { try {
+
+// ---------- PERILLAS ----------
+// Máquinas: [ancho en pantalla, qué tan seguido sale (1 = normal)]. El alto se calcula solo con la proporción de la imagen.
+const MAQUINAS = {
+    topadora:        [64, 1],
+    pavimentadora:   [66, 1],
+    excavadora:      [66, 1],
+    volquete:        [52, 1],
+    camioneta_obras: [52, 1.2]
+};
+const VALLA_ANCHO = 76;            // ancho de la valla del comienzo de las obras
+const OBRERO_STOP_ANCHO = 38;      // ancho del obrero con cartel (incluye el cartel)
+const OBRERO_PALA_ANCHO = 34;      // ancho del obrero con pala
+const OBRERO_CAIDO_ANCHO = 48;     // ancho del obrero cuando sale volando
+const OBREROS_PALA = [0, 2];       // cuántos obreros con pala hay alrededor de cada máquina (mínimo, máximo)
+const PROB_STOP_EN_MAQUINA = 0.35; // chance de que además haya un obrero con cartel de STOP cerca de cada máquina (al comienzo siempre hay uno)
+const OBRERO_CONOS = 2;            // chocar un obrero cuenta como tantos conos chocados (4 conos = -1 vida). 0 o 1 = casi no castiga | 4 = pierde una vida directo
+const CARPETA = 'Items/';
+
+// ---------- IMÁGENES ----------
+const NOMBRES = ['topadora', 'pavimentadora', 'excavadora', 'volquete', 'camioneta_obras', 'obrero_stop_izq', 'obrero_stop_der', 'obrero_pala', 'obrero_caido_pala', 'obrero_caido_stop'];
+const IMG = {};
+NOMBRES.forEach(n => { const i = new Image(); i.src = CARPETA + n + '.png'; IMG[n] = i; });
+const ok = i => i && i.complete && i.naturalWidth > 0;
+const RATIO_DEF = { topadora: 1.73, pavimentadora: 1.64, excavadora: 1.55, volquete: 2.03, camioneta_obras: 1.88, obrero_stop_izq: 1.21, obrero_stop_der: 1.06, obrero_pala: 1.14, obrero_caido_pala: 0.9, obrero_caido_stop: 0.82 };
+const alto = (n, w) => { const i = IMG[n]; return Math.round(w * (ok(i) ? i.naturalHeight / i.naturalWidth : RATIO_DEF[n] || 1.5)); };
+
+const LX = [75, 157.5, 242.5, 325];
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+// ¿hay lugar libre en la zona de obras para poner algo ahí? (ignora los conos, que están en la línea)
+function libre(lane, x, y, w, h) {
+    return !enemies.some(o => o.type === 'obs' && o.subType !== 'cono' && o.l === lane &&
+        x < o.x + o.w + 6 && x + w > o.x - 6 && y < o.y + o.h + 14 && y + h > o.y - 14);
+}
+
+// ---------- OBREROS ----------
+function ponerObrero(kind, lane, y) {
+    let nombre, w, x, subtipo;
+    if (kind === 'stop') {
+        // en el borde del carril cerrado, con el cartel hacia la ruta abierta
+        nombre = lane === 0 ? 'obrero_stop_der' : 'obrero_stop_izq';
+        w = OBRERO_STOP_ANCHO; x = (lane === 0 ? 98 : 302) - w / 2;
+    } else {
+        nombre = 'obrero_pala'; w = OBRERO_PALA_ANCHO; x = LX[lane] + rnd(-16, 16) - w / 2;
+    }
+    if (!ok(IMG[nombre])) return false;
+    const h = alto(nombre, w);
+    if (!libre(lane, x, y, w, h)) return false;
+    enemies.push({ x, y, l: lane, w, h, type: 'obs', subType: 'obrero', obrero: kind, img: IMG[nombre], baseSpeed: 0, speed: 0, tx: 0, tl: lane, blink: false, bCount: 0, bTimer: 0, chg: false });
+    return true;
+}
+
+// ---------- MÁQUINAS ----------
+let ultima = null;
+function elegirMaquina() {
+    const disp = Object.keys(MAQUINAS).filter(n => (n === 'topadora' || n === 'pavimentadora' ? ok(IMG[n]) || (assets[n] && ok(assets[n])) : ok(IMG[n])));
+    if (!disp.length) return null;
+    const pool = disp.filter(n => n !== ultima); const lista = pool.length ? pool : disp;
+    let tot = 0; lista.forEach(n => tot += MAQUINAS[n][1]);
+    let r = Math.random() * tot;
+    for (const n of lista) { r -= MAQUINAS[n][1]; if (r <= 0) return n; }
+    return lista[0];
+}
+
+function spawnMaquina() {
+    const n = elegirMaquina(); if (!n) return false;
+    ultima = n;
+    const lane = constEvent.lane, w = MAQUINAS[n][0], h = alto(n, w), x = LX[lane] - w / 2, y = -200;
+    const img = ok(IMG[n]) ? IMG[n] : assets[n];
+    enemies.push({ x, y, l: lane, w, h, type: 'obs', subType: 'machine', img, baseSpeed: 0, speed: 0, tx: 0, tl: lane, blink: false, bCount: 0, bTimer: 0, chg: false });
+    // obreros alrededor de la máquina (adelante o atrás de ella)
+    const nPala = Math.round(rnd(OBREROS_PALA[0], OBREROS_PALA[1] + 0.49));
+    for (let k = 0; k < nPala; k++) {
+        const delante = Math.random() < 0.5;
+        const hh = alto('obrero_pala', OBRERO_PALA_ANCHO);
+        ponerObrero('pala', lane, delante ? y - hh - rnd(22, 70) : y + h + rnd(22, 70));
+    }
+    if (Math.random() < PROB_STOP_EN_MAQUINA) ponerObrero('stop', lane, Math.random() < 0.5 ? y - 40 - rnd(30, 90) : y + h + rnd(30, 80));
+    return true;
+}
+
+// ---------- ENGANCHE AL SISTEMA DE OBRAS ----------
+const spawnPrev = spawnConstructionItem;
+spawnConstructionItem = function (type) {
+    if (type === 'machine') { if (spawnMaquina()) return; return spawnPrev.apply(this, arguments); }
+    const r = spawnPrev.apply(this, arguments);
+    if (type === 'valla_start') {
+        const e = enemies[enemies.length - 1];
+        if (e && e.subType === 'valla') {
+            const va = assets.valla;
+            if (ok(va)) { e.w = VALLA_ANCHO; e.h = Math.round(VALLA_ANCHO * va.naturalHeight / va.naturalWidth); e.x = LX[constEvent.lane] - e.w / 2; }
+            // obrero con cartel justo pasando la valla (siempre)
+            ponerObrero('stop', constEvent.lane, e.y - alto('obrero_stop_der', OBRERO_STOP_ANCHO) - 60);
+        }
+    }
+    return r;
+};
+
+// ---------- CHOCAR UN OBRERO ----------
+// El juego original trata a los obstáculos de obra como "conos" o como "máquinas". Al obrero lo hacemos pasar por cono un instante
+// para reutilizar el golpe (choque, ruido, sospecha) y después lo ajustamos para que cuente como OBRERO_CONOS conos.
+const updPrev = update;
+update = function () {
+    const sanos = enemies.filter(e => e.subType === 'obrero' && !e.hit);
+    sanos.forEach(e => e.subType = 'cono');
+    let r;
+    try { r = updPrev.apply(this, arguments); }
+    finally { sanos.forEach(e => { if (e.subType === 'cono') e.subType = 'obrero'; }); }
+    let golpes = 0;
+    sanos.forEach(e => {
+        if (!e.hit || e._caido) return;
+        e._caido = true; golpes++;
+        // cambia a la imagen del obrero volando, manteniendo el centro
+        const nom = e.obrero === 'stop' ? 'obrero_caido_stop' : 'obrero_caido_pala';
+        if (ok(IMG[nom])) {
+            const cx = e.x + e.w / 2, cy = e.y + e.h / 2, w = OBRERO_CAIDO_ANCHO, h = alto(nom, w);
+            e.img = IMG[nom]; e.w = w; e.h = h; e.x = cx - w / 2; e.y = cy - h / 2;
+        }
+        e.rotation = 0;
+        e.vRot = (Math.random() < 0.5 ? -1 : 1) * rnd(0.10, 0.20);
+        e.vx = (e.vx || 0) * rnd(0.8, 1.3);
+    });
+    if (golpes) {
+        conesThisRun = Math.max(0, conesThisRun - golpes);  // no cuenta como cono en las estadísticas
+        player.coneHits += (OBRERO_CONOS - 1) * golpes; // el golpe original ya sumó 1 por obrero
+        if (player.coneHits >= 4) {
+            player.coneHits = 0; lives--;
+            showToast("🤕 OBRERO", "¡Chocaste a un obrero! -1 Vida");
+            if (lives <= 0) endGame("CHOQUE EN OBRA");
+        } else showToast("🤕 OBRERO", "¡Cuidado con la gente en la ruta!");
+    }
+    return r;
+};
+
+} catch (e) { console.error("Error en Mejoras37:", e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
