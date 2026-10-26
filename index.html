@@ -7163,6 +7163,243 @@ draw = function () {
     } catch (e) { console.error('Mejoras35 draw:', e); }
 };
 } catch (e) { console.error('Mejoras35:', e); } })();
+// ===== MEJORAS 36 - ESCENARIOS (1): SISTEMA DE ESCENARIOS + PLAYA (mar a la izquierda, a la derecha o a ambos lados) (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras35) =====
+// Las imágenes de la playa van en la carpeta  Escenarios/  (playa_palmera_a.png, etc.). Si todavía no las tenés, el juego dibuja versiones provisorias por código, así que funciona igual.
+(function () { try {
+
+// ---------- PERILLAS ----------
+const FORZAR_ESCENARIO = null;     // PARA PROBAR: 'playa_izq', 'playa_der', 'playa_ambos' o 'ruta' y ese escenario queda fijo. Dejalo en null para el juego normal
+// ORDEN DE LOS TRAMOS (se repite en bucle). e = escenario, mar = de qué lado está el mar ('izq', 'der' o 'ambos'), m = cuántos metros dura
+const TRAMOS = [
+    { e: 'ruta', m: 1500 },
+    { e: 'playa', mar: 'izq', m: 2000 },
+    { e: 'ruta', m: 800 },
+    { e: 'playa', mar: 'der', m: 2000 },
+    { e: 'ruta', m: 800 },
+    { e: 'playa', mar: 'ambos', m: 1000 },
+    { e: 'ruta', m: 800 }
+];
+const DENSIDAD = 1;                // cuántos objetos hay en la playa (1 = normal | 0.5 = la mitad | 1.5 = más cargada)
+const MOVIMIENTO = 1;              // cuánto se mueven las palmeras con el viento (0 = quietas)
+const OLAS = 1;                    // cuánto se mueven las olas del mar (0 = quietas)
+const CARPETA = 'Escenarios/';
+
+const M2Y = 20;                    // el juego avanza 20 unidades de ruta por cada metro
+const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+const TOTAL = TRAMOS.reduce((a, t) => a + t.m, 0);
+
+// ---------- QUÉ TRAMO HAY EN CADA METRO ----------
+function tramoEn(metros) {
+    if (FORZAR_ESCENARIO) {
+        const p = FORZAR_ESCENARIO.split('_');
+        return { t: p[0] === 'ruta' ? { e: 'ruta' } : { e: p[0], mar: p[1] || 'izq' }, a: -1e9, b: 1e9 };
+    }
+    const base = Math.floor(metros / TOTAL) * TOTAL; let m = metros - base, acc = 0;
+    for (const t of TRAMOS) { if (m < acc + t.m) return { t, a: base + acc, b: base + acc + t.m }; acc += t.m; }
+    return { t: TRAMOS[0], a: base, b: base + TOTAL };
+}
+window.escenarioActual = () => tramoEn((typeof roadY === 'number' ? roadY : 0) / M2Y).t;
+
+// ---------- IMÁGENES (con dibujo provisorio si faltan) ----------
+const NOM = ['palmera_a', 'palmera_b', 'palmera_c', 'sombrilla_roja', 'sombrilla_amarilla', 'sombrilla_celeste', 'sombrilla_verde', 'toalla_1', 'toalla_2', 'toalla_3', 'reposera', 'persona', 'tabla_amarilla', 'tabla_celeste', 'lancha', 'bote', 'kiosco', 'rocas', 'muelle'];
+const IM = {};
+NOM.forEach(n => { const i = new Image(); i.src = CARPETA + 'playa_' + n + '.png'; IM[n] = i; });
+const listo = n => IM[n] && IM[n].complete && IM[n].naturalWidth > 0;
+
+// ---------- OBJETOS DE LA PLAYA ----------
+// tipo: [ancho en pantalla, capa ('bajo' = debajo de los autos, 'alto' = encima), dónde (arena o mar)]
+const TIPOS = {
+    palmera_a: [86, 'alto', 'arena'], palmera_b: [80, 'alto', 'arena'], palmera_c: [60, 'alto', 'arena'],
+    sombrilla_roja: [36, 'bajo', 'arena'], sombrilla_amarilla: [36, 'bajo', 'arena'], sombrilla_celeste: [36, 'bajo', 'arena'], sombrilla_verde: [36, 'bajo', 'arena'],
+    toalla_1: [15, 'bajo', 'arena'], toalla_2: [15, 'bajo', 'arena'], toalla_3: [15, 'bajo', 'arena'],
+    reposera: [20, 'bajo', 'arena'], persona: [15, 'bajo', 'arena'], tabla_amarilla: [11, 'bajo', 'arena'], tabla_celeste: [11, 'bajo', 'arena'],
+    kiosco: [34, 'bajo', 'arena'], rocas: [26, 'bajo', 'costa'], lancha: [22, 'bajo', 'mar'], bote: [20, 'bajo', 'mar']
+};
+const ARENA = ['palmera_a', 'palmera_b', 'palmera_c', 'palmera_a', 'palmera_b', 'sombrilla_roja', 'sombrilla_amarilla', 'sombrilla_celeste', 'sombrilla_verde', 'toalla_1', 'toalla_2', 'toalla_3', 'reposera', 'persona', 'tabla_amarilla', 'tabla_celeste', 'kiosco'];
+const MAR = ['lancha', 'bote', 'rocas'];
+const SP = 120;      // cada cuántas unidades hay un "lugar" para poner objetos
+
+function seg(W) { return tramoEn(W / M2Y); }
+function objetosVisibles() {
+    const rY = typeof roadY === 'number' ? roadY : 0, out = [];
+    const k0 = Math.floor((rY - 800) / SP), k1 = Math.floor((rY + 60) / SP);
+    for (let k = k0; k <= k1; k++) {
+        const W = k * SP;
+        const s = seg(W + SP / 2).t; if (s.e !== 'playa') continue;
+        ['izq', 'der'].forEach((lado, li) => {
+            const tieneMar = s.mar === 'ambos' || s.mar === lado;
+            const sem = k * 7 + li * 1013;
+            if (tieneMar) {
+                if (H(sem) < 0.26 * DENSIDAD) {
+                    const tipo = MAR[(H(sem + 1) * MAR.length) | 0], cx = tipo === 'rocas' ? 22 + H(sem + 2) * 5 : 8 + H(sem + 3) * 10;
+                    out.push({ tipo, cx: lado === 'izq' ? cx : 400 - cx, W: W + H(sem + 4) * SP, lado, sem });
+                }
+            } else {
+                // arena: a veces 1, a veces 2 objetos por lugar
+                const n = (H(sem + 5) < 0.55 * DENSIDAD ? 1 : 0) + (H(sem + 6) < 0.25 * DENSIDAD ? 1 : 0);
+                for (let j = 0; j < n; j++) {
+                    const tipo = ARENA[(H(sem + 10 + j) * ARENA.length) | 0], esPalma = tipo.indexOf('palmera') === 0;
+                    const cx = esPalma ? -4 + H(sem + 20 + j) * 10 : 11 + H(sem + 30 + j) * 14;      // la palmera sale cortada por el borde de la pantalla; el resto, en la arena
+                    out.push({ tipo, cx: lado === 'izq' ? cx : 400 - cx, W: W + (j * 0.5 + H(sem + 40 + j) * 0.5) * SP, lado, sem: sem + j * 77 });
+                }
+            }
+        });
+    }
+    return out;
+}
+
+// dibujos provisorios (si falta la imagen)
+function dibujoProvisorio(tipo, w, sem) {
+    const g = ctx; const r = w / 2;
+    if (tipo.indexOf('palmera') === 0) {
+        const n = 9;
+        for (let i = 0; i < n; i++) { g.save(); g.rotate(i * Math.PI * 2 / n + 0.2); g.fillStyle = i % 2 ? '#2e8b3d' : '#3fae4f'; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(r * 0.4, -r * 0.24, r * 0.98, -r * 0.05); g.quadraticCurveTo(r * 0.4, r * 0.24, 0, 0); g.fill(); g.strokeStyle = '#1d6a2c'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, 0); g.lineTo(r * 0.94, 0); g.stroke(); g.restore(); }
+        g.fillStyle = '#7a4a1e'; g.beginPath(); g.arc(0, 0, r * 0.11, 0, 7); g.fill();
+    } else if (tipo.indexOf('sombrilla') === 0) {
+        const c = { roja: '#e74c3c', amarilla: '#f1c40f', celeste: '#3aa6e8', verde: '#2ecc71' }[tipo.split('_')[1]] || '#e74c3c';
+        for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? c : '#fff'; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, r, i * Math.PI / 4, (i + 1) * Math.PI / 4); g.closePath(); g.fill(); }
+        g.fillStyle = '#fff'; g.beginPath(); g.arc(0, 0, 2.5, 0, 7); g.fill();
+    } else if (tipo.indexOf('toalla') === 0) {
+        const c = ['#e84393', '#3498db', '#f39c12'][(+tipo.split('_')[1] || 1) - 1];
+        g.fillStyle = c; g.fillRect(-r, -w * 0.9, w, w * 1.8); g.fillStyle = 'rgba(255,255,255,.75)'; g.fillRect(-r, -w * 0.4, w, 3); g.fillRect(-r, w * 0.25, w, 3);
+    } else if (tipo === 'reposera') {
+        g.fillStyle = '#8a5a2b'; g.fillRect(-r, -w * 0.9, w, w * 1.8); g.fillStyle = '#fff'; g.fillRect(-r + 2, -w * 0.9 + 2, w - 4, w * 1.8 - 4); g.fillStyle = '#3a7bd5'; for (let y = -w * 0.8; y < w * 0.8; y += 6) g.fillRect(-r + 2, y, w - 4, 3);
+    } else if (tipo === 'persona') {
+        g.fillStyle = '#e0a070'; g.fillRect(-r * 0.7, -w * 0.5, w * 0.7, w * 1.3); g.fillStyle = '#e74c3c'; g.fillRect(-r * 0.7, w * 0.05, w * 0.7, w * 0.35); g.fillStyle = '#5a3a1a'; g.beginPath(); g.arc(0, -w * 0.62, r * 0.55, 0, 7); g.fill();
+    } else if (tipo.indexOf('tabla') === 0) {
+        g.fillStyle = tipo === 'tabla_amarilla' ? '#f1c40f' : '#4cc9f0'; g.beginPath(); g.ellipse(0, 0, r * 0.7, w * 1.9, 0, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillRect(-1, -w * 1.7, 2, w * 3.4);
+    } else if (tipo === 'kiosco') {
+        for (let i = -3; i < 3; i++) { g.fillStyle = i % 2 ? '#fff' : '#e74c3c'; g.fillRect(-r + (i + 3) * (w / 6), -r * 0.9, w / 6, r * 1.8); }
+        g.strokeStyle = 'rgba(0,0,0,.3)'; g.strokeRect(-r, -r * 0.9, w, r * 1.8);
+    } else if (tipo === 'rocas') {
+        [[-r * 0.3, -r * 0.4, r * 0.55], [r * 0.25, 0, r * 0.45], [-r * 0.1, r * 0.5, r * 0.4]].forEach(a => { g.fillStyle = '#7f8c8d'; g.beginPath(); g.arc(a[0], a[1], a[2], 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.2)'; g.beginPath(); g.arc(a[0] - 2, a[1] - 2, a[2] * 0.5, 0, 7); g.fill(); });
+    } else if (tipo === 'lancha') {
+        g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.moveTo(-r * 0.5, w * 0.9); g.lineTo(0, w * 2.2); g.lineTo(r * 0.5, w * 0.9); g.fill();
+        g.fillStyle = '#fff'; g.beginPath(); g.moveTo(0, -w * 0.9); g.quadraticCurveTo(r, -w * 0.2, r * 0.8, w * 0.9); g.lineTo(-r * 0.8, w * 0.9); g.quadraticCurveTo(-r, -w * 0.2, 0, -w * 0.9); g.fill();
+        g.fillStyle = '#e74c3c'; g.fillRect(-r * 0.7, 0, w * 0.7, w * 0.3);
+    } else if (tipo === 'bote') {
+        g.fillStyle = '#9c6b3a'; g.beginPath(); g.ellipse(0, 0, r * 0.8, w * 0.9, 0, 0, 7); g.fill(); g.fillStyle = '#c9965a'; g.beginPath(); g.ellipse(0, 0, r * 0.55, w * 0.65, 0, 0, 7); g.fill();
+    }
+}
+
+function dibujarObjeto(o, rY, t) {
+    const info = TIPOS[o.tipo], y = rY - o.W, w = info[0];
+    if (y < -w * 1.4 || y > 750 + w * 1.4) return;
+    const img = IM[o.tipo], usa = listo(o.tipo), h = usa ? w * img.naturalHeight / img.naturalWidth : w;
+    ctx.save(); ctx.translate(o.cx, y);
+    if (o.tipo.indexOf('palmera') === 0) {
+        ctx.rotate(H(o.sem + 99) * 6.28 + Math.sin(t / 900 + o.sem) * 0.05 * MOVIMIENTO);
+    } else if (info[2] === 'mar') {
+        ctx.translate(Math.sin(t / 700 + o.sem) * 1.2 * OLAS, Math.sin(t / 500 + o.sem) * 1.6 * OLAS);    // se mece con las olas
+        if (o.lado === 'der') ctx.scale(-1, 1);
+    } else if (o.tipo === 'rocas' || o.tipo === 'kiosco' || o.tipo === 'reposera' || o.tipo.indexOf('tabla') === 0 || o.tipo.indexOf('sombrilla') === 0 || o.tipo.indexOf('toalla') === 0 || o.tipo === 'persona') {
+        ctx.rotate((H(o.sem + 55) - 0.5) * 0.7);
+    }
+    return { usa, img, w, h, y, info };
+}
+function pintar(o, rY, t, capa) {
+    const info = TIPOS[o.tipo]; if (info[1] !== capa) return;
+    const d = dibujarObjeto(o, rY, t); if (!d) { return; }
+    // (dibujarObjeto dejó el ctx guardado y transformado)
+    if (capa === 'bajo') { ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(3, 4, d.w * 0.46, d.h * 0.46, 0, 0, 7); ctx.fill(); }
+    if (d.usa) ctx.drawImage(d.img, -d.w / 2, -d.h / 2, d.w, d.h); else dibujoProvisorio(o.tipo, d.w, o.sem);
+    ctx.restore();
+}
+function sombraPalmera(o, rY) {
+    if (o.tipo.indexOf('palmera') !== 0) return;
+    const y = rY - o.W, w = TIPOS[o.tipo][0]; if (y < -60 || y > 810) return;
+    ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(o.cx + 5, y + 7, w * 0.46, w * 0.46, 0, 0, 7); ctx.fill();
+}
+
+// ---------- SUELO: franjas laterales de cada tramo ----------
+function suelo(t, y0, y1, rY, tm) {
+    ctx.save(); ctx.beginPath(); ctx.rect(0, y0, 400, y1 - y0); ctx.clip();
+    const mar = lado => t.mar === 'ambos' || t.mar === lado;
+    ['izq', 'der'].forEach(lado => {
+        const sx = lado === 'izq' ? 0 : 365, dir = lado === 'izq' ? 1 : -1, ex = lado === 'izq' ? 35 : 365;   // ex = donde empieza el cordón
+        ctx.save();
+        if (lado === 'der') { ctx.translate(400, 0); ctx.scale(-1, 1); }       // dibujo la derecha espejada para usar el mismo código
+        // arena
+        ctx.fillStyle = '#e8d08a'; ctx.fillRect(0, y0, 36, y1 - y0);
+        for (let k = Math.floor((rY - y1) / 14); k <= Math.floor((rY - y0) / 14); k++) {
+            const yy = rY - k * 14 + H(k * 3 + (lado === 'izq' ? 0 : 7)) * 14, xx = 2 + H(k * 5 + 1 + (lado === 'izq' ? 0 : 9)) * 32;
+            ctx.fillStyle = H(k + 8) < 0.5 ? 'rgba(255,240,190,.6)' : 'rgba(180,140,70,.35)'; ctx.fillRect(xx, yy, 2, 2);
+        }
+        if (mar(lado)) {
+            const gr = ctx.createLinearGradient(0, 0, 28, 0); gr.addColorStop(0, '#0b4f8f'); gr.addColorStop(0.6, '#2398d2'); gr.addColorStop(1, '#7fd8ee');
+            // borde de la espuma, ondulado y en movimiento
+            const ola = (wy) => 24 + Math.sin(wy / 11 + tm / 650 * OLAS) * 2.4 + Math.sin(wy / 4.3 - tm / 420 * OLAS) * 0.9;
+            ctx.beginPath(); ctx.moveTo(0, y0);
+            for (let y = y0; y <= y1 + 4; y += 4) ctx.lineTo(ola(rY - y), y);
+            ctx.lineTo(0, y1 + 4); ctx.closePath(); ctx.fillStyle = gr; ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 3; ctx.beginPath();
+            for (let y = y0; y <= y1 + 4; y += 4) { const x = ola(rY - y); if (y === y0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.beginPath();
+            for (let y = y0; y <= y1 + 4; y += 4) { const x = ola(rY - y) - 6 - Math.sin((rY - y) / 17 + tm / 800 * OLAS) * 2; if (y === y0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,.22)';       // brillitos del agua
+            for (let k = Math.floor((rY - y1) / 26); k <= Math.floor((rY - y0) / 26); k++) { const yy = rY - k * 26, xx = 3 + H(k * 11 + 2) * 12, a = Math.sin(tm / 500 + k) * 0.5 + 0.5; ctx.globalAlpha = 0.35 * a; ctx.fillRect(xx, yy, 5, 2); }
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = 'rgba(110,80,35,.22)'; ctx.fillRect(28, y0, 8, y1 - y0);    // arena mojada
+        }
+        if (t.mar === 'ambos') {       // puente: postes blancos a los costados de la ruta
+            ctx.fillStyle = '#ecf0f1'; for (let k = Math.floor((rY - y1) / 60); k <= Math.floor((rY - y0) / 60) + 1; k++) ctx.fillRect(30, rY - k * 60, 5, 5);
+        }
+        ctx.restore();
+    });
+    ctx.restore();
+}
+
+function empalme(ya, yb, arribaOpaco) {
+    const g = ctx.createLinearGradient(0, ya, 0, yb);
+    g.addColorStop(0, arribaOpaco ? 'rgba(24,112,62,1)' : 'rgba(24,112,62,0)'); g.addColorStop(1, arribaOpaco ? 'rgba(24,112,62,0)' : 'rgba(24,112,62,1)');
+    ctx.fillStyle = g; ctx.fillRect(0, ya, 35, yb - ya); ctx.fillRect(365, ya, 35, yb - ya);
+}
+
+// ---------- ENGANCHES ----------
+const _r0 = drawRoad;
+drawRoad = function () {
+    _r0();
+    try {
+        const rY = typeof roadY === 'number' ? roadY : 0, tm = performance.now();
+        let y = 0, guard = 0;
+        while (y < 750 && guard++ < 12) {
+            const W = rY - y - 0.01, s = tramoEn(W / M2Y), yBot = Math.min(750, rY - s.a * M2Y);
+            if (s.t.e === 'playa') {
+                const y1 = Math.max(y + 1, yBot);
+                suelo(s.t, y, y1, rY, tm);
+                // suaviza el empalme con la ruta clásica (la arena/mar se funde con el pasto)
+                if (y > 0 && tramoEn((rY - y + 3) / M2Y).t.e === 'ruta') empalme(y, y + 55, 1);
+                if (y1 < 750 && tramoEn((rY - y1 - 3) / M2Y).t.e === 'ruta') empalme(y1 - 55, y1, 0);
+            }
+            y = Math.max(y + 1, yBot);
+        }
+        const objs = objetosVisibles();
+        objs.forEach(o => sombraPalmera(o, rY));
+        objs.forEach(o => pintar(o, rY, tm, 'bajo'));
+    } catch (e) { console.error('Mejoras36 suelo:', e); }
+};
+const _ds = drawSpeedLines;
+drawSpeedLines = function () {
+    _ds.apply(this, arguments);
+    try {
+        const rY = typeof roadY === 'number' ? roadY : 0, tm = performance.now();
+        ctx.save(); ctx.globalAlpha = 0.94;
+        objetosVisibles().forEach(o => pintar(o, rY, tm, 'alto'));
+        ctx.restore();
+    } catch (e) { console.error('Mejoras36 altos:', e); }
+};
+
+// los árboles viejos del borde no van en la playa
+const _up = update;
+update = function (dt) {
+    _up(dt);
+    try {
+        if (state !== 'PLAYING' || typeof scenery === 'undefined') return;
+        const rY = typeof roadY === 'number' ? roadY : 0;
+        for (let i = scenery.length - 1; i >= 0; i--) { if (tramoEn((rY - scenery[i].y) / M2Y).t.e !== 'ruta') scenery.splice(i, 1); }
+    } catch (e) { }
+};
+} catch (e) { console.error('Mejoras36:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
