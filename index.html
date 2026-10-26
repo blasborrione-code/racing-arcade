@@ -7185,6 +7185,21 @@ const OLAS = 1;                    // cuánto se mueven las olas del mar (0 = qu
 const CARPETA = 'Escenarios/';
 
 const M2Y = 20;                    // el juego avanza 20 unidades de ruta por cada metro
+// IMPORTANTE: el marcador de metros que ves en pantalla (score) suma bonus por cada roce con otro auto (y combos), así que sube más rápido
+// que la distancia real. Para que la playa aparezca en los mismos metros que ves en el marcador (igual que el clima), llevamos la cuenta de esos bonus.
+// Los bonus solo corren el escenario que todavía no se ve (más arriba de la pantalla), así el paisaje nunca pega saltos.
+let SW = [], SC = [], ultR = 0;      // SW = posición del mundo donde se aplica el bonus, SC = bonus acumulado desde ahí
+const cumEn = W => { let lo = 0, hi = SW.length; while (lo < hi) { const m = (lo + hi) >> 1; if (SW[m] <= W) lo = m + 1; else hi = m; } return lo ? SC[lo - 1] : 0; };
+const W2M = W => W / M2Y + cumEn(W);                 // posición del mundo -> metros del marcador
+function M2W(m) {                                     // metros del marcador -> posición del mundo
+    let cum = 0;
+    for (let i = 0; i < SW.length; i++) {
+        if (m <= SW[i] / M2Y + cum) return (m - cum) * M2Y;
+        cum = SC[i];
+        if (m < SW[i] / M2Y + cum) return SW[i];
+    }
+    return (m - cum) * M2Y;
+}
 const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 const TOTAL = TRAMOS.reduce((a, t) => a + t.m, 0);
 
@@ -7198,7 +7213,7 @@ function tramoEn(metros) {
     for (const t of TRAMOS) { if (m < acc + t.m) return { t, a: base + acc, b: base + acc + t.m }; acc += t.m; }
     return { t: TRAMOS[0], a: base, b: base + TOTAL };
 }
-window.escenarioActual = () => tramoEn((typeof roadY === 'number' ? roadY : 0) / M2Y).t;
+window.escenarioActual = () => tramoEn(W2M(typeof roadY === 'number' ? roadY : 0)).t;
 
 // ---------- IMÁGENES (con dibujo provisorio si faltan) ----------
 const NOM = ['palmera_a', 'palmera_b', 'palmera_c', 'sombrilla_roja', 'sombrilla_amarilla', 'sombrilla_celeste', 'sombrilla_verde', 'toalla_1', 'toalla_2', 'toalla_3', 'reposera', 'persona', 'tabla_amarilla', 'tabla_celeste', 'lancha', 'bote', 'kiosco', 'rocas', 'muelle'];
@@ -7219,7 +7234,7 @@ const ARENA = ['palmera_a', 'palmera_b', 'palmera_c', 'palmera_a', 'palmera_b', 
 const MAR = ['lancha', 'bote', 'rocas'];
 const SP = 120;      // cada cuántas unidades hay un "lugar" para poner objetos
 
-function seg(W) { return tramoEn(W / M2Y); }
+function seg(W) { return tramoEn(W2M(W)); }
 function objetosVisibles() {
     const rY = typeof roadY === 'number' ? roadY : 0, out = [];
     const k0 = Math.floor((rY - 800) / SP), k1 = Math.floor((rY + 60) / SP);
@@ -7363,13 +7378,13 @@ drawRoad = function () {
         const rY = typeof roadY === 'number' ? roadY : 0, tm = performance.now();
         let y = 0, guard = 0;
         while (y < 750 && guard++ < 12) {
-            const W = rY - y - 0.01, s = tramoEn(W / M2Y), yBot = Math.min(750, rY - s.a * M2Y);
+            const W = rY - y - 0.01, s = tramoEn(W2M(W)), yBot = Math.min(750, rY - M2W(s.a));
             if (s.t.e === 'playa') {
                 const y1 = Math.max(y + 1, yBot);
                 suelo(s.t, y, y1, rY, tm);
                 // suaviza el empalme con la ruta clásica (la arena/mar se funde con el pasto)
-                if (y > 0 && tramoEn((rY - y + 3) / M2Y).t.e === 'ruta') empalme(y, y + 55, 1);
-                if (y1 < 750 && tramoEn((rY - y1 - 3) / M2Y).t.e === 'ruta') empalme(y1 - 55, y1, 0);
+                if (y > 0 && tramoEn(W2M(rY - y + 3)).t.e === 'ruta') empalme(y, y + 55, 1);
+                if (y1 < 750 && tramoEn(W2M(rY - y1 - 3)).t.e === 'ruta') empalme(y1 - 55, y1, 0);
             }
             y = Math.max(y + 1, yBot);
         }
@@ -7392,11 +7407,16 @@ drawSpeedLines = function () {
 // los árboles viejos del borde no van en la playa
 const _up = update;
 update = function (dt) {
+    const s0 = typeof score === 'number' ? score : 0, r0 = typeof roadY === 'number' ? roadY : 0;
     _up(dt);
     try {
+        const s1 = typeof score === 'number' ? score : 0, r1 = typeof roadY === 'number' ? roadY : 0;
+        if (r1 < ultR - 1 || r1 < r0 - 1) { SW = []; SC = []; }     // partida nueva: se reinicia la cuenta
+        else { const b = (s1 - s0) - (r1 - r0) / M2Y; if (b > 0.5) { SW.push(r1 + 150); SC.push((SC.length ? SC[SC.length - 1] : 0) + b); } }
+        ultR = r1;
         if (state !== 'PLAYING' || typeof scenery === 'undefined') return;
         const rY = typeof roadY === 'number' ? roadY : 0;
-        for (let i = scenery.length - 1; i >= 0; i--) { if (tramoEn((rY - scenery[i].y) / M2Y).t.e !== 'ruta') scenery.splice(i, 1); }
+        for (let i = scenery.length - 1; i >= 0; i--) { if (tramoEn(W2M(rY - scenery[i].y)).t.e !== 'ruta') scenery.splice(i, 1); }
     } catch (e) { }
 };
 } catch (e) { console.error('Mejoras36:', e); } })();
