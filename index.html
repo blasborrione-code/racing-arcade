@@ -6979,11 +6979,10 @@ if (typeof _fg === 'function') window.finishGame = function () {
 
 // ---------- PERILLAS ----------
 const FORZAR_CLIMA = null;        // PARA PROBAR: poné 'niebla', 'tormenta', 'nieve', 'arena', 'viento', 'amanecer', 'lluvia', 'noche', 'atardecer' o 'sol' y ese clima queda fijo siempre. Dejalo en null para el juego normal
-const NIVEL_CLIMA = 3;            // desde qué nivel puede cambiar el clima (antes era el 6). Los niveles anteriores son siempre de día
-const PESADOS_DESDE = 7;          // desde qué nivel pueden salir los climas "duros" (tormenta, nieve, arena)
-const PERMITIDOS = ['sol', 'atardecer', 'amanecer', 'noche', 'lluvia', 'niebla', 'tormenta'];   // climas que pueden salir en la ruta normal. (nieve, arena y viento los van a usar los escenarios nuevos: nieve, desierto y bosque)
-const PESO = { sol: 3, atardecer: 1.6, amanecer: 1.2, noche: 1.6, lluvia: 1.6, niebla: 1.3, tormenta: 1, nieve: 1.4, arena: 1.4, viento: 1.4 };   // qué tan seguido sale cada uno
-const PESADOS = ['tormenta', 'nieve', 'arena'];
+const METROS_POR_CLIMA = 1000;    // cada cuántos metros cambia el clima
+const PRIMER_CLIMA = 1;           // el primer cambio de clima es a los (este número x METROS_POR_CLIMA) metros. 1 = a los 1000 m. Antes de eso es siempre de día
+// ORDEN DE LOS CLIMAS (se repite en bucle al terminar). Podés cambiarlo, reordenarlo o agregar/quitar. Nombres válidos: sol, atardecer, amanecer, noche, lluvia, niebla, tormenta, nieve, arena, viento
+const SECUENCIA = ['atardecer', 'lluvia', 'noche', 'amanecer', 'sol', 'niebla', 'atardecer', 'tormenta', 'noche', 'amanecer', 'sol'];
 const FUNDIDO = 2500;             // cuánto tarda (ms) en aparecer o irse un clima de forma gradual
 const AVISO_CLIMA = true;         // cartelito cuando cambia el clima
 // efectos sobre el manejo
@@ -7005,26 +7004,17 @@ const INFO = {
     viento:   ['🍂', 'VIENTO', 'Ráfagas que te empujan']
 };
 
-// ---------- QUÉ CLIMA TOCA EN CADA NIVEL ----------
-let semilla = (Math.random() * 1e9) | 0;
-const memo = {};
-function rnd(n) { let t = (semilla + n * 0x6D2B79F5) | 0; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
-function permitidos() { return (typeof window.climasPermitidos === 'function' ? window.climasPermitidos() : PERMITIDOS); }
-function climaDe(L) {
+// ---------- QUÉ CLIMA TOCA SEGÚN LOS METROS (orden fijo) ----------
+function secuencia() { return (typeof window.climaSecuencia === 'function' ? window.climaSecuencia() : SECUENCIA); }
+function climaDe() {
     if (FORZAR_CLIMA) return FORZAR_CLIMA;
-    if (L < NIVEL_CLIMA) return 'sol';
-    const k = L + '|' + permitidos().join(',');
-    if (memo[k]) return memo[k];
-    const ant = L > NIVEL_CLIMA ? climaDe(L - 1) : 'sol';
-    const lista = permitidos().filter(c => c !== ant && (L >= PESADOS_DESDE || PESADOS.indexOf(c) < 0));
-    if (!lista.length) return memo[k] = 'sol';
-    let tot = 0; lista.forEach(c => tot += PESO[c] || 1);
-    let r = rnd(L) * tot, el = lista[0];
-    for (const c of lista) { r -= PESO[c] || 1; if (r <= 0) { el = c; break; } }
-    return memo[k] = el;
+    const n = Math.floor((typeof score === 'number' ? score : 0) / METROS_POR_CLIMA);   // en qué tramo de metros estás
+    if (n < PRIMER_CLIMA) return 'sol';
+    const sec = secuencia();
+    return sec[(n - PRIMER_CLIMA) % sec.length] || 'sol';
 }
 const nivelAct = () => (typeof level === 'number' ? level : 1);
-window.climaActual = () => climaDe(nivelAct());
+window.climaActual = () => climaDe();
 window.climaEs = n => window.climaActual() === n;
 window.climaLluvia = () => { const c = window.climaActual(); return c === 'lluvia' || c === 'tormenta'; };       // para el dibujo viejo (gotas + luces)
 window.climaResbala = () => { const c = window.climaActual(); return c === 'lluvia' || c === 'tormenta' || c === 'nieve'; };   // para el manejo viejo (agarre)
@@ -7046,7 +7036,6 @@ const fade = () => Math.min(1, (performance.now() - tCambio) / FUNDIDO);
 const _sg = startGameLogic;
 startGameLogic = function () {
     const r = _sg.apply(this, arguments);
-    semilla = (Math.random() * 1e9) | 0; for (const k in memo) delete memo[k];
     previo = actual = window.climaActual(); tCambio = -1e9; rafagas.cd = 500; rafagas.t = 0; rafagas.av = 0; pt.length = 0;
     return r;
 };
