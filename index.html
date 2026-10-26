@@ -7437,6 +7437,17 @@ update = function (dt) {
         for (let i = scenery.length - 1; i >= 0; i--) { if (tramoEn(W2M(rY - scenery[i].y)).t.e !== 'ruta') scenery.splice(i, 1); }
     } catch (e) { }
 };
+
+// ---------- CLIMA SEGÚN EL ESCENARIO ----------
+// En cada escenario se puede fijar el clima. Mientras haya playa, siempre hay sol (cuando termina la playa vuelve el orden normal de climas de mejoras35).
+const CLIMA_ESCENARIO = { playa: 'sol' };      // por ejemplo: { playa: 'sol' }  |  para que la playa no cambie el clima: {}
+if (typeof window.climaActual === 'function') {
+    const _ca = window.climaActual;
+    window.climaActual = () => {
+        try { const e = window.escenarioActual(), f = e && CLIMA_ESCENARIO[e.e]; if (f) return f; } catch (er) { }
+        return _ca();
+    };
+}
 } catch (e) { console.error('Mejoras36:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
