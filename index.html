@@ -7664,6 +7664,25 @@ REG.crear = function (cfg) {
         T[n] = { w: Math.max(4, Math.round(d[0] * (o.alto ? cfg.escalaAltos : cfg.escala))), capa: d[1], o };
     });
     const listo = n => IM[n] && IM[n].complete && IM[n].naturalWidth > 0;
+    // Las imágenes son grandes y se dibujan muy chicas: si se achican de golpe quedan pixeladas y sucias.
+    // Las achicamos de a poco (a la mitad cada vez) y guardamos el resultado, y de paso armamos la silueta para la sombra.
+    const CACHE = {};
+    function preparar(n) {
+        if (CACHE[n]) return CACHE[n];
+        const img = IM[n], w = T[n].w, h = Math.max(2, Math.round(w * img.naturalHeight / img.naturalWidth));
+        const S = 2, tw = Math.max(2, Math.round(w * S)), th = Math.max(2, Math.round(h * S));
+        let src = img, cw = img.naturalWidth, ch = img.naturalHeight;
+        while (cw / 2 >= tw && ch / 2 >= th) {
+            cw = Math.round(cw / 2); ch = Math.round(ch / 2);
+            const t = document.createElement('canvas'); t.width = cw; t.height = ch;
+            const g = t.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(src, 0, 0, cw, ch); src = t;
+        }
+        const c = document.createElement('canvas'); c.width = tw; c.height = th;
+        const g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(src, 0, 0, tw, th);
+        const sh = document.createElement('canvas'); sh.width = tw; sh.height = th;
+        const g2 = sh.getContext('2d'); g2.drawImage(c, 0, 0); g2.globalCompositeOperation = 'source-in'; g2.fillStyle = '#000'; g2.fillRect(0, 0, tw, th);
+        return (CACHE[n] = { c, sh, w, h });
+    }
     const claves = Object.keys(cfg.variantes);
 
     function objetos(k, W, t, a) {
@@ -7701,17 +7720,20 @@ REG.crear = function (cfg) {
 
     function pintar(o, rY, t, capa) {
         const d = T[o.tipo]; if (!d || d.capa !== capa || !listo(o.tipo)) return;
-        const y = rY - o.W, w = d.w, img = IM[o.tipo], h = w * img.naturalHeight / img.naturalWidth;
+        const P = preparar(o.tipo), y = rY - o.W, w = P.w, h = P.h;
         if (y < -Math.max(w, h) || y > 750 + Math.max(w, h)) return;
         const sway = d.o.viento === false ? 0 : Math.sin(t / 900 + o.sem) * 0.04 * cfg.movimiento;
-        ctx.save(); ctx.translate(o.cx, y);
         const rot = d.o.rot || 'poca';
-        if (rot === 'libre') ctx.rotate(H(o.sem + 99) * 6.28 + sway);
-        else if (rot === 'poca') ctx.rotate((H(o.sem + 55) - 0.5) * 0.5 + sway);
-        else ctx.rotate(sway);
-        if (d.o.espejo && H(o.sem + 7) < 0.5) ctx.scale(-1, 1);
-        if (capa === 'bajo' && d.o.sombra !== false) { ctx.fillStyle = 'rgba(0,0,0,.17)'; ctx.beginPath(); ctx.ellipse(3, 4, w * 0.42, h * 0.38, 0, 0, 7); ctx.fill(); }
-        ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        const th = rot === 'libre' ? H(o.sem + 99) * 6.28 + sway : rot === 'poca' ? (H(o.sem + 55) - 0.5) * 0.5 + sway : sway;
+        const flip = d.o.espejo && H(o.sem + 7) < 0.5;
+        ctx.save(); ctx.translate(o.cx, y); ctx.rotate(th);
+        if (flip) ctx.scale(-1, 1);
+        if (capa === 'bajo' && d.o.sombra !== false) {
+            // sombra con la forma del objeto, corrida hacia abajo a la derecha (la luz viene de arriba a la izquierda)
+            const lx = 3 * Math.cos(th) + 4 * Math.sin(th), ly = -3 * Math.sin(th) + 4 * Math.cos(th);
+            ctx.globalAlpha = cfg.sombraAlpha; ctx.drawImage(P.sh, -w / 2 + (flip ? -lx : lx), -h / 2 + ly, w, h); ctx.globalAlpha = 1;
+        }
+        ctx.drawImage(P.c, -w / 2, -h / 2, w, h);
         ctx.restore();
     }
     function sombra(o, rY) {
@@ -7730,6 +7752,7 @@ REG.crear = function (cfg) {
         ctx.restore();
     }
 
+    cfg.sombraAlpha = cfg.sombraAlpha || 0.22;
     REG.registrar({ e: cfg.e, tramos: cfg.tramos, clima: cfg.clima, objetos, pintar, sombra, suelo });
 };
 
@@ -7767,19 +7790,44 @@ const VARIANTES = {
 };
 
 function sueloDesierto(g, y0, y1, rY, tm, lado, H) {
-    g.fillStyle = '#d9a55b'; g.fillRect(0, y0, 36, y1 - y0);
-    // ondas de duna
-    for (let k = Math.floor((rY - y1) / 20) - 1; k <= Math.floor((rY - y0) / 20) + 1; k++) {
-        const yy = rY - k * 20, x0 = 2 + H(k * 3 + lado * 7) * 10;
-        g.strokeStyle = H(k + 1 + lado * 5) < 0.5 ? 'rgba(150,95,40,.28)' : 'rgba(255,225,160,.38)'; g.lineWidth = 1.5;
-        g.beginPath(); g.moveTo(x0, yy); g.quadraticCurveTo(x0 + 9, yy - 3 + H(k + 9) * 4, x0 + 18 + H(k * 2 + 3) * 8, yy + 1); g.stroke();
+    // base: más clara lejos de la ruta y más oscura pegada a ella
+    const gr = g.createLinearGradient(0, 0, 36, 0); gr.addColorStop(0, '#e6b970'); gr.addColorStop(0.6, '#dba95e'); gr.addColorStop(1, '#c98f4a');
+    g.fillStyle = gr; g.fillRect(0, y0, 36, y1 - y0);
+    // crestas de duna: una línea clara arriba y una sombra abajo, onduladas
+    for (let k = Math.floor((rY - y1) / 90) - 1; k <= Math.floor((rY - y0) / 90) + 1; k++) {
+        const yy = rY - k * 90 - H(k * 7 + lado * 3) * 40, x0 = -2 + H(k * 11 + lado) * 10, len = 22 + H(k * 5 + 2) * 16, amp = 2 + H(k * 3 + 1) * 3;
+        g.lineCap = 'round';
+        g.strokeStyle = 'rgba(140,85,35,.28)'; g.lineWidth = 3;
+        g.beginPath(); g.moveTo(x0, yy + 3); g.quadraticCurveTo(x0 + len / 2, yy + 3 - amp * 2, x0 + len, yy + 3 + amp); g.stroke();
+        g.strokeStyle = 'rgba(255,236,178,.55)'; g.lineWidth = 1.5;
+        g.beginPath(); g.moveTo(x0, yy); g.quadraticCurveTo(x0 + len / 2, yy - amp * 2, x0 + len, yy + amp); g.stroke();
     }
-    // granitos de arena
+    // ondulaciones del viento (rayitas de pixel, tipo arena marcada)
+    for (let k = Math.floor((rY - y1) / 17) - 1; k <= Math.floor((rY - y0) / 17) + 1; k++) {
+        const yy = rY - k * 17, x0 = 1 + H(k * 3 + lado * 7) * 14, n = 3 + ((H(k + 4) * 4) | 0);
+        for (let i = 0; i < n; i++) {
+            const xx = x0 + i * 4, dy = Math.round(Math.sin(i * 1.3 + k) * 1.2);
+            g.fillStyle = (k + i) % 3 ? 'rgba(150,95,40,.30)' : 'rgba(255,232,170,.40)'; g.fillRect(Math.round(xx), Math.round(yy + dy), 3, 1);
+        }
+    }
+    // piedritas y grietas
+    for (let k = Math.floor((rY - y1) / 45) - 1; k <= Math.floor((rY - y0) / 45) + 1; k++) {
+        const yy = rY - k * 45 + H(k * 3 + lado * 7) * 40, xx = 3 + H(k * 5 + lado * 9) * 28, r = H(k + 12);
+        if (r < 0.45) { g.fillStyle = 'rgba(110,80,50,.55)'; g.fillRect(Math.round(xx), Math.round(yy), 2, 2); g.fillStyle = 'rgba(255,235,190,.5)'; g.fillRect(Math.round(xx), Math.round(yy), 1, 1); g.fillStyle = 'rgba(110,80,50,.4)'; g.fillRect(Math.round(xx) + 3, Math.round(yy) + 2, 1, 1); }
+        else if (r < 0.65) { g.strokeStyle = 'rgba(120,75,30,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(xx, yy); g.lineTo(xx + 4, yy + 3); g.lineTo(xx + 3, yy + 7); g.moveTo(xx + 4, yy + 3); g.lineTo(xx + 9, yy + 2); g.stroke(); }
+    }
+    // granitos
     for (let k = Math.floor((rY - y1) / 14) - 1; k <= Math.floor((rY - y0) / 14) + 1; k++) {
         const yy = rY - k * 14 + H(k * 3 + lado * 7) * 14, xx = 2 + H(k * 5 + 1 + lado * 9) * 32;
-        g.fillStyle = H(k + 8) < 0.5 ? 'rgba(255,235,180,.6)' : 'rgba(150,100,45,.4)'; g.fillRect(xx, yy, 2, 2);
+        g.fillStyle = H(k + 8) < 0.5 ? 'rgba(255,238,190,.6)' : 'rgba(150,100,45,.4)'; g.fillRect(Math.round(xx), Math.round(yy), 1, 1);
     }
-    g.fillStyle = 'rgba(110,70,30,.22)'; g.fillRect(29, y0, 7, y1 - y0);      // arena más oscura pegada a la ruta
+    // arena que el viento arrastra hacia la ruta (se mueve)
+    for (let k = Math.floor((rY - y1) / 60) - 1; k <= Math.floor((rY - y0) / 60) + 1; k++) {
+        const yy = rY - k * 60 - H(k * 3 + lado) * 50, ph = ((tm / 90 + H(k * 9 + lado) * 40) % 40) / 40, xx = 2 + ph * 32;
+        g.globalAlpha = Math.sin(ph * Math.PI) * 0.6; g.fillStyle = 'rgba(255,236,185,1)'; g.fillRect(Math.round(xx), Math.round(yy), 4, 1); g.fillRect(Math.round(xx) - 3, Math.round(yy) + 1, 2, 1);
+    }
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgba(100,60,25,.18)'; g.fillRect(30, y0, 6, y1 - y0);      // arena más oscura pegada a la ruta
 }
 
 REG.crear({
