@@ -8091,7 +8091,121 @@ REG.crear({
 });
 
 } catch (e) { console.error('Mejoras40:', e); } })();
-        } catch (e) { console.error("Error crítico:", e); }
+// ===== MEJORAS 40 - ESCENARIOS (4): BOSQUE (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras39) =====
+// Las imágenes van en la carpeta  Escenarios/  con nombres  bosque_roble.png, etc. Si falta alguna, ese objeto simplemente no aparece.
+// Necesita mejoras36 (nuevo) y mejoras38 (motor de escenarios, versión nueva). Si no pegaste la nieve (mejoras39), esto funciona igual.
+(function () { try {
+
+const REG = window.__escenarios;
+if (!REG || !REG.crear) { console.error('Mejoras40: falta pegar mejoras36 (nuevo) y mejoras38 antes'); return; }
+
+// ---------- PERILLAS ----------
+const ESCALA_OBJETOS = 1.4;        // tamaño de los objetos del bosque (1 = chico | 1.4 = normal | 1.6 = máximo recomendado)
+const ESCALA_ARBOLES = 1.1;        // tamaño de los robles grandes (los que salen cortados por el borde)
+const DENSIDAD = 1;                // cuántos objetos hay (0.5 = la mitad | 1.5 = más cargado)
+const MOVIMIENTO = 1;              // cuánto se mueven los árboles y los animales (0 = quietos)
+const CLIMA_BOSQUE = 'viento';     // clima mientras dura el bosque: 'viento' (ráfagas con hojas), 'sol', 'niebla'... o null para que el clima siga su orden normal
+const METROS_BOSQUE = [700, 1000]; // cuánto dura cada tramo de bosque (mínimo, máximo)
+const FRECUENCIA_BOSQUE = 1;       // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
+const ORDEN = { paso: 2, omitir: 0.2, linea: 20 };    // paso = un objeto cada (paso x 120) unidades de ruta, alternando izquierda y derecha (2 = normal | 1 = más cargado | 3 = más vacío). omitir = chance de saltear un lugar
+
+// tipo: [ancho en pantalla, capa ('bajo' = debajo de los autos | 'alto' = encima), opciones]
+// opciones: rot ('libre' gira como quiera | 'poca' un poquito | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se mueve),
+//   mov (movimiento: 'respira' | 'pasea' | 'salta' | 'desliza'), brillo ({ color, r, tipo, dx, dy }: luz que parpadea)
+const TIPOS = {
+    roble_grande: [40, 'alto', { alto: true, rot: 'ninguna' }],
+    roble: [30, 'bajo', { rot: 'ninguna' }], arbol_chico: [20, 'bajo', { rot: 'ninguna' }], pino: [22, 'bajo', { rot: 'ninguna' }], pino_mediano: [20, 'bajo', { rot: 'ninguna' }],
+    abedul: [22, 'bajo', { rot: 'ninguna' }], otono_naranja: [28, 'bajo', { rot: 'ninguna' }], otono_rojo: [28, 'bajo', { rot: 'ninguna' }],
+    arbusto: [20, 'bajo'], arbusto_flores: [18, 'bajo'], helechos: [18, 'bajo'], pasto_alto: [14, 'bajo', { rot: 'ninguna' }],
+    tronco_musgo: [26, 'bajo', { rot: 'libre', viento: false }], tocon: [14, 'bajo', { viento: false }], roca_musgo: [20, 'bajo', { viento: false }],
+    hongos_rojos: [14, 'bajo', { viento: false }], hongos_marrones: [14, 'bajo', { viento: false }], flores_amarillas: [14, 'bajo', { sombra: false }],
+    ciervo: [26, 'bajo', { espejo: true, viento: false, mov: 'respira' }], zorro: [20, 'bajo', { espejo: true, viento: false, mov: 'respira' }],
+    conejo: [14, 'bajo', { espejo: true, viento: false, mov: 'salta' }], jabalin: [24, 'bajo', { espejo: true, viento: false, mov: 'pasea' }],
+    cabana: [34, 'bajo', { rot: 'ninguna', viento: false }],
+    carpa_fogata: [34, 'bajo', { rot: 'ninguna', viento: false, brillo: { color: 'rgba(255,150,50,A)', r: 0.45, tipo: 'fogata', dx: -0.24, dy: 0.30 } }]
+};
+// qué aparece en cada "estilo" de bosque (lo que se repite sale más seguido). Cada lado de la ruta elige un estilo distinto en cada tramo.
+const VARIANTES = {
+    frondoso: ['roble_grande', 'roble', 'roble', 'arbol_chico', 'abedul', 'otono_naranja', 'arbusto', 'arbusto', 'arbusto_flores', 'helechos', 'pasto_alto', 'tronco_musgo'],
+    pinar: ['pino', 'pino', 'pino', 'pino_mediano', 'pino_mediano', 'arbusto', 'helechos', 'helechos', 'tocon', 'roca_musgo', 'hongos_rojos', 'hongos_marrones', 'tronco_musgo'],
+    otono: ['otono_naranja', 'otono_naranja', 'otono_rojo', 'otono_rojo', 'abedul', 'roble', 'arbusto', 'flores_amarillas', 'hongos_marrones', 'tocon', 'pasto_alto'],
+    vida: ['ciervo', 'zorro', 'conejo', 'conejo', 'jabalin', 'cabana', 'carpa_fogata', 'carpa_fogata', 'carpa_fogata', 'hongos_rojos', 'hongos_marrones', 'roble', 'pino', 'flores_amarillas', 'arbusto_flores']
+};
+
+// El pasto se dibuja UNA vez en "baldosas" chiquitas (con pasto, flores, hojas, tréboles y piedritas) y después solo se repiten al avanzar: así se puede
+// tener mucho más detalle sin que el juego se ponga lento.
+const TH = 320;                     // alto de cada baldosa de pasto
+const BALDOSAS = {};
+function hash(n) { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; }
+function baldosa(lado, v) {
+    const key = lado * 10 + v; if (BALDOSAS[key]) return BALDOSAS[key];
+    const c = document.createElement('canvas'); c.width = 36; c.height = TH; const g = c.getContext('2d');
+    let sd = 1000 + key * 7919; const R = () => hash(sd++);
+    const px = (x, y, w, h, col) => { g.fillStyle = col; for (const dy of [-TH, 0, TH]) g.fillRect(Math.round(x), Math.round(y + dy), w, h); };   // dibuja también "dado vuelta" para que la baldosa encaje arriba y abajo
+    // fondo
+    const gr = g.createLinearGradient(0, 0, 36, 0); gr.addColorStop(0, '#46a352'); gr.addColorStop(0.55, '#34883f'); gr.addColorStop(1, '#246d36');
+    g.fillStyle = gr; g.fillRect(0, 0, 36, TH);
+    // textura de pixeles (cuadraditos de 2 px más claros y más oscuros)
+    for (let y = 0; y < TH; y += 2) for (let x = 0; x < 36; x += 2) {
+        const r = R();
+        if (r < 0.11) px(x, y, 2, 2, 'rgba(176,240,132,.24)'); else if (r < 0.22) px(x, y, 2, 2, 'rgba(8,56,30,.20)'); else if (r < 0.245) px(x, y, 2, 2, 'rgba(255,255,205,.12)');
+    }
+    // manchones de pasto más claro / más oscuro con borde de pixeles
+    for (let i = 0; i < 16; i++) {
+        const cx = R() * 36, cy = R() * TH, rad = 4 + R() * 8, col = R() < 0.5 ? 'rgba(150,226,112,.17)' : 'rgba(6,46,26,.23)';
+        for (let y = -rad; y <= rad; y += 2) for (let x = -rad; x <= rad; x += 2) if (Math.hypot(x, y * 1.3) < rad * (0.75 + R() * 0.3)) px(cx + x, cy + y, 2, 2, col);
+    }
+    // matitas de pasto (cada una con varias hojitas, sombra abajo y punta clara)
+    for (let i = 0; i < 70; i++) {
+        const x = 1 + R() * 33, y = 4 + R() * (TH - 8), n = 3 + ((R() * 3) | 0);
+        px(x - 1, y + 1, n * 2, 1, 'rgba(5,40,20,.35)');
+        for (let k = 0; k < n; k++) {
+            const bx = x + k * 1.6 - n * 0.8, h = 3 + R() * 3.5, lean = (R() - 0.5) * 2.2;
+            for (let t = 0; t <= h; t++) px(bx + lean * (t / h), y - t, 1, 1, t < h * 0.45 ? '#1f6a30' : t < h * 0.8 ? '#4fb34a' : '#9be07a');
+        }
+    }
+    // tréboles
+    for (let i = 0; i < 14; i++) { const x = 2 + R() * 31, y = R() * TH; px(x, y, 2, 2, '#2c8a40'); px(x + 2, y + 1, 2, 2, '#3aa34c'); px(x + 1, y - 1, 2, 2, '#2f9244'); px(x + 1, y, 1, 1, '#a8e88c'); }
+    // florcitas
+    const FC = ['#ffffff', '#ffe45c', '#ff9ec7', '#9ec8ff', '#ffb066'];
+    for (let i = 0; i < 12; i++) {
+        const x = 2 + R() * 31, y = 2 + R() * (TH - 4), col = FC[(R() * FC.length) | 0];
+        px(x - 1, y, 1, 1, col); px(x + 1, y, 1, 1, col); px(x, y - 1, 1, 1, col); px(x, y + 1, 1, 1, col); px(x, y, 1, 1, '#ffd23f'); px(x, y + 2, 1, 2, '#1d6a2c');
+    }
+    // hojas caídas
+    const HC = ['#d9822b', '#c0392b', '#e6b422', '#a0522d', '#e8742a'];
+    for (let i = 0; i < 12; i++) {
+        const x = 1 + R() * 31, y = R() * TH, col = HC[(R() * HC.length) | 0], rot = R() < 0.5;
+        if (rot) { px(x, y, 3, 1, col); px(x + 1, y + 1, 2, 1, col); px(x + 3, y, 1, 1, 'rgba(70,30,10,.7)'); px(x, y + 1, 1, 1, 'rgba(70,30,10,.5)'); }
+        else { px(x, y, 1, 3, col); px(x + 1, y + 1, 1, 2, col); px(x, y + 3, 1, 1, 'rgba(70,30,10,.7)'); }
+    }
+    // piedritas
+    for (let i = 0; i < 6; i++) { const x = 2 + R() * 30, y = R() * TH; px(x, y, 3, 2, '#7d8a86'); px(x, y, 2, 1, '#b4c0bb'); px(x + 1, y + 2, 3, 1, 'rgba(0,0,0,.25)'); }
+    return (BALDOSAS[key] = c);
+}
+function sueloBosque(g, y0, y1, rY, tm, lado, H) {
+    for (let j = Math.floor((rY - y1) / TH) - 1; j <= Math.floor((rY - y0) / TH) + 1; j++) {
+        const v = (hash(j * 17 + lado * 3 + 5) * 3) | 0;
+        g.drawImage(baldosa(lado, v), 0, Math.round(rY - (j + 1) * TH));
+    }
+    // luz que se cuela entre las copas (manchas que se mueven despacio)
+    for (let k = Math.floor((rY - y1) / 90) - 1; k <= Math.floor((rY - y0) / 90) + 1; k++) {
+        const yy = rY - k * 90 - H(k * 3 + lado) * 70, xx = 6 + H(k * 9 + lado) * 22, a = 0.5 + 0.5 * Math.sin(tm / 1500 + k * 2.1);
+        g.globalAlpha = 0.10 + 0.12 * a; g.fillStyle = '#fff6b0'; g.beginPath(); g.ellipse(xx, yy, 6, 9, 0.5, 0, 7); g.fill();
+    }
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgba(5,40,20,.20)'; g.fillRect(30, y0, 6, y1 - y0);      // más oscuro pegado a la ruta
+}
+
+REG.crear({
+    e: 'bosque', carpeta: 'Escenarios/', prefijo: 'bosque_', salt: 13000,
+    escala: ESCALA_OBJETOS, escalaAltos: ESCALA_ARBOLES, densidad: DENSIDAD, movimiento: MOVIMIENTO,
+    tipos: TIPOS, variantes: VARIANTES, suelo: sueloBosque, orden: ORDEN, baseColor: 'rgba(44,120,60,.5)',
+    tramos: [{ m: METROS_BOSQUE, p: FRECUENCIA_BOSQUE }], clima: CLIMA_BOSQUE
+});
+
+} catch (e) { console.error('Mejoras40:', e); } })();       
+} catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
 </html>
