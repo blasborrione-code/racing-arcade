@@ -7660,7 +7660,7 @@ REG.crear = function (cfg) {
     const IM = {}, T = {};
     Object.keys(cfg.tipos).forEach(n => {
         const d = cfg.tipos[n], o = d[2] || {};
-        const i = new Image(); i.src = cfg.carpeta + cfg.prefijo + n + '.png'; IM[n] = i;
+        const i = new Image(); i.onload = () => { T[n].hr = i.naturalHeight / i.naturalWidth; }; i.src = cfg.carpeta + cfg.prefijo + n + '.png'; IM[n] = i;
         T[n] = { w: Math.max(4, Math.round(d[0] * (o.alto ? cfg.escalaAltos : cfg.escala))), capa: d[1], o };
     });
     const listo = n => IM[n] && IM[n].complete && IM[n].naturalWidth > 0;
@@ -7700,7 +7700,9 @@ REG.crear = function (cfg) {
                 const omitir = Math.min(0.95, Math.max(0, 1 - (1 - cfg.orden.omitir) * cfg.densidad));
                 if (H(sem + 5) < omitir) return;
                 const tipo = lista[(H(sem + 10) * lista.length) | 0], d = T[tipo]; if (!d) return;
-                const cx = d.o.alto ? 2 + (H(sem + 31) - 0.5) * 4 : Math.min(cfg.orden.linea, 37 - d.w * 0.45) + (H(sem + 31) - 0.5) * 3;
+                // el objeto nunca tiene que pisar la banquina (el borde empieza en x = 35): si es grande o gira, se corre hacia afuera
+                const hh = d.w * (d.hr || 1), ext = d.o.rot === 'libre' ? Math.max(d.w, hh) * 0.5 : d.w * 0.5;
+                const cx = d.o.alto ? 2 + (H(sem + 31) - 0.5) * 4 : Math.min(cfg.orden.linea, 32.5 - ext) + (H(sem + 31) - 0.5) * 2;
                 out.push({ tipo, cx: li === 0 ? cx : 400 - cx, W: W + SP * (0.3 + H(sem + 40) * 0.4), lado: li === 0 ? 'izq' : 'der', sem });
                 return;
             }
@@ -7720,21 +7722,46 @@ REG.crear = function (cfg) {
 
     function pintar(o, rY, t, capa) {
         const d = T[o.tipo]; if (!d || d.capa !== capa || !listo(o.tipo)) return;
-        const P = preparar(o.tipo), y = rY - o.W, w = P.w, h = P.h;
+        const P = preparar(o.tipo), w = P.w, h = P.h;
+        const ph = o.sem * 0.37, mv = d.o.mov;
+        // ---- movimiento ("vida"): cada tipo puede tener el suyo ----
+        let ox = 0, oy = 0, sx = 1, sy = 1, rr = 0;
+        const M = cfg.movimiento;
+        if (mv === 'respira') { const bb = Math.sin(t / 450 + ph); sy = 1 + 0.035 * bb * M; sx = 1 - 0.02 * bb * M; }
+        else if (mv === 'pasea') { oy = 22 * Math.sin(t / 2200 + ph) * M; ox = 1.2 * Math.sin(t / 330 + ph) * M; rr = 0.07 * Math.sin(t / 170 + ph) * M; }
+        else if (mv === 'salta') { const q = Math.abs(Math.sin(t / 330 + ph)); oy = -3.5 * q * M; sy = 1 + 0.05 * (1 - q) * M; }
+        else if (mv === 'desliza') { oy = 26 * Math.sin(t / 1900 + ph) * M; ox = 3.5 * Math.sin(t / 750 + ph) * M; rr = 0.16 * Math.cos(t / 750 + ph) * M; }
+        else if (mv === 'repta') { rr = 0.22 * Math.sin(t / 270 + ph) * M; ox = 1.2 * Math.sin(t / 270 + ph) * M; }
+        else if (mv === 'rueda') { rr = (t / 420 + ph) * M; ox = 3 * Math.sin(t / 1400 + ph) * M; oy = 14 * Math.sin(t / 2600 + ph) * M; }
+        else if (mv === 'tiembla') { ox = 0.7 * Math.sin(t / 60 + ph) * M; oy = 0.5 * Math.sin(t / 47 + ph) * M; }
+        const y = rY - o.W + oy;
         if (y < -Math.max(w, h) || y > 750 + Math.max(w, h)) return;
-        const sway = d.o.viento === false ? 0 : Math.sin(t / 900 + o.sem) * 0.04 * cfg.movimiento;
+        const sway = d.o.viento === false ? 0 : Math.sin(t / 900 + o.sem) * 0.04 * M;
         const rot = d.o.rot || 'poca';
-        const th = rot === 'libre' ? H(o.sem + 99) * 6.28 + sway : rot === 'poca' ? (H(o.sem + 55) - 0.5) * 0.5 + sway : sway;
+        const th = (rot === 'libre' ? H(o.sem + 99) * 6.28 + sway : rot === 'poca' ? (H(o.sem + 55) - 0.5) * 0.5 + sway : sway) + rr;
         const flip = d.o.espejo && H(o.sem + 7) < 0.5;
-        ctx.save(); ctx.translate(o.cx, y); ctx.rotate(th);
+        ctx.save(); ctx.translate(o.cx + ox, y); ctx.rotate(th);
         if (flip) ctx.scale(-1, 1);
         if (capa === 'bajo' && d.o.sombra !== false) {
+            // apoyo en el suelo: sombrita de contacto + un poco del color del suelo alrededor de la base
+            ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(0.5, h * 0.40, w * 0.46, Math.max(2, w * 0.11), 0, 0, 7); ctx.fill();
+            if (cfg.baseColor && rot !== 'libre') { ctx.fillStyle = cfg.baseColor; ctx.beginPath(); ctx.ellipse(0, h * 0.38, w * 0.50, Math.max(2, w * 0.12), 0, 0, 7); ctx.fill(); }
             // sombra con la forma del objeto, corrida hacia abajo a la derecha (la luz viene de arriba a la izquierda)
             const lx = 3 * Math.cos(th) + 4 * Math.sin(th), ly = -3 * Math.sin(th) + 4 * Math.cos(th);
             ctx.globalAlpha = cfg.sombraAlpha; ctx.drawImage(P.sh, -w / 2 + (flip ? -lx : lx), -h / 2 + ly, w, h); ctx.globalAlpha = 1;
         }
+        if (sx !== 1 || sy !== 1) { ctx.translate(0, h / 2); ctx.scale(sx, sy); ctx.translate(0, -h / 2); }     // respirar / aplastarse al saltar sin despegarse del suelo
         ctx.drawImage(P.c, -w / 2, -h / 2, w, h);
         ctx.restore();
+        // ---- brillo (fogata, faroles) ----
+        const br = d.o.brillo;
+        if (br && cfg.movimiento > 0) {
+            const k = br.tipo === 'fogata' ? 0.55 + 0.45 * Math.sin(t / 70 + ph) * Math.sin(t / 130 + ph * 2) : 0.8 + 0.2 * Math.sin(t / 700 + ph);
+            const cx = o.cx + ox, cy = y + (br.dy || 0) * h, r = w * br.r * (0.9 + 0.1 * k);
+            const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+            gr.addColorStop(0, br.color.replace('A', (0.42 * k).toFixed(2))); gr.addColorStop(1, br.color.replace('A', '0'));
+            ctx.fillStyle = gr; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+        }
     }
     function sombra(o, rY) {
         const d = T[o.tipo]; if (!d || d.capa !== 'alto') return;
@@ -7769,16 +7796,17 @@ const METROS_DESIERTO = [700, 1000];   // cuánto dura cada tramo de desierto (m
 const FRECUENCIA_DESIERTO = 1;     // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
 
 // tipo: [ancho en pantalla, capa ('bajo' = debajo de los autos | 'alto' = encima), opciones]
-// opciones: rot ('libre' gira como quiera | 'poca' un poquito | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se mueve)
+// opciones: rot ('libre' gira como quiera | 'poca' un poquito | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se mueve),
+//   mov (movimiento: 'respira' | 'pasea' | 'salta' | 'desliza' | 'repta' | 'rueda' | 'tiembla'), brillo ({ color, r, tipo, dy }: luz que parpadea, para fogatas y faroles)
 const TIPOS = {
     cactus_saguaro: [22, 'bajo'], cactus_saguaro_chico: [16, 'bajo'], cactus_barril: [18, 'bajo'], cactus_tres: [22, 'bajo'],
-    arbusto_seco: [22, 'bajo'], planta_rodadora: [18, 'bajo', { rot: 'libre' }], agave: [26, 'bajo', { rot: 'libre' }],
+    arbusto_seco: [22, 'bajo'], planta_rodadora: [18, 'bajo', { rot: 'libre', mov: 'rueda', sombra: false, viento: false }], agave: [26, 'bajo', { rot: 'libre' }],
     roca_roja_grande: [30, 'bajo', { viento: false }], roca_roja: [24, 'bajo', { viento: false }], piedras_ocre: [16, 'bajo', { viento: false }],
     tronco_seco: [30, 'bajo', { rot: 'libre', viento: false }],
     calavera: [22, 'bajo', { rot: 'libre', viento: false }], costillas: [28, 'bajo', { rot: 'libre', sombra: false, viento: false }],
     cartel: [18, 'bajo'], rueda: [18, 'bajo', { rot: 'libre', viento: false }], barril: [16, 'bajo', { viento: false }], carreta: [38, 'bajo', { viento: false }],
-    camello: [34, 'bajo', { espejo: true, viento: false }], serpiente: [16, 'bajo', { rot: 'libre', viento: false }], escorpion: [14, 'bajo', { rot: 'libre', viento: false }],
-    tienda: [38, 'bajo', { viento: false }], fogata: [24, 'bajo', { sombra: false, viento: false }], huesos: [22, 'bajo', { rot: 'libre', sombra: false, viento: false }],
+    camello: [34, 'bajo', { espejo: true, viento: false, mov: 'respira' }], serpiente: [16, 'bajo', { rot: 'poca', viento: false, mov: 'repta' }], escorpion: [14, 'bajo', { rot: 'poca', viento: false, mov: 'tiembla' }],
+    tienda: [38, 'bajo', { viento: false }], fogata: [24, 'bajo', { sombra: false, viento: false, brillo: { color: 'rgba(255,140,40,A)', r: 1.1, tipo: 'fogata', dy: 0 } }], huesos: [22, 'bajo', { rot: 'libre', sombra: false, viento: false }],
     palmera: [70, 'alto', { alto: true, rot: 'libre' }]
 };
 // qué aparece en cada "estilo" de desierto (lo que se repite sale más seguido). Cada lado de la ruta elige un estilo distinto en cada tramo.
@@ -7833,7 +7861,7 @@ function sueloDesierto(g, y0, y1, rY, tm, lado, H) {
 REG.crear({
     e: 'desierto', carpeta: 'Escenarios/', prefijo: 'desierto_', salt: 5000,
     escala: ESCALA_OBJETOS, escalaAltos: ESCALA_PALMERAS, densidad: DENSIDAD, movimiento: MOVIMIENTO,
-    tipos: TIPOS, variantes: VARIANTES, suelo: sueloDesierto, orden: ORDEN,
+    tipos: TIPOS, variantes: VARIANTES, suelo: sueloDesierto, orden: ORDEN, baseColor: 'rgba(224,182,110,.55)',
     tramos: [{ m: METROS_DESIERTO, p: FRECUENCIA_DESIERTO }], clima: CLIMA_DESIERTO
 });
 
@@ -7857,19 +7885,20 @@ const METROS_NIEVE = [700, 1000];  // cuánto dura cada tramo de nieve (mínimo,
 const FRECUENCIA_NIEVE = 1;        // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
 
 // tipo: [ancho en pantalla, capa ('bajo' = debajo de los autos | 'alto' = encima), opciones]
-// opciones: rot ('libre' gira como quiera | 'poca' un poquito | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se mueve)
+// opciones: rot ('libre' gira como quiera | 'poca' un poquito | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se mueve),
+//   mov (movimiento: 'respira' | 'pasea' | 'salta' | 'desliza'), brillo ({ color, r, tipo, dy }: luz que parpadea, para los faroles)
 const TIPOS = {
     pino_grande: [52, 'alto', { alto: true, rot: 'libre' }],
     pino: [34, 'bajo', { rot: 'ninguna' }], pino_chico: [24, 'bajo', { rot: 'ninguna' }], abeto: [32, 'bajo', { rot: 'ninguna' }], tres_pinos: [34, 'bajo', { rot: 'ninguna' }],
     arbusto: [24, 'bajo'], arbol_seco: [34, 'bajo', { rot: 'ninguna' }], tronco: [34, 'bajo', { rot: 'libre', viento: false }], tocon: [18, 'bajo', { viento: false }],
     pasto: [22, 'bajo', { sombra: false, viento: false }], roca: [26, 'bajo', { viento: false }], rocas: [22, 'bajo', { viento: false }],
-    muneco: [18, 'bajo', { rot: 'ninguna' }], monticulo: [26, 'bajo', { sombra: false, viento: false }], iglu: [34, 'bajo', { viento: false }], cabana: [38, 'bajo', { rot: 'ninguna', viento: false }],
-    trineo: [20, 'bajo', { rot: 'libre', viento: false }], esquiador: [14, 'bajo', { rot: 'poca' }], pinguino: [16, 'bajo', { espejo: true }],
-    oso_polar: [32, 'bajo', { espejo: true, viento: false }], zorro_artico: [24, 'bajo', { espejo: true, viento: false }],
-    cartel: [18, 'bajo', { rot: 'ninguna' }], farol: [12, 'bajo', { rot: 'ninguna', viento: false }], hielo: [30, 'bajo', { rot: 'libre', sombra: false, viento: false }],
-    snowboarder_rojo: [24, 'bajo', { rot: 'poca' }], snowboarder_celeste: [24, 'bajo', { rot: 'poca' }], snowboarder_amarillo: [24, 'bajo', { rot: 'poca' }],
+    muneco: [18, 'bajo', { rot: 'ninguna' }], monticulo: [22, 'bajo', { sombra: false, viento: false }], iglu: [34, 'bajo', { viento: false }], cabana: [38, 'bajo', { rot: 'ninguna', viento: false }],
+    trineo: [20, 'bajo', { rot: 'libre', viento: false }], esquiador: [14, 'bajo', { rot: 'poca', mov: 'desliza', viento: false }], pinguino: [16, 'bajo', { espejo: true, mov: 'salta', viento: false }],
+    oso_polar: [32, 'bajo', { espejo: true, viento: false, mov: 'respira' }], zorro_artico: [24, 'bajo', { espejo: true, viento: false, mov: 'pasea' }],
+    cartel: [18, 'bajo', { rot: 'ninguna' }], farol: [12, 'bajo', { rot: 'ninguna', viento: false, brillo: { color: 'rgba(255,214,120,A)', r: 2.2, tipo: 'farol', dy: -0.38 } }], hielo: [26, 'bajo', { rot: 'poca', sombra: false, viento: false }],
+    snowboarder_rojo: [24, 'bajo', { rot: 'poca', mov: 'desliza', viento: false }], snowboarder_celeste: [24, 'bajo', { rot: 'poca', mov: 'desliza', viento: false }], snowboarder_amarillo: [24, 'bajo', { rot: 'poca', mov: 'desliza', viento: false }],
     tabla_azul: [24, 'bajo', { rot: 'libre', viento: false }], tabla_naranja: [24, 'bajo', { rot: 'libre', viento: false }], tabla_clavada: [14, 'bajo', { viento: false }],
-    esquiador_azul: [16, 'bajo', { rot: 'poca' }], esquiador_amarillo: [14, 'bajo', { rot: 'poca' }], trineo_chico: [12, 'bajo', { rot: 'poca', viento: false }]
+    esquiador_azul: [16, 'bajo', { rot: 'poca', mov: 'desliza', viento: false }], esquiador_amarillo: [14, 'bajo', { rot: 'poca', mov: 'desliza', viento: false }], trineo_chico: [12, 'bajo', { rot: 'poca', mov: 'desliza', viento: false }]
 };
 // qué aparece en cada "estilo" de nieve (lo que se repite sale más seguido). Cada lado de la ruta elige un estilo distinto en cada tramo.
 const VARIANTES = {
@@ -7880,25 +7909,47 @@ const VARIANTES = {
 };
 
 function sueloNieve(g, y0, y1, rY, tm, lado, H) {
-    g.fillStyle = '#e4edf7'; g.fillRect(0, y0, 36, y1 - y0);
-    // manchas de nieve más oscura (para que los objetos blancos se distingan)
-    for (let k = Math.floor((rY - y1) / 26) - 1; k <= Math.floor((rY - y0) / 26) + 1; k++) {
-        const yy = rY - k * 26 + H(k * 3 + lado * 7) * 20, xx = 3 + H(k * 5 + lado * 11) * 26, w = 6 + H(k + 4) * 8, h = 3 + H(k + 6) * 4;
-        g.fillStyle = 'rgba(160,188,222,.38)'; g.beginPath(); g.ellipse(xx, yy, w, h, 0, 0, 7); g.fill();
+    // base: blanca lejos de la ruta y azulada pegada a ella
+    const gr = g.createLinearGradient(0, 0, 36, 0); gr.addColorStop(0, '#f6faff'); gr.addColorStop(0.55, '#e3edf8'); gr.addColorStop(1, '#c4d6ea');
+    g.fillStyle = gr; g.fillRect(0, y0, 36, y1 - y0);
+    // sombras azuladas suaves (la nieve no es plana)
+    for (let k = Math.floor((rY - y1) / 70) - 1; k <= Math.floor((rY - y0) / 70) + 1; k++) {
+        const yy = rY - k * 70 - H(k * 3 + lado * 7) * 40, xx = 2 + H(k * 5 + lado * 11) * 24, w = 8 + H(k + 4) * 8, h = 4 + H(k + 6) * 5;
+        g.fillStyle = 'rgba(150,180,220,.22)'; g.beginPath(); g.ellipse(xx, yy, w, h, 0.25, 0, 7); g.fill();
     }
-    // brillitos de la nieve
-    for (let k = Math.floor((rY - y1) / 18) - 1; k <= Math.floor((rY - y0) / 18) + 1; k++) {
-        const yy = rY - k * 18 + H(k * 3 + lado * 7) * 18, xx = 2 + H(k * 5 + 1 + lado * 9) * 32, a = Math.sin(tm / 600 + k * 1.7) * 0.5 + 0.5;
-        g.globalAlpha = 0.35 + 0.65 * a; g.fillStyle = '#ffffff'; g.fillRect(xx, yy, 2, 2);
+    // ondas de nieve (crestas): línea blanca arriba, sombra azul abajo
+    for (let k = Math.floor((rY - y1) / 80) - 1; k <= Math.floor((rY - y0) / 80) + 1; k++) {
+        const yy = rY - k * 80 - H(k * 7 + lado * 3) * 40, x0 = -2 + H(k * 11 + lado) * 10, len = 20 + H(k * 5 + 2) * 16, amp = 2 + H(k * 3 + 1) * 3;
+        g.lineCap = 'round';
+        g.strokeStyle = 'rgba(120,155,205,.30)'; g.lineWidth = 3;
+        g.beginPath(); g.moveTo(x0, yy + 3); g.quadraticCurveTo(x0 + len / 2, yy + 3 - amp * 2, x0 + len, yy + 3 + amp); g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 1.5;
+        g.beginPath(); g.moveTo(x0, yy); g.quadraticCurveTo(x0 + len / 2, yy - amp * 2, x0 + len, yy + amp); g.stroke();
+    }
+    // huellas y pedacitos de tierra que asoman
+    for (let k = Math.floor((rY - y1) / 50) - 1; k <= Math.floor((rY - y0) / 50) + 1; k++) {
+        const yy = rY - k * 50 + H(k * 3 + lado * 7) * 40, xx = 3 + H(k * 5 + lado * 9) * 28, r = H(k + 12);
+        if (r < 0.35) { g.fillStyle = 'rgba(105,120,140,.5)'; g.fillRect(Math.round(xx), Math.round(yy), 2, 1); g.fillStyle = 'rgba(105,120,140,.35)'; g.fillRect(Math.round(xx) + 3, Math.round(yy) + 2, 1, 1); }
+        else if (r < 0.55) { g.fillStyle = 'rgba(130,160,200,.35)'; g.fillRect(Math.round(xx), Math.round(yy), 2, 3); g.fillRect(Math.round(xx) + 4, Math.round(yy) + 4, 2, 3); }
+    }
+    // brillitos que titilan
+    for (let k = Math.floor((rY - y1) / 16) - 1; k <= Math.floor((rY - y0) / 16) + 1; k++) {
+        const yy = rY - k * 16 + H(k * 3 + lado * 7) * 16, xx = 1 + H(k * 5 + 1 + lado * 9) * 34, a = Math.sin(tm / 520 + k * 1.7) * 0.5 + 0.5;
+        g.globalAlpha = 0.25 + 0.75 * a; g.fillStyle = '#ffffff'; g.fillRect(Math.round(xx), Math.round(yy), 1 + (H(k + 2) < 0.2 ? 1 : 0), 1);
+    }
+    // nieve que el viento arrastra hacia la ruta (se mueve)
+    for (let k = Math.floor((rY - y1) / 55) - 1; k <= Math.floor((rY - y0) / 55) + 1; k++) {
+        const yy = rY - k * 55 - H(k * 3 + lado) * 45, ph = ((tm / 100 + H(k * 9 + lado) * 40) % 40) / 40, xx = 1 + ph * 34;
+        g.globalAlpha = Math.sin(ph * Math.PI) * 0.8; g.fillStyle = '#ffffff'; g.fillRect(Math.round(xx), Math.round(yy), 4, 1); g.fillRect(Math.round(xx) - 3, Math.round(yy) + 1, 2, 1);
     }
     g.globalAlpha = 1;
-    g.fillStyle = 'rgba(140,172,210,.35)'; g.fillRect(30, y0, 6, y1 - y0);     // nieve apilada pegada a la ruta
+    g.fillStyle = 'rgba(110,145,190,.20)'; g.fillRect(30, y0, 6, y1 - y0);     // nieve apilada pegada a la ruta
 }
 
 REG.crear({
     e: 'nieve', carpeta: 'Escenarios/', prefijo: 'nieve_', salt: 9000,
     escala: ESCALA_OBJETOS, escalaAltos: ESCALA_ARBOLES, densidad: DENSIDAD, movimiento: MOVIMIENTO,
-    tipos: TIPOS, variantes: VARIANTES, suelo: sueloNieve, orden: ORDEN,
+    tipos: TIPOS, variantes: VARIANTES, suelo: sueloNieve, orden: ORDEN, baseColor: 'rgba(242,248,255,.6)',
     tramos: [{ m: METROS_NIEVE, p: FRECUENCIA_NIEVE }], clima: CLIMA_NIEVE
 });
 
