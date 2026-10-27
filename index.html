@@ -6986,14 +6986,15 @@ const FORZAR_CLIMA = null;        // PARA PROBAR: poné 'niebla', 'tormenta', 'n
 const METROS_POR_CLIMA = 1000;    // cada cuántos metros cambia el clima
 const PRIMER_CLIMA = 1;           // el primer cambio de clima es a los (este número x METROS_POR_CLIMA) metros. 1 = a los 1000 m. Antes de eso es siempre de día
 // ORDEN DE LOS CLIMAS (se repite en bucle al terminar). Podés cambiarlo, reordenarlo o agregar/quitar. Nombres válidos: sol, atardecer, amanecer, noche, lluvia, niebla, tormenta, nieve, arena, viento
-const SECUENCIA = ['atardecer', 'lluvia', 'noche', 'amanecer', 'sol', 'niebla', 'atardecer', 'tormenta', 'noche', 'amanecer', 'sol'];
+const SECUENCIA = ['atardecer', 'lluvia', 'noche', 'amanecer', 'sol', 'niebla', 'viento', 'atardecer', 'tormenta', 'noche', 'amanecer', 'sol', 'nieve', 'atardecer', 'arena', 'noche', 'amanecer', 'sol'];
 const FUNDIDO = 2500;             // cuánto tarda (ms) en aparecer o irse un clima de forma gradual
 const AVISO_CLIMA = true;         // cartelito cuando cambia el clima
 // efectos sobre el manejo
-const VIENTO_FUERZA = { viento: 0.16, tormenta: 0.13, arena: 0.12 };   // cuánto empuja de costado el viento (0 = nada). Ojo: cuando llueve el auto desliza más, así que se nota más
+const VIENTO_FUERZA = { viento: 0.20, tormenta: 0.16, arena: 0.15 };   // cuánto empuja de costado el viento (0 = nada). Ojo: cuando llueve el auto desliza más, así que se nota más
 const VIENTO_CADA = [380, 900];   // cada cuántos cuadros hay una ráfaga (mínimo y máximo; 60 cuadros = 1 seg)
 const VIENTO_DURA = 100;          // cuánto dura una ráfaga (cuadros). Antes de empezar hay un aviso con una flecha
-const FRENO_ARENA = 0.985;        // la tormenta de arena te frena un poquito (1 = nada, 0.97 = bastante)
+const VIENTO_AVISO = 80;          // cuánto dura el aviso "¡RÁFAGA!" antes de que empuje (cuadros, 60 = 1 seg)
+const TOPE_ARENA = 0.9;           // la tormenta de arena baja tu velocidad máxima a este porcentaje (1 = nada | 0.9 = un poco | 0.8 = bastante)
 
 const INFO = {
     sol:      ['☀️', 'SOL', 'Día despejado'],
@@ -7053,7 +7054,10 @@ update = function (dt) {
         if (state !== 'PLAYING') return;
         vigilar();
         const F = VIENTO_FUERZA[actual];
-        if (actual === 'arena') currentSpeed *= Math.pow(FRENO_ARENA, dt);
+        if (actual === 'arena') {
+            // baja el tope de velocidad (no frena todo el tiempo, así que el auto sigue acelerando normal hasta ese tope)
+            try { const car = MODELS[garage.selected], st = garage.carStats[garage.selected], tope = (car.maxSpeed + st.motor * 0.3) * TOPE_ARENA; if (currentSpeed > tope) currentSpeed = Math.max(tope, currentSpeed - 0.04 * dt); } catch (e) { }
+        }
         if (!F) { rafagas.t = 0; rafagas.av = 0; return; }
         if (rafagas.t > 0) {
             rafagas.t -= dt;
@@ -7064,7 +7068,7 @@ update = function (dt) {
             rafagas.av -= dt; if (rafagas.av <= 0) { rafagas.t = VIENTO_DURA; }
         } else {
             rafagas.cd -= dt;
-            if (rafagas.cd <= 0) { rafagas.dir = Math.random() < 0.5 ? -1 : 1; rafagas.av = 50; rafagas.cd = VIENTO_CADA[0] + Math.random() * (VIENTO_CADA[1] - VIENTO_CADA[0]); try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) { } }
+            if (rafagas.cd <= 0) { rafagas.dir = Math.random() < 0.5 ? -1 : 1; rafagas.av = VIENTO_AVISO; rafagas.cd = VIENTO_CADA[0] + Math.random() * (VIENTO_CADA[1] - VIENTO_CADA[0]); try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) { } }
         }
     } catch (e) { console.error('Mejoras35 update:', e); }
 };
@@ -7668,6 +7672,17 @@ REG.crear = function (cfg) {
             // cada lado puede tener un "estilo" distinto en cada tramo
             const lista = cfg.variantes[claves[Math.floor(H(Math.floor(a) * 3 + li * 911 + 5) * claves.length)]];
             const sem = k * 7 + li * 1013 + cfg.salt;
+            if (cfg.orden) {
+                // modo prolijo: un solo objeto por lugar, siempre sobre la misma línea, y los dos lados se alternan (uno a la izquierda, uno a la derecha...)
+                const p = cfg.orden.paso || 1;
+                if ((((k % p) + p) % p) !== (li % p)) return;
+                const omitir = Math.min(0.95, Math.max(0, 1 - (1 - cfg.orden.omitir) * cfg.densidad));
+                if (H(sem + 5) < omitir) return;
+                const tipo = lista[(H(sem + 10) * lista.length) | 0], d = T[tipo]; if (!d) return;
+                const cx = d.o.alto ? 2 + (H(sem + 31) - 0.5) * 4 : Math.min(cfg.orden.linea, 37 - d.w * 0.45) + (H(sem + 31) - 0.5) * 3;
+                out.push({ tipo, cx: li === 0 ? cx : 400 - cx, W: W + SP * (0.3 + H(sem + 40) * 0.4), lado: li === 0 ? 'izq' : 'der', sem });
+                return;
+            }
             const n = (H(sem + 5) < 0.6 * cfg.densidad ? 1 : 0) + (H(sem + 6) < 0.28 * cfg.densidad ? 1 : 0);
             for (let j = 0; j < n; j++) {
                 const tipo = lista[(H(sem + 10 + j) * lista.length) | 0], d = T[tipo]; if (!d) continue;
@@ -7721,7 +7736,8 @@ REG.crear = function (cfg) {
 // =====================================================================================
 const ESCALA_OBJETOS = 1.4;        // tamaño de los objetos del desierto (1 = chico | 1.4 = normal | 1.6 = máximo recomendado)
 const ESCALA_PALMERAS = 1.0;       // tamaño de las palmeras
-const DENSIDAD = 1.2;              // cuántos objetos hay (0.5 = la mitad | 1.5 = más cargado)
+const DENSIDAD = 1;                // cuántos objetos hay (0.5 = la mitad | 1.5 = más cargado)
+const ORDEN = { paso: 2, omitir: 0.15, linea: 20 };   // paso = un objeto cada (paso x 120) unidades de ruta, alternando izquierda y derecha (2 = normal | 1 = más cargado | 3 = más vacío). omitir = chance de saltear un lugar. linea = a qué distancia del borde de la pantalla van alineados
 const MOVIMIENTO = 1;              // cuánto se mueven las plantas con el viento (0 = quietas)
 const CLIMA_DESIERTO = 'arena';    // clima mientras dura el desierto: 'arena' (tormenta de arena), 'sol', 'atardecer'... o null para que el clima siga su orden normal
 const METROS_DESIERTO = [700, 1000];   // cuánto dura cada tramo de desierto (mínimo, máximo)
@@ -7766,7 +7782,7 @@ function sueloDesierto(g, y0, y1, rY, tm, lado, H) {
 REG.crear({
     e: 'desierto', carpeta: 'Escenarios/', prefijo: 'desierto_', salt: 5000,
     escala: ESCALA_OBJETOS, escalaAltos: ESCALA_PALMERAS, densidad: DENSIDAD, movimiento: MOVIMIENTO,
-    tipos: TIPOS, variantes: VARIANTES, suelo: sueloDesierto,
+    tipos: TIPOS, variantes: VARIANTES, suelo: sueloDesierto, orden: ORDEN,
     tramos: [{ m: METROS_DESIERTO, p: FRECUENCIA_DESIERTO }], clima: CLIMA_DESIERTO
 });
 
