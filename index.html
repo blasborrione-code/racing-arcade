@@ -7167,7 +7167,7 @@ draw = function () {
     } catch (e) { console.error('Mejoras35 draw:', e); }
 };
 } catch (e) { console.error('Mejoras35:', e); } })();
-// ===== MEJORAS 36 - ESCENARIOS (1): SISTEMA DE ESCENARIOS + PLAYA (mar a la izquierda, a la derecha o a ambos lados) (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras35) =====
+// ===== MEJORAS 36 - ESCENARIOS (1): SISTEMA DE ESCENARIOS (se pueden sumar más con mejoras38, 39, etc.) + PLAYA (mar a la izquierda, a la derecha o a ambos lados) (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras35) =====
 // Las imágenes de la playa van en la carpeta  Escenarios/  (playa_palmera_a.png, etc.). Si todavía no las tenés, el juego dibuja versiones provisorias por código, así que funciona igual.
 (function () { try {
 
@@ -7205,6 +7205,17 @@ function M2W(m) {                                     // metros del marcador -> 
     }
     return (m - cum) * M2Y;
 }
+// ---------- REGISTRO DE ESCENARIOS (mejoras38, 39... suman desierto, nieve, etc. a través de esto) ----------
+const REG = window.__escenarios = {
+    defs: {},          // escenario -> { suelo, objetos, pintar, sombra }
+    clima: {},         // escenario -> clima fijo mientras dura
+    registrar(def) {
+        REG.defs[def.e] = def;
+        (def.tramos || []).forEach(x => ESCENARIOS.push(Object.assign({ e: def.e }, x)));
+        if (def.clima) REG.clima[def.e] = def.clima;
+        reiniciarRuta();
+    }
+};
 const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 
 // ---------- ARMADO ALEATORIO DE LA RUTA (distinto en cada partida) ----------
@@ -7220,7 +7231,7 @@ function generarTramo() {
         let q = r(2) * tot, el = 0;
         for (let i = 0; i < ESCENARIOS.length; i++) { if (i === GEN.ult && ESCENARIOS.length > 1) continue; q -= ESCENARIOS[i].p; if (q <= 0) { el = i; break; } el = i; }
         GEN.ult = el; const x = ESCENARIOS[el];
-        t = { e: x.e }; if (x.mar) t.mar = x.mar;
+        t = Object.assign({}, x); delete t.m; delete t.p;
         m = Math.round(x.m[0] + r(3) * (x.m[1] - x.m[0]));
     }
     GEN.lista.push({ t, a, b: a + m }); GEN.fin = a + m;
@@ -7231,7 +7242,7 @@ reiniciarRuta();
 function tramoEn(metros) {
     if (FORZAR_ESCENARIO) {
         const p = FORZAR_ESCENARIO.split('_');
-        return { t: p[0] === 'ruta' ? { e: 'ruta' } : { e: p[0], mar: p[1] || 'izq' }, a: -1e9, b: 1e9 };
+        return { t: p[0] === 'ruta' ? { e: 'ruta' } : { e: p[0], mar: p[1] || 'izq' }, a: -1e9, b: 1e9 };       // (los demás escenarios se fuerzan igual: 'desierto', 'nieve'...)
     }
     while (GEN.fin <= metros) generarTramo();
     for (let k = GEN.lista.length - 1; k >= 0; k--) { const g = GEN.lista[k]; if (metros >= g.a) return g; }
@@ -7267,30 +7278,35 @@ const CON_SOMBRA = ['kiosco', 'castillo', 'reposera', 'chico_tabla', 'persona_pa
 const SP = 120;      // cada cuántas unidades hay un "lugar" para poner objetos
 
 function seg(W) { return tramoEn(W2M(W)); }
+function playaObjetos(k, W, s) {
+    const out = [];
+    ['izq', 'der'].forEach((lado, li) => {
+        const tieneMar = s.mar === 'ambos' || s.mar === lado;
+        const sem = k * 7 + li * 1013;
+        if (tieneMar) {
+            if (H(sem) < 0.26 * DENSIDAD) {
+                const tipo = MAR[(H(sem + 1) * MAR.length) | 0], cx = tipo === 'rocas' ? 22 + H(sem + 2) * 5 : 8 + H(sem + 3) * 10;
+                out.push({ tipo, cx: lado === 'izq' ? cx : 400 - cx, W: W + H(sem + 4) * SP, lado, sem });
+            }
+        } else {
+            // arena: a veces 1, a veces 2 objetos por lugar
+            const n = (H(sem + 5) < 0.55 * DENSIDAD ? 1 : 0) + (H(sem + 6) < 0.25 * DENSIDAD ? 1 : 0);
+            for (let j = 0; j < n; j++) {
+                const tipo = ARENA[(H(sem + 10 + j) * ARENA.length) | 0], esPalma = tipo.indexOf('palmera') === 0;
+                const cx = esPalma ? (tipo.indexOf('tronco') > 0 ? 0 + H(sem + 20 + j) * 9 : -4 + H(sem + 20 + j) * 10) : 11 + H(sem + 30 + j) * 14;      // la palmera sale cortada por el borde de la pantalla; el resto, en la arena
+                out.push({ tipo, cx: lado === 'izq' ? cx : 400 - cx, W: W + (j * 0.5 + H(sem + 40 + j) * 0.5) * SP, lado, sem: sem + j * 77 });
+            }
+        }
+    });
+    return out;
+}
 function objetosVisibles() {
     const rY = typeof roadY === 'number' ? roadY : 0, out = [];
     const k0 = Math.floor((rY - 800) / SP), k1 = Math.floor((rY + 60) / SP);
     for (let k = k0; k <= k1; k++) {
         const W = k * SP;
-        const s = seg(W + SP / 2).t; if (s.e !== 'playa') continue;
-        ['izq', 'der'].forEach((lado, li) => {
-            const tieneMar = s.mar === 'ambos' || s.mar === lado;
-            const sem = k * 7 + li * 1013;
-            if (tieneMar) {
-                if (H(sem) < 0.26 * DENSIDAD) {
-                    const tipo = MAR[(H(sem + 1) * MAR.length) | 0], cx = tipo === 'rocas' ? 22 + H(sem + 2) * 5 : 8 + H(sem + 3) * 10;
-                    out.push({ tipo, cx: lado === 'izq' ? cx : 400 - cx, W: W + H(sem + 4) * SP, lado, sem });
-                }
-            } else {
-                // arena: a veces 1, a veces 2 objetos por lugar
-                const n = (H(sem + 5) < 0.55 * DENSIDAD ? 1 : 0) + (H(sem + 6) < 0.25 * DENSIDAD ? 1 : 0);
-                for (let j = 0; j < n; j++) {
-                    const tipo = ARENA[(H(sem + 10 + j) * ARENA.length) | 0], esPalma = tipo.indexOf('palmera') === 0;
-                    const cx = esPalma ? (tipo.indexOf('tronco') > 0 ? 0 + H(sem + 20 + j) * 9 : -4 + H(sem + 20 + j) * 10) : 11 + H(sem + 30 + j) * 14;      // la palmera sale cortada por el borde de la pantalla; el resto, en la arena
-                    out.push({ tipo, cx: lado === 'izq' ? cx : 400 - cx, W: W + (j * 0.5 + H(sem + 40 + j) * 0.5) * SP, lado, sem: sem + j * 77 });
-                }
-            }
-        });
+        const sg = seg(W + SP / 2), def = REG.defs[sg.t.e]; if (!def || !def.objetos) continue;
+        def.objetos(k, W, sg.t, sg.a).forEach(o => { o.def = def; out.push(o); });
     }
     return out;
 }
@@ -7409,6 +7425,8 @@ function empalme(ya, yb, arribaOpaco) {
     ctx.fillStyle = g; ctx.fillRect(0, ya, 35, yb - ya); ctx.fillRect(365, ya, 35, yb - ya);
 }
 
+REG.defs.playa = { e: 'playa', objetos: playaObjetos, pintar, sombra: sombraPalmera, suelo };
+
 // ---------- ENGANCHES ----------
 const _r0 = drawRoad;
 drawRoad = function () {
@@ -7418,9 +7436,10 @@ drawRoad = function () {
         let y = 0, guard = 0;
         while (y < 750 && guard++ < 12) {
             const W = rY - y - 0.01, s = tramoEn(W2M(W)), yBot = Math.min(750, rY - M2W(s.a));
-            if (s.t.e === 'playa') {
+            const def = REG.defs[s.t.e];
+            if (def) {
                 const y1 = Math.max(y + 1, yBot);
-                suelo(s.t, y, y1, rY, tm);
+                def.suelo(s.t, y, y1, rY, tm);
                 // suaviza el empalme con la ruta clásica (la arena/mar se funde con el pasto)
                 if (y > 0 && tramoEn(W2M(rY - y + 3)).t.e === 'ruta') empalme(y, y + 55, 1);
                 if (y1 < 750 && tramoEn(W2M(rY - y1 - 3)).t.e === 'ruta') empalme(y1 - 55, y1, 0);
@@ -7428,8 +7447,8 @@ drawRoad = function () {
             y = Math.max(y + 1, yBot);
         }
         const objs = objetosVisibles();
-        objs.forEach(o => sombraPalmera(o, rY));
-        objs.forEach(o => pintar(o, rY, tm, 'bajo'));
+        objs.forEach(o => o.def.sombra && o.def.sombra(o, rY));
+        objs.forEach(o => o.def.pintar(o, rY, tm, 'bajo'));
     } catch (e) { console.error('Mejoras36 suelo:', e); }
 };
 const _ds = drawSpeedLines;
@@ -7438,7 +7457,7 @@ drawSpeedLines = function () {
     try {
         const rY = typeof roadY === 'number' ? roadY : 0, tm = performance.now();
         ctx.save(); ctx.globalAlpha = 0.94;
-        objetosVisibles().forEach(o => pintar(o, rY, tm, 'alto'));
+        objetosVisibles().forEach(o => o.def.pintar(o, rY, tm, 'alto'));
         ctx.restore();
     } catch (e) { console.error('Mejoras36 altos:', e); }
 };
@@ -7460,8 +7479,9 @@ update = function (dt) {
 };
 
 // ---------- CLIMA SEGÚN EL ESCENARIO ----------
-// En cada escenario se puede fijar el clima. Mientras haya playa, siempre hay sol (cuando termina la playa vuelve el orden normal de climas de mejoras35).
-const CLIMA_ESCENARIO = { playa: 'sol' };      // por ejemplo: { playa: 'sol' }  |  para que la playa no cambie el clima: {}
+// Cada escenario puede fijar su clima. Mientras haya playa, siempre hay sol (cuando termina vuelve el orden normal de climas de mejoras35).
+const CLIMA_ESCENARIO = REG.clima;             // los demás escenarios (desierto, nieve...) agregan el suyo ahí
+CLIMA_ESCENARIO.playa = 'sol';                 // para que la playa no cambie el clima: borrá esta línea
 if (typeof window.climaActual === 'function') {
     const _ca = window.climaActual;
     window.climaActual = () => {
@@ -7619,6 +7639,138 @@ update = function () {
 };
 
 } catch (e) { console.error("Error en Mejoras37:", e); } })();
+// ===== MEJORAS 38 - ESCENARIOS (2): MOTOR PARA SUMAR ESCENARIOS + DESIERTO (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras37 (y de mejoras36 actualizado) =====
+// Las imágenes van en la carpeta  Escenarios/  con nombres  desierto_cactus_saguaro.png, etc. Si falta alguna, ese objeto simplemente no aparece (no rompe nada).
+// IMPORTANTE: necesita el mejoras36.js NUEVO (el que tiene el "registro de escenarios").
+(function () { try {
+
+const REG = window.__escenarios;
+if (!REG) { console.error('Mejoras38: falta pegar el mejoras36 nuevo'); return; }
+const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+const SP = 120;      // cada cuántas unidades hay un "lugar" para poner objetos
+
+// =====================================================================================
+// MOTOR: crea un escenario a partir de una descripción (lo usan el desierto, la nieve, etc.)
+// =====================================================================================
+REG.crear = function (cfg) {
+    const IM = {}, T = {};
+    Object.keys(cfg.tipos).forEach(n => {
+        const d = cfg.tipos[n], o = d[2] || {};
+        const i = new Image(); i.src = cfg.carpeta + cfg.prefijo + n + '.png'; IM[n] = i;
+        T[n] = { w: Math.max(4, Math.round(d[0] * (o.alto ? cfg.escalaAltos : cfg.escala))), capa: d[1], o };
+    });
+    const listo = n => IM[n] && IM[n].complete && IM[n].naturalWidth > 0;
+    const claves = Object.keys(cfg.variantes);
+
+    function objetos(k, W, t, a) {
+        const out = [];
+        ['izq', 'der'].forEach((lado, li) => {
+            // cada lado puede tener un "estilo" distinto en cada tramo
+            const lista = cfg.variantes[claves[Math.floor(H(Math.floor(a) * 3 + li * 911 + 5) * claves.length)]];
+            const sem = k * 7 + li * 1013 + cfg.salt;
+            const n = (H(sem + 5) < 0.6 * cfg.densidad ? 1 : 0) + (H(sem + 6) < 0.28 * cfg.densidad ? 1 : 0);
+            for (let j = 0; j < n; j++) {
+                const tipo = lista[(H(sem + 10 + j) * lista.length) | 0], d = T[tipo]; if (!d) continue;
+                let lo, hi;
+                if (d.o.cx) { lo = d.o.cx[0]; hi = d.o.cx[1]; }
+                else if (d.o.alto) { lo = -4; hi = 8; }                    // los árboles grandes salen cortados por el borde de la pantalla
+                else { hi = 37 - d.w * 0.4; lo = d.w * 0.25 - 4; if (lo > hi) lo = hi; }
+                const cx = lo + H(sem + 30 + j) * (hi - lo);
+                out.push({ tipo, cx: lado === 'izq' ? cx : 400 - cx, W: W + (j * 0.5 + H(sem + 40 + j) * 0.5) * SP, lado, sem: sem + j * 77 });
+            }
+        });
+        return out;
+    }
+
+    function pintar(o, rY, t, capa) {
+        const d = T[o.tipo]; if (!d || d.capa !== capa || !listo(o.tipo)) return;
+        const y = rY - o.W, w = d.w, img = IM[o.tipo], h = w * img.naturalHeight / img.naturalWidth;
+        if (y < -Math.max(w, h) || y > 750 + Math.max(w, h)) return;
+        const sway = d.o.viento === false ? 0 : Math.sin(t / 900 + o.sem) * 0.04 * cfg.movimiento;
+        ctx.save(); ctx.translate(o.cx, y);
+        const rot = d.o.rot || 'poca';
+        if (rot === 'libre') ctx.rotate(H(o.sem + 99) * 6.28 + sway);
+        else if (rot === 'poca') ctx.rotate((H(o.sem + 55) - 0.5) * 0.5 + sway);
+        else ctx.rotate(sway);
+        if (d.o.espejo && H(o.sem + 7) < 0.5) ctx.scale(-1, 1);
+        if (capa === 'bajo' && d.o.sombra !== false) { ctx.fillStyle = 'rgba(0,0,0,.17)'; ctx.beginPath(); ctx.ellipse(3, 4, w * 0.42, h * 0.38, 0, 0, 7); ctx.fill(); }
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        ctx.restore();
+    }
+    function sombra(o, rY) {
+        const d = T[o.tipo]; if (!d || d.capa !== 'alto') return;
+        const y = rY - o.W; if (y < -80 || y > 830) return;
+        ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(o.cx + 5, y + 7, d.w * 0.4, d.w * 0.4, 0, 0, 7); ctx.fill();
+    }
+    function suelo(t, y0, y1, rY, tm) {
+        ctx.save(); ctx.beginPath(); ctx.rect(0, y0, 400, y1 - y0); ctx.clip();
+        ['izq', 'der'].forEach((lado, li) => {
+            ctx.save();
+            if (li) { ctx.translate(400, 0); ctx.scale(-1, 1); }      // la derecha se dibuja espejada con el mismo código
+            cfg.suelo(ctx, y0, y1, rY, tm, li, H);
+            ctx.restore();
+        });
+        ctx.restore();
+    }
+
+    REG.registrar({ e: cfg.e, tramos: cfg.tramos, clima: cfg.clima, objetos, pintar, sombra, suelo });
+};
+
+// =====================================================================================
+// DESIERTO
+// =====================================================================================
+const ESCALA_OBJETOS = 1.4;        // tamaño de los objetos del desierto (1 = chico | 1.4 = normal | 1.6 = máximo recomendado)
+const ESCALA_PALMERAS = 1.0;       // tamaño de las palmeras
+const DENSIDAD = 1.2;              // cuántos objetos hay (0.5 = la mitad | 1.5 = más cargado)
+const MOVIMIENTO = 1;              // cuánto se mueven las plantas con el viento (0 = quietas)
+const CLIMA_DESIERTO = 'arena';    // clima mientras dura el desierto: 'arena' (tormenta de arena), 'sol', 'atardecer'... o null para que el clima siga su orden normal
+const METROS_DESIERTO = [700, 1000];   // cuánto dura cada tramo de desierto (mínimo, máximo)
+const FRECUENCIA_DESIERTO = 1;     // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
+
+// tipo: [ancho en pantalla, capa ('bajo' = debajo de los autos | 'alto' = encima), opciones]
+// opciones: rot ('libre' gira como quiera | 'poca' un poquito | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se mueve)
+const TIPOS = {
+    cactus_saguaro: [22, 'bajo'], cactus_saguaro_chico: [16, 'bajo'], cactus_barril: [18, 'bajo'], cactus_tres: [22, 'bajo'],
+    arbusto_seco: [22, 'bajo'], planta_rodadora: [18, 'bajo', { rot: 'libre' }], agave: [26, 'bajo', { rot: 'libre' }],
+    roca_roja_grande: [30, 'bajo', { viento: false }], roca_roja: [24, 'bajo', { viento: false }], piedras_ocre: [16, 'bajo', { viento: false }],
+    tronco_seco: [30, 'bajo', { rot: 'libre', viento: false }],
+    calavera: [22, 'bajo', { rot: 'libre', viento: false }], costillas: [28, 'bajo', { rot: 'libre', sombra: false, viento: false }],
+    cartel: [18, 'bajo'], rueda: [18, 'bajo', { rot: 'libre', viento: false }], barril: [16, 'bajo', { viento: false }], carreta: [38, 'bajo', { viento: false }],
+    camello: [34, 'bajo', { espejo: true, viento: false }], serpiente: [16, 'bajo', { rot: 'libre', viento: false }], escorpion: [14, 'bajo', { rot: 'libre', viento: false }],
+    tienda: [38, 'bajo', { viento: false }], fogata: [24, 'bajo', { sombra: false, viento: false }], huesos: [22, 'bajo', { rot: 'libre', sombra: false, viento: false }],
+    palmera: [70, 'alto', { alto: true, rot: 'libre' }]
+};
+// qué aparece en cada "estilo" de desierto (lo que se repite sale más seguido). Cada lado de la ruta elige un estilo distinto en cada tramo.
+const VARIANTES = {
+    cactus: ['cactus_saguaro', 'cactus_saguaro', 'cactus_saguaro_chico', 'cactus_barril', 'cactus_tres', 'arbusto_seco', 'agave', 'planta_rodadora', 'palmera'],
+    rocas: ['roca_roja_grande', 'roca_roja', 'roca_roja', 'piedras_ocre', 'piedras_ocre', 'arbusto_seco', 'tronco_seco', 'cactus_barril', 'serpiente', 'escorpion', 'agave'],
+    ruinas: ['calavera', 'costillas', 'cartel', 'rueda', 'barril', 'carreta', 'camello', 'tienda', 'fogata', 'huesos', 'arbusto_seco', 'planta_rodadora']
+};
+
+function sueloDesierto(g, y0, y1, rY, tm, lado, H) {
+    g.fillStyle = '#d9a55b'; g.fillRect(0, y0, 36, y1 - y0);
+    // ondas de duna
+    for (let k = Math.floor((rY - y1) / 20) - 1; k <= Math.floor((rY - y0) / 20) + 1; k++) {
+        const yy = rY - k * 20, x0 = 2 + H(k * 3 + lado * 7) * 10;
+        g.strokeStyle = H(k + 1 + lado * 5) < 0.5 ? 'rgba(150,95,40,.28)' : 'rgba(255,225,160,.38)'; g.lineWidth = 1.5;
+        g.beginPath(); g.moveTo(x0, yy); g.quadraticCurveTo(x0 + 9, yy - 3 + H(k + 9) * 4, x0 + 18 + H(k * 2 + 3) * 8, yy + 1); g.stroke();
+    }
+    // granitos de arena
+    for (let k = Math.floor((rY - y1) / 14) - 1; k <= Math.floor((rY - y0) / 14) + 1; k++) {
+        const yy = rY - k * 14 + H(k * 3 + lado * 7) * 14, xx = 2 + H(k * 5 + 1 + lado * 9) * 32;
+        g.fillStyle = H(k + 8) < 0.5 ? 'rgba(255,235,180,.6)' : 'rgba(150,100,45,.4)'; g.fillRect(xx, yy, 2, 2);
+    }
+    g.fillStyle = 'rgba(110,70,30,.22)'; g.fillRect(29, y0, 7, y1 - y0);      // arena más oscura pegada a la ruta
+}
+
+REG.crear({
+    e: 'desierto', carpeta: 'Escenarios/', prefijo: 'desierto_', salt: 5000,
+    escala: ESCALA_OBJETOS, escalaAltos: ESCALA_PALMERAS, densidad: DENSIDAD, movimiento: MOVIMIENTO,
+    tipos: TIPOS, variantes: VARIANTES, suelo: sueloDesierto,
+    tramos: [{ m: METROS_DESIERTO, p: FRECUENCIA_DESIERTO }], clima: CLIMA_DESIERTO
+});
+
+} catch (e) { console.error('Mejoras38:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
