@@ -7670,7 +7670,9 @@ REG.crear = function (cfg) {
         const out = [];
         ['izq', 'der'].forEach((lado, li) => {
             // cada lado puede tener un "estilo" distinto en cada tramo
-            const lista = cfg.variantes[claves[Math.floor(H(Math.floor(a) * 3 + li * 911 + 5) * claves.length)]];
+            // (si el escenario está forzado para probar, el "tramo" no tiene principio: cambiamos de estilo cada 10 lugares)
+            const base = Math.abs(a) > 1e8 ? Math.floor(k / 10) : Math.floor(a);
+            const lista = cfg.variantes[claves[Math.floor(H(base * 3 + li * 911 + 5) * claves.length)]];
             const sem = k * 7 + li * 1013 + cfg.salt;
             if (cfg.orden) {
                 // modo prolijo: un solo objeto por lugar, siempre sobre la misma línea, y los dos lados se alternan (uno a la izquierda, uno a la derecha...)
@@ -7757,10 +7759,11 @@ const TIPOS = {
     palmera: [70, 'alto', { alto: true, rot: 'libre' }]
 };
 // qué aparece en cada "estilo" de desierto (lo que se repite sale más seguido). Cada lado de la ruta elige un estilo distinto en cada tramo.
+// (las rocas rojas grandes están sacadas a propósito: llamaban demasiado la atención. Si querés volver a ponerlas, agregá 'roca_roja_grande' o 'roca_roja' a alguna lista)
 const VARIANTES = {
-    cactus: ['cactus_saguaro', 'cactus_saguaro', 'cactus_saguaro_chico', 'cactus_barril', 'cactus_tres', 'arbusto_seco', 'agave', 'planta_rodadora', 'palmera'],
-    rocas: ['roca_roja_grande', 'roca_roja', 'roca_roja', 'piedras_ocre', 'piedras_ocre', 'arbusto_seco', 'tronco_seco', 'cactus_barril', 'serpiente', 'escorpion', 'agave'],
-    ruinas: ['calavera', 'costillas', 'cartel', 'rueda', 'barril', 'carreta', 'camello', 'tienda', 'fogata', 'huesos', 'arbusto_seco', 'planta_rodadora']
+    cactus: ['cactus_saguaro', 'cactus_saguaro', 'cactus_saguaro_chico', 'cactus_barril', 'cactus_tres', 'arbusto_seco', 'agave', 'planta_rodadora', 'palmera', 'piedras_ocre'],
+    mixto: ['cactus_saguaro', 'cactus_barril', 'agave', 'arbusto_seco', 'planta_rodadora', 'calavera', 'cartel', 'barril', 'rueda', 'fogata', 'tienda', 'tronco_seco', 'piedras_ocre'],
+    ruinas: ['calavera', 'costillas', 'cartel', 'rueda', 'barril', 'carreta', 'camello', 'tienda', 'fogata', 'huesos', 'arbusto_seco', 'serpiente', 'escorpion']
 };
 
 function sueloDesierto(g, y0, y1, rY, tm, lado, H) {
