@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Racing Arcade</title>
     
@@ -7757,7 +7757,7 @@ REG.crear = function (cfg) {
         const br = d.o.brillo;
         if (br && cfg.movimiento > 0) {
             const k = br.tipo === 'fogata' ? 0.55 + 0.45 * Math.sin(t / 70 + ph) * Math.sin(t / 130 + ph * 2) : 0.8 + 0.2 * Math.sin(t / 700 + ph);
-            const cx = o.cx + ox, cy = y + (br.dy || 0) * h, r = w * br.r * (0.9 + 0.1 * k);
+            const cx = o.cx + ox + (br.dx || 0) * w * (flip ? -1 : 1), cy = y + (br.dy || 0) * h, r = w * br.r * (0.9 + 0.1 * k);
             const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
             gr.addColorStop(0, br.color.replace('A', (0.42 * k).toFixed(2))); gr.addColorStop(1, br.color.replace('A', '0'));
             ctx.fillStyle = gr; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
@@ -7797,7 +7797,7 @@ const FRECUENCIA_DESIERTO = 1;     // qué tan seguido sale respecto de la playa
 
 // tipo: [ancho en pantalla, capa ('bajo' = debajo de los autos | 'alto' = encima), opciones]
 // opciones: rot ('libre' gira como quiera | 'poca' un poquito | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se mueve),
-//   mov (movimiento: 'respira' | 'pasea' | 'salta' | 'desliza' | 'repta' | 'rueda' | 'tiembla'), brillo ({ color, r, tipo, dy }: luz que parpadea, para fogatas y faroles)
+//   mov (movimiento: 'respira' | 'pasea' | 'salta' | 'desliza' | 'repta' | 'rueda' | 'tiembla'), brillo ({ color, r, tipo, dx, dy }: luz que parpadea, para fogatas y faroles)
 const TIPOS = {
     cactus_saguaro: [22, 'bajo'], cactus_saguaro_chico: [16, 'bajo'], cactus_barril: [18, 'bajo'], cactus_tres: [22, 'bajo'],
     arbusto_seco: [22, 'bajo'], planta_rodadora: [18, 'bajo', { rot: 'libre', mov: 'rueda', sombra: false, viento: false }], agave: [26, 'bajo', { rot: 'libre' }],
@@ -7954,7 +7954,86 @@ REG.crear({
 });
 
 } catch (e) { console.error('Mejoras39:', e); } })();
-} catch (e) { console.error("Error crítico:", e); }
+// ===== MEJORAS 40 - ESCENARIOS (4): BOSQUE (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras39) =====
+// Las imágenes van en la carpeta  Escenarios/  con nombres  bosque_roble.png, etc. Si falta alguna, ese objeto simplemente no aparece.
+// Necesita mejoras36 (nuevo) y mejoras38 (motor de escenarios, versión nueva). Si no pegaste la nieve (mejoras39), esto funciona igual.
+(function () { try {
+
+const REG = window.__escenarios;
+if (!REG || !REG.crear) { console.error('Mejoras40: falta pegar mejoras36 (nuevo) y mejoras38 antes'); return; }
+
+// ---------- PERILLAS ----------
+const ESCALA_OBJETOS = 1.4;        // tamaño de los objetos del bosque (1 = chico | 1.4 = normal | 1.6 = máximo recomendado)
+const ESCALA_ARBOLES = 1.1;        // tamaño de los robles grandes (los que salen cortados por el borde)
+const DENSIDAD = 1;                // cuántos objetos hay (0.5 = la mitad | 1.5 = más cargado)
+const MOVIMIENTO = 1;              // cuánto se mueven los árboles y los animales (0 = quietos)
+const CLIMA_BOSQUE = 'viento';     // clima mientras dura el bosque: 'viento' (ráfagas con hojas), 'sol', 'niebla'... o null para que el clima siga su orden normal
+const METROS_BOSQUE = [700, 1000]; // cuánto dura cada tramo de bosque (mínimo, máximo)
+const FRECUENCIA_BOSQUE = 1;       // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
+const ORDEN = { paso: 2, omitir: 0.2, linea: 20 };    // paso = un objeto cada (paso x 120) unidades de ruta, alternando izquierda y derecha (2 = normal | 1 = más cargado | 3 = más vacío). omitir = chance de saltear un lugar
+
+// tipo: [ancho en pantalla, capa ('bajo' = debajo de los autos | 'alto' = encima), opciones]
+// opciones: rot ('libre' gira como quiera | 'poca' un poquito | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se mueve),
+//   mov (movimiento: 'respira' | 'pasea' | 'salta' | 'desliza'), brillo ({ color, r, tipo, dx, dy }: luz que parpadea)
+const TIPOS = {
+    roble_grande: [40, 'alto', { alto: true, rot: 'ninguna' }],
+    roble: [30, 'bajo', { rot: 'ninguna' }], arbol_chico: [20, 'bajo', { rot: 'ninguna' }], pino: [22, 'bajo', { rot: 'ninguna' }], pino_mediano: [20, 'bajo', { rot: 'ninguna' }],
+    abedul: [22, 'bajo', { rot: 'ninguna' }], otono_naranja: [28, 'bajo', { rot: 'ninguna' }], otono_rojo: [28, 'bajo', { rot: 'ninguna' }],
+    arbusto: [20, 'bajo'], arbusto_flores: [18, 'bajo'], helechos: [18, 'bajo'], pasto_alto: [14, 'bajo', { rot: 'ninguna' }],
+    tronco_musgo: [26, 'bajo', { rot: 'libre', viento: false }], tocon: [14, 'bajo', { viento: false }], roca_musgo: [20, 'bajo', { viento: false }],
+    hongos_rojos: [14, 'bajo', { viento: false }], hongos_marrones: [14, 'bajo', { viento: false }], flores_amarillas: [14, 'bajo', { sombra: false }],
+    ciervo: [26, 'bajo', { espejo: true, viento: false, mov: 'respira' }], zorro: [20, 'bajo', { espejo: true, viento: false, mov: 'respira' }],
+    conejo: [14, 'bajo', { espejo: true, viento: false, mov: 'salta' }], jabalin: [24, 'bajo', { espejo: true, viento: false, mov: 'pasea' }],
+    cabana: [34, 'bajo', { rot: 'ninguna', viento: false }],
+    carpa_fogata: [34, 'bajo', { rot: 'ninguna', viento: false, brillo: { color: 'rgba(255,150,50,A)', r: 0.45, tipo: 'fogata', dx: -0.24, dy: 0.30 } }]
+};
+// qué aparece en cada "estilo" de bosque (lo que se repite sale más seguido). Cada lado de la ruta elige un estilo distinto en cada tramo.
+const VARIANTES = {
+    frondoso: ['roble_grande', 'roble', 'roble', 'arbol_chico', 'abedul', 'otono_naranja', 'arbusto', 'arbusto', 'arbusto_flores', 'helechos', 'pasto_alto', 'tronco_musgo'],
+    pinar: ['pino', 'pino', 'pino', 'pino_mediano', 'pino_mediano', 'arbusto', 'helechos', 'helechos', 'tocon', 'roca_musgo', 'hongos_rojos', 'hongos_marrones', 'tronco_musgo'],
+    otono: ['otono_naranja', 'otono_naranja', 'otono_rojo', 'otono_rojo', 'abedul', 'roble', 'arbusto', 'flores_amarillas', 'hongos_marrones', 'tocon', 'pasto_alto'],
+    vida: ['ciervo', 'zorro', 'conejo', 'conejo', 'jabalin', 'cabana', 'carpa_fogata', 'hongos_rojos', 'hongos_marrones', 'roble', 'pino', 'flores_amarillas', 'arbusto_flores']
+};
+
+function sueloBosque(g, y0, y1, rY, tm, lado, H) {
+    // base verde de bosque: más clara lejos de la ruta y más oscura pegada a ella
+    const gr = g.createLinearGradient(0, 0, 36, 0); gr.addColorStop(0, '#3a8a46'); gr.addColorStop(0.55, '#2d7a3d'); gr.addColorStop(1, '#206534');
+    g.fillStyle = gr; g.fillRect(0, y0, 36, y1 - y0);
+    // manchas de pasto más claro y más oscuro
+    for (let k = Math.floor((rY - y1) / 60) - 1; k <= Math.floor((rY - y0) / 60) + 1; k++) {
+        const yy = rY - k * 60 - H(k * 3 + lado * 7) * 40, xx = 2 + H(k * 5 + lado * 11) * 26, w = 7 + H(k + 4) * 8, h = 4 + H(k + 6) * 6;
+        g.fillStyle = H(k + 9) < 0.5 ? 'rgba(120,200,110,.18)' : 'rgba(10,50,25,.22)'; g.beginPath(); g.ellipse(xx, yy, w, h, 0.3, 0, 7); g.fill();
+    }
+    // hojitas de pasto (rayitas verticales de pixel)
+    for (let k = Math.floor((rY - y1) / 13) - 1; k <= Math.floor((rY - y0) / 13) + 1; k++) {
+        const yy = rY - k * 13 + H(k * 3 + lado * 7) * 13, xx = 1 + H(k * 5 + lado * 9) * 33, r = H(k + 3);
+        g.fillStyle = r < 0.5 ? 'rgba(150,225,120,.55)' : 'rgba(15,70,35,.45)'; g.fillRect(Math.round(xx), Math.round(yy), 1, 2 + (r < 0.2 ? 1 : 0));
+        if (r > 0.75) g.fillRect(Math.round(xx) + 2, Math.round(yy) + 1, 1, 2);
+    }
+    // hojas caídas de otoño y flores chiquitas
+    for (let k = Math.floor((rY - y1) / 38) - 1; k <= Math.floor((rY - y0) / 38) + 1; k++) {
+        const yy = rY - k * 38 + H(k * 3 + lado * 7) * 30, xx = 2 + H(k * 5 + lado * 9) * 30, r = H(k + 12);
+        if (r < 0.4) { g.fillStyle = ['#d9822b', '#c0392b', '#e0b13a', '#a0522d'][(H(k + 20) * 4) | 0]; g.fillRect(Math.round(xx), Math.round(yy), 2, 1); g.fillRect(Math.round(xx) + 1, Math.round(yy) + 1, 1, 1); }
+        else if (r < 0.5) { g.fillStyle = H(k + 30) < 0.5 ? '#fff3a8' : '#f4a6d0'; g.fillRect(Math.round(xx), Math.round(yy), 1, 1); g.fillRect(Math.round(xx) + 1, Math.round(yy) - 1, 1, 1); }
+    }
+    // luz que se cuela entre las copas (manchas que se mueven despacio)
+    for (let k = Math.floor((rY - y1) / 90) - 1; k <= Math.floor((rY - y0) / 90) + 1; k++) {
+        const yy = rY - k * 90 - H(k * 3 + lado) * 70, xx = 6 + H(k * 9 + lado) * 22, a = 0.5 + 0.5 * Math.sin(tm / 1500 + k * 2.1);
+        g.globalAlpha = 0.10 + 0.10 * a; g.fillStyle = '#fff6b0'; g.beginPath(); g.ellipse(xx, yy, 6, 9, 0.5, 0, 7); g.fill();
+    }
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgba(5,40,20,.20)'; g.fillRect(30, y0, 6, y1 - y0);      // más oscuro pegado a la ruta
+}
+
+REG.crear({
+    e: 'bosque', carpeta: 'Escenarios/', prefijo: 'bosque_', salt: 13000,
+    escala: ESCALA_OBJETOS, escalaAltos: ESCALA_ARBOLES, densidad: DENSIDAD, movimiento: MOVIMIENTO,
+    tipos: TIPOS, variantes: VARIANTES, suelo: sueloBosque, orden: ORDEN, baseColor: 'rgba(36,105,52,.55)',
+    tramos: [{ m: METROS_BOSQUE, p: FRECUENCIA_BOSQUE }], clima: CLIMA_BOSQUE
+});
+
+} catch (e) { console.error('Mejoras40:', e); } })();
+        } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
 </html>
