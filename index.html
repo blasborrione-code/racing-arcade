@@ -7838,6 +7838,71 @@ REG.crear({
 });
 
 } catch (e) { console.error('Mejoras38:', e); } })();
+// ===== MEJORAS 39 - ESCENARIOS (3): NIEVE (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras38) =====
+// Las imágenes van en la carpeta  Escenarios/  con nombres  nieve_pino.png, etc. Si falta alguna, ese objeto simplemente no aparece.
+// Necesita mejoras36 (nuevo) y mejoras38 (motor de escenarios).
+(function () { try {
+
+const REG = window.__escenarios;
+if (!REG || !REG.crear) { console.error('Mejoras39: falta pegar mejoras36 (nuevo) y mejoras38 antes'); return; }
+
+// ---------- PERILLAS ----------
+const ESCALA_OBJETOS = 1.4;        // tamaño de los objetos de la nieve (1 = chico | 1.4 = normal | 1.6 = máximo recomendado)
+const ESCALA_ARBOLES = 1.1;        // tamaño de los pinos grandes
+const DENSIDAD = 1;                // cuántos objetos hay (0.5 = la mitad | 1.5 = más cargado)
+const ORDEN = { paso: 2, omitir: 0.2, linea: 20 };    // paso = un objeto cada (paso x 120) unidades de ruta, alternando izquierda y derecha (2 = normal | 1 = más cargado | 3 = más vacío). omitir = chance de saltear un lugar. linea = a qué distancia del borde van alineados
+const MOVIMIENTO = 1;              // cuánto se mueven los árboles con el viento (0 = quietos)
+const CLIMA_NIEVE = 'nieve';       // clima mientras dura la nieve: 'nieve' (nevada), 'sol', 'niebla'... o null para que el clima siga su orden normal. Ojo: la nevada hace que el auto agarre menos
+const METROS_NIEVE = [700, 1000];  // cuánto dura cada tramo de nieve (mínimo, máximo)
+const FRECUENCIA_NIEVE = 1;        // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
+
+// tipo: [ancho en pantalla, capa ('bajo' = debajo de los autos | 'alto' = encima), opciones]
+// opciones: rot ('libre' gira como quiera | 'poca' un poquito | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se mueve)
+const TIPOS = {
+    pino_grande: [52, 'alto', { alto: true, rot: 'libre' }],
+    pino: [34, 'bajo', { rot: 'ninguna' }], pino_chico: [24, 'bajo', { rot: 'ninguna' }], abeto: [32, 'bajo', { rot: 'ninguna' }], tres_pinos: [34, 'bajo', { rot: 'ninguna' }],
+    arbusto: [24, 'bajo'], arbol_seco: [34, 'bajo', { rot: 'ninguna' }], tronco: [34, 'bajo', { rot: 'libre', viento: false }], tocon: [18, 'bajo', { viento: false }],
+    pasto: [22, 'bajo', { sombra: false, viento: false }], roca: [26, 'bajo', { viento: false }], rocas: [22, 'bajo', { viento: false }],
+    muneco: [18, 'bajo', { rot: 'ninguna' }], monticulo: [26, 'bajo', { sombra: false, viento: false }], iglu: [34, 'bajo', { viento: false }], cabana: [38, 'bajo', { rot: 'ninguna', viento: false }],
+    trineo: [20, 'bajo', { rot: 'libre', viento: false }], esquiador: [14, 'bajo', { rot: 'poca' }], pinguino: [16, 'bajo', { espejo: true }],
+    oso_polar: [32, 'bajo', { espejo: true, viento: false }], zorro_artico: [24, 'bajo', { espejo: true, viento: false }],
+    cartel: [18, 'bajo', { rot: 'ninguna' }], farol: [12, 'bajo', { rot: 'ninguna', viento: false }], hielo: [30, 'bajo', { rot: 'libre', sombra: false, viento: false }],
+    snowboarder_rojo: [24, 'bajo', { rot: 'poca' }], snowboarder_celeste: [24, 'bajo', { rot: 'poca' }], snowboarder_amarillo: [24, 'bajo', { rot: 'poca' }],
+    tabla_azul: [24, 'bajo', { rot: 'libre', viento: false }], tabla_naranja: [24, 'bajo', { rot: 'libre', viento: false }], tabla_clavada: [14, 'bajo', { viento: false }],
+    esquiador_azul: [16, 'bajo', { rot: 'poca' }], esquiador_amarillo: [14, 'bajo', { rot: 'poca' }], trineo_chico: [12, 'bajo', { rot: 'poca', viento: false }]
+};
+// qué aparece en cada "estilo" de nieve (lo que se repite sale más seguido). Cada lado de la ruta elige un estilo distinto en cada tramo.
+const VARIANTES = {
+    bosque: ['pino_grande', 'pino', 'pino', 'pino', 'pino_chico', 'pino_chico', 'abeto', 'abeto', 'tres_pinos', 'arbol_seco', 'tronco', 'tocon', 'roca', 'rocas', 'pasto', 'arbusto'],
+    pueblo: ['cabana', 'cabana', 'iglu', 'muneco', 'muneco', 'trineo', 'farol', 'farol', 'cartel', 'monticulo', 'pino_chico', 'arbusto', 'hielo', 'tocon'],
+    esqui: ['snowboarder_rojo', 'snowboarder_celeste', 'snowboarder_amarillo', 'esquiador', 'esquiador_azul', 'esquiador_amarillo', 'tabla_azul', 'tabla_naranja', 'tabla_clavada', 'tabla_clavada', 'trineo_chico', 'trineo', 'monticulo', 'cartel', 'pino_chico'],
+    fauna: ['oso_polar', 'zorro_artico', 'zorro_artico', 'pinguino', 'pinguino', 'hielo', 'roca', 'rocas', 'monticulo', 'pino', 'abeto']
+};
+
+function sueloNieve(g, y0, y1, rY, tm, lado, H) {
+    g.fillStyle = '#e4edf7'; g.fillRect(0, y0, 36, y1 - y0);
+    // manchas de nieve más oscura (para que los objetos blancos se distingan)
+    for (let k = Math.floor((rY - y1) / 26) - 1; k <= Math.floor((rY - y0) / 26) + 1; k++) {
+        const yy = rY - k * 26 + H(k * 3 + lado * 7) * 20, xx = 3 + H(k * 5 + lado * 11) * 26, w = 6 + H(k + 4) * 8, h = 3 + H(k + 6) * 4;
+        g.fillStyle = 'rgba(160,188,222,.38)'; g.beginPath(); g.ellipse(xx, yy, w, h, 0, 0, 7); g.fill();
+    }
+    // brillitos de la nieve
+    for (let k = Math.floor((rY - y1) / 18) - 1; k <= Math.floor((rY - y0) / 18) + 1; k++) {
+        const yy = rY - k * 18 + H(k * 3 + lado * 7) * 18, xx = 2 + H(k * 5 + 1 + lado * 9) * 32, a = Math.sin(tm / 600 + k * 1.7) * 0.5 + 0.5;
+        g.globalAlpha = 0.35 + 0.65 * a; g.fillStyle = '#ffffff'; g.fillRect(xx, yy, 2, 2);
+    }
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgba(140,172,210,.35)'; g.fillRect(30, y0, 6, y1 - y0);     // nieve apilada pegada a la ruta
+}
+
+REG.crear({
+    e: 'nieve', carpeta: 'Escenarios/', prefijo: 'nieve_', salt: 9000,
+    escala: ESCALA_OBJETOS, escalaAltos: ESCALA_ARBOLES, densidad: DENSIDAD, movimiento: MOVIMIENTO,
+    tipos: TIPOS, variantes: VARIANTES, suelo: sueloNieve, orden: ORDEN,
+    tramos: [{ m: METROS_NIEVE, p: FRECUENCIA_NIEVE }], clima: CLIMA_NIEVE
+});
+
+} catch (e) { console.error('Mejoras39:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
