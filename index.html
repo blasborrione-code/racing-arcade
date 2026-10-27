@@ -7592,9 +7592,19 @@ update = function () {
             const cx = e.x + e.w / 2, cy = e.y + e.h / 2, w = OBRERO_CAIDO_ANCHO, h = alto(nom, w);
             e.img = IMG[nom]; e.w = w; e.h = h; e.x = cx - w / 2; e.y = cy - h / 2;
         }
+        // animación chica, como el piloto de las motos: sale despedido un poquito hacia el costado, gira y queda tirado en el asfalto
+        const dir = (e.vx || 0) < 0 ? -1 : 1;
         e.rotation = 0;
-        e.vRot = (Math.random() < 0.5 ? -1 : 1) * rnd(0.10, 0.20);
-        e.vx = (e.vx || 0) * rnd(0.8, 1.3);
+        e._vx = dir * rnd(1.2, 2.6); e._vy = -rnd(2.2, 3.6); e._vr = dir * rnd(0.12, 0.22);
+        e.vx = 0; e.vRot = 0;            // se frena el movimiento del juego original (que lo mandaba fuera del mapa)
+    });
+    // mueve a los obreros caídos: frenan rápido y después quedan quietos moviéndose con el camino
+    enemies.forEach(e => {
+        if (!e._caido || e.subType !== 'obrero') return;
+        const dt = arguments[0] || 1;
+        e.vx = 0; e.vRot = 0;
+        e.x += e._vx * dt; e.y += e._vy * dt; e.rotation += e._vr * dt;
+        const f = Math.pow(0.93, dt); e._vx *= f; e._vy *= f; e._vr *= Math.pow(0.94, dt);
     });
     if (golpes) {
         conesThisRun = Math.max(0, conesThisRun - golpes);  // no cuenta como cono en las estadísticas
