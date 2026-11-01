@@ -8214,41 +8214,50 @@ const REG = window.__escenarios;
 if (!REG || !REG.crear) { console.error('Mejoras41: falta pegar mejoras36 (nuevo) y mejoras38 antes'); return; }
 
 // ---------- PERILLAS ----------
-const ESCALA_OBJETOS = 1.2;        // tamaño de todo lo de la ciudad (1 = chico | 1.2 = normal | 1.4 = grande)
+const ESCALA_OBJETOS = 1;          // tamaño de todo lo de la ciudad (0.8 = chico | 1 = normal | 1.2 = grande)
 const DENSIDAD = 1;                // cuántos objetos hay (0.5 = la mitad | 1.5 = más cargado)
 const MOVIMIENTO = 1;              // cuánto se mueven las personas y los carteles (0 = quietos)
 const CLIMA_CIUDAD = 'sol';        // clima mientras dura la ciudad: 'sol', 'atardecer', 'lluvia', 'niebla'... o null para que el clima siga su orden normal
 const METROS_CIUDAD = [700, 1000]; // cuánto dura cada tramo de ciudad (mínimo, máximo)
 const FRECUENCIA_CIUDAD = 1;       // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
-const ORDEN = { paso: 1, omitir: 0.1, linea: 20 };    // paso = un objeto cada (paso x 120) unidades de ruta, alternando izquierda y derecha (1 = ciudad cargada | 2 = más vacía). omitir = chance de saltear un lugar. linea = a qué distancia del borde sale cada objeto
+const ORDEN = { paso: 1, omitir: 0.08, linea: 20 };    // paso = un edificio cada (paso x 120) unidades de ruta, en los dos lados (1 = ciudad cargada | 2 = más vacía). omitir = chance de dejar un lugar sin edificio
+const VEREDA = 0.8;                // cuánta gente y mobiliario hay en la vereda (0 = vereda vacía | 0.8 = normal | 1 = siempre algo en cada lugar)
 
 // tipo: [ancho en pantalla, capa ('bajo' = debajo de los autos | 'alto' = encima), opciones]
 // opciones: rot ('libre' | 'poca' | 'ninguna'), espejo (se da vuelta al azar), sombra (false = sin sombra), viento (false = no se balancea),
 //   mov (movimiento: 'pasea' | 'desliza' | 'respira' ...), brillo ({ color, r, tipo, dx, dy }: luz que parpadea)
 const Q = { rot: 'ninguna', viento: false };
+const P = (m) => ({ rot: 'ninguna', viento: false, mov: m });
 const TIPOS = {
-    // casas y edificios (se ven medio cortados por el borde de la pantalla, como en una calle real)
-    casa_amarilla: [46, 'bajo', Q], casa_amarilla2: [46, 'bajo', Q], casa_roja: [44, 'bajo', Q], casa_violeta: [46, 'bajo', Q], casa_tejas: [50, 'bajo', Q],
-    edif_rosa: [52, 'bajo', Q], edif_celeste: [50, 'bajo', Q], edif_ladrillo2: [50, 'bajo', Q], edif_terraza: [50, 'bajo', Q], tienda: [48, 'bajo', Q],
-    edif_gris: [48, 'bajo', Q], edif_azul: [48, 'bajo', Q], edif_ladrillo: [50, 'bajo', Q], edif_solar: [50, 'bajo', Q], edif_jardin: [52, 'bajo', Q],
-    shopping: [58, 'bajo', Q], helipuerto: [52, 'bajo', Q], galpon: [52, 'bajo', Q],
-    // mobiliario urbano
-    arbol_vereda: [36, 'bajo', Q], arbol_chico: [24, 'bajo', Q], maceta: [12, 'bajo', Q], farol: [14, 'bajo', { rot: 'ninguna', viento: false, brillo: { color: 'rgba(255,225,140,A)', r: 1.1, tipo: 'farol', dx: 0, dy: -0.34 } }],
-    banco: [18, 'bajo', Q], banco2: [18, 'bajo', Q], cesto: [11, 'bajo', Q], cesto_gris: [13, 'bajo', Q], contenedor: [22, 'bajo', Q], hidrante: [12, 'bajo', Q],
-    cabina: [13, 'bajo', Q], parada: [28, 'bajo', Q], cartel: [30, 'bajo', Q], fuente: [34, 'bajo', Q],
-    // personas y vehículos
-    peaton: [11, 'bajo', { rot: 'ninguna', viento: false, mov: 'pasea' }], peaton_mochila: [11, 'bajo', { rot: 'ninguna', viento: false, mov: 'pasea' }],
-    pareja: [15, 'bajo', { rot: 'ninguna', viento: false, mov: 'respira' }], paseaperro: [17, 'bajo', { rot: 'ninguna', viento: false, mov: 'pasea' }],
-    ciclista: [12, 'bajo', { rot: 'ninguna', viento: false, mov: 'desliza' }],
-    carrito_comida: [22, 'bajo', Q], kiosco: [28, 'bajo', Q]
+    // EDIFICIOS Y CASAS (van en el "lote", pegados al borde de la pantalla, detrás de la vereda)
+    casa_amarilla: [50, 'bajo', Q], casa_amarilla2: [50, 'bajo', Q], casa_roja: [48, 'bajo', Q], casa_violeta: [50, 'bajo', Q], casa_tejas: [54, 'bajo', Q],
+    edif_rosa: [52, 'bajo', Q], edif_celeste: [52, 'bajo', Q], edif_ladrillo2: [50, 'bajo', Q], edif_terraza: [50, 'bajo', Q], tienda: [50, 'bajo', Q],
+    edif_gris: [50, 'bajo', Q], edif_azul: [50, 'bajo', Q], edif_ladrillo: [52, 'bajo', Q], edif_solar: [52, 'bajo', Q], edif_jardin: [54, 'bajo', Q],
+    shopping: [60, 'bajo', Q], helipuerto: [54, 'bajo', Q], galpon: [54, 'bajo', Q],
+    arbol_vereda: [34, 'bajo', Q], fuente: [38, 'bajo', Q],
+    // VEREDA (mobiliario y gente)
+    arbol_chico: [24, 'bajo', Q], maceta: [13, 'bajo', Q], farol: [16, 'bajo', { rot: 'ninguna', viento: false, brillo: { color: 'rgba(255,225,140,A)', r: 1.1, tipo: 'farol', dx: 0, dy: -0.34 } }],
+    banco: [20, 'bajo', Q], banco2: [20, 'bajo', Q], cesto: [11, 'bajo', Q], cesto_gris: [13, 'bajo', Q], contenedor: [22, 'bajo', Q], hidrante: [11, 'bajo', Q],
+    cabina: [14, 'bajo', Q], parada: [22, 'bajo', Q], cartel: [24, 'bajo', Q], carrito_comida: [22, 'bajo', Q], kiosco: [24, 'bajo', Q],
+    peaton: [17, 'bajo', P('pasea')], peaton_mochila: [17, 'bajo', P('pasea')], pareja: [24, 'bajo', P('respira')], paseaperro: [26, 'bajo', P('pasea')], ciclista: [18, 'bajo', P('desliza')]
 };
-// qué aparece en cada "zona" de la ciudad (lo que se repite sale más seguido). Cada lado de la ruta elige una zona distinta en cada tramo.
+// LOTE: lo que va detrás de la vereda en cada zona (se cortan por el borde de la pantalla, como en una calle real)
 const VARIANTES = {
-    barrio: ['casa_amarilla', 'casa_roja', 'casa_violeta', 'casa_amarilla2', 'casa_tejas', 'arbol_vereda', 'arbol_vereda', 'arbol_chico', 'maceta', 'banco', 'peaton', 'peaton_mochila', 'paseaperro', 'pareja', 'cesto', 'farol'],
-    centro: ['edif_gris', 'edif_azul', 'edif_ladrillo', 'edif_solar', 'edif_rosa', 'edif_celeste', 'edif_ladrillo2', 'edif_terraza', 'tienda', 'farol', 'farol', 'cesto_gris', 'contenedor', 'hidrante', 'peaton_mochila', 'peaton', 'pareja', 'tienda'],
-    comercial: ['shopping', 'helipuerto', 'galpon', 'edif_jardin', 'tienda', 'kiosco', 'carrito_comida', 'cartel', 'parada', 'farol', 'pareja', 'peaton', 'peaton_mochila', 'ciclista'],
-    plaza: ['fuente', 'arbol_vereda', 'arbol_vereda', 'arbol_chico', 'banco', 'banco2', 'cabina', 'parada', 'hidrante', 'farol', 'maceta', 'pareja', 'paseaperro', 'ciclista', 'peaton', 'peaton_mochila', 'carrito_comida', 'kiosco']
+    barrio: ['casa_amarilla', 'casa_roja', 'casa_violeta', 'casa_amarilla2', 'casa_tejas', 'casa_tejas'],
+    centro: ['edif_gris', 'edif_azul', 'edif_ladrillo', 'edif_solar', 'edif_rosa', 'edif_celeste', 'edif_ladrillo2', 'edif_terraza', 'tienda'],
+    comercial: ['shopping', 'helipuerto', 'galpon', 'edif_jardin', 'tienda', 'edif_celeste'],
+    plaza: ['fuente', 'arbol_vereda', 'arbol_vereda', 'arbol_vereda', 'arbol_vereda']
 };
+// VEREDA: lo que aparece sobre la vereda en cada zona, y en qué posición (x, desde el borde de la pantalla; el cordón está en x = 32)
+const ACERA = {
+    barrio: ['peaton', 'peaton_mochila', 'pareja', 'paseaperro', 'arbol_chico', 'arbol_chico', 'maceta', 'banco', 'cesto', 'farol'],
+    centro: ['peaton', 'peaton_mochila', 'pareja', 'farol', 'farol', 'hidrante', 'cesto_gris', 'cabina', 'parada', 'contenedor'],
+    comercial: ['carrito_comida', 'kiosco', 'parada', 'cartel', 'farol', 'pareja', 'ciclista', 'peaton', 'peaton_mochila'],
+    plaza: ['arbol_chico', 'arbol_chico', 'banco', 'banco2', 'farol', 'cabina', 'pareja', 'paseaperro', 'ciclista', 'peaton', 'peaton_mochila']
+};
+const LINEA = { peaton: 25, peaton_mochila: 25, pareja: 24, paseaperro: 24, ciclista: 25, arbol_chico: 21, maceta: 28, banco: 23, banco2: 23, cesto: 28, cesto_gris: 27, contenedor: 24, hidrante: 28,
+    cabina: 25, parada: 22, cartel: 22, carrito_comida: 24, kiosco: 22, farol: 28 };
+const BORDE_LOTE = 19;             // hasta dónde llegan los edificios (la vereda empieza en x = 19)
 
 // La vereda se dibuja UNA vez en "baldosas" (con baldosones, grietas, tapas, rejillas y manchas) y después solo se repiten al avanzar.
 const TH = 320;                      // alto de cada baldosa
@@ -8259,44 +8268,37 @@ function baldosa(lado, v) {
     const c = document.createElement('canvas'); c.width = 36; c.height = TH; const g = c.getContext('2d');
     let sd = 5000 + key * 6151; const R = () => hash(sd++);
     const px = (x, y, w, h, col) => { g.fillStyle = col; for (const dy of [-TH, 0, TH]) g.fillRect(Math.round(x), Math.round(y + dy), w, h); };
-    // césped del frente de las casas (franja angosta contra el borde de la pantalla)
-    g.fillStyle = '#4c9a4e'; g.fillRect(0, 0, 36, TH);
-    // vereda: baldosones de 12 x 16 con tonos apenas distintos (se recortan para no pisar el césped ni el cordón)
-    const GR = ['#c9c5ba', '#c2beb3', '#cdc9be', '#bdb9ae', '#c6c2b7'];
-    g.save(); g.beginPath(); g.rect(9, 0, 23, TH); g.clip();
-    const NR = TH / 16;
-    for (let j = 0; j < NR; j++) for (let i = -1; i < 3; i++) {
-        const x = 9 + i * 12 + (j % 2 ? 6 : 0);
-        g.fillStyle = GR[(R() * GR.length) | 0]; g.fillRect(x, j * 16, 12, 16);
-    }
-    // juntas oscuras + luz arriba/izquierda de cada baldosón
+    const LB = 19;      // el lote (césped / patio de los edificios) va de 0 a 19; la vereda de 19 a 32; el cordón de 32 a 36
+    // ---- LOTE: césped parejito con rayas de cortadora, matitas y florcitas
+    const gr = g.createLinearGradient(0, 0, LB, 0); gr.addColorStop(0, '#3f8f48'); gr.addColorStop(1, '#4fa352');
+    g.fillStyle = gr; g.fillRect(0, 0, LB, TH);
+    for (let j = 0; j < TH / 16; j += 2) px(0, j * 16, LB, 8, 'rgba(255,255,255,.045)');
+    for (let i = 0; i < 160; i++) px(R() * LB, R() * TH, 2, 1, R() < 0.5 ? 'rgba(20,70,30,.35)' : 'rgba(170,235,130,.30)');
+    for (let i = 0; i < 40; i++) { const x = R() * (LB - 2), y = 3 + R() * (TH - 4); px(x, y, 1, 3, '#2f7a3a'); px(x + 1, y + 1, 1, 2, '#6cc15b'); }
+    for (let i = 0; i < 7; i++) { const x = 1 + R() * (LB - 3), y = R() * TH, col = ['#ffffff', '#ffe45c', '#ff9ec7'][(R() * 3) | 0]; px(x, y, 1, 1, col); }
+    // ---- cerquita / muro bajo que separa el lote de la vereda
+    px(LB - 1, 0, 1, TH, '#6f6b62'); px(LB, 0, 1, TH, '#9d998f'); px(LB + 1, 0, 1, TH, 'rgba(0,0,0,.14)');
+    // ---- VEREDA: baldosones de 13 x 16 con tonos apenas distintos
+    const GR = ['#cbc7bc', '#c4c0b5', '#cfcbc0', '#bfbbb0', '#c8c4b9'];
+    const NR = TH / 16, X0 = LB + 2, AN = 32 - X0;
     for (let j = 0; j < NR; j++) {
-        g.fillStyle = 'rgba(70,66,58,.38)'; g.fillRect(9, j * 16, 23, 1); g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(9, j * 16 + 1, 23, 1);
-        for (let i = -1; i < 3; i++) { const x = 9 + i * 12 + (j % 2 ? 6 : 0); g.fillStyle = 'rgba(70,66,58,.34)'; g.fillRect(x, j * 16, 1, 16); g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(x + 1, j * 16, 1, 16); }
+        g.fillStyle = GR[(R() * GR.length) | 0]; g.fillRect(X0, j * 16, AN, 16);
+        g.fillStyle = 'rgba(70,66,58,.34)'; g.fillRect(X0, j * 16, AN, 1); g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(X0, j * 16 + 1, AN, 1);
+        const m = X0 + AN / 2 + (j % 2 ? 2 : -2) | 0; g.fillStyle = 'rgba(70,66,58,.28)'; g.fillRect(m, j * 16, 1, 16); g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(m + 1, j * 16, 1, 16);
     }
-    g.restore();
-    px(8, 0, 1, TH, '#a29e94');   // borde del césped
-    // motas del cemento
-    for (let i = 0; i < 150; i++) { const x = 8 + R() * 23, y = R() * TH; px(x, y, 1, 1, R() < 0.5 ? 'rgba(90,86,78,.28)' : 'rgba(255,255,255,.28)'); }
-    // manchas (aceite, humedad, chicles)
-    for (let i = 0; i < 7; i++) { const x = 9 + R() * 20, y = R() * TH, r = 2 + R() * 3; g.fillStyle = 'rgba(60,56,50,.14)'; for (const dy of [-TH, 0, TH]) { g.beginPath(); g.ellipse(x, y + dy, r, r * 0.7, R() * 3, 0, 7); g.fill(); } }
-    for (let i = 0; i < 5; i++) px(9 + R() * 21, R() * TH, 2, 1, 'rgba(255,170,190,.7)');
-    // grietas
-    for (let i = 0; i < 6; i++) { let x = 10 + R() * 18, y = R() * TH; const n = 4 + ((R() * 6) | 0); for (let k = 0; k < n; k++) { px(x, y, 1, 1, 'rgba(50,46,40,.55)'); x += R() < 0.5 ? 1 : 0; y += 1; if (R() < 0.3) x += R() < 0.5 ? -1 : 1; } }
-    // tapas de alcantarilla y rejillas
-    for (let i = 0; i < 3; i++) {
-        const y = 30 + R() * (TH - 60), x = 14 + R() * 6;
-        g.fillStyle = '#6a6862'; g.beginPath(); g.arc(x + 4, y, 5, 0, 7); g.fill(); g.fillStyle = '#827f78'; g.beginPath(); g.arc(x + 4, y, 4, 0, 7); g.fill();
-        g.strokeStyle = 'rgba(40,38,34,.6)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 8, y); g.moveTo(x + 4, y - 4); g.lineTo(x + 4, y + 4); g.stroke();
+    for (let i = 0; i < 90; i++) px(X0 + R() * AN, R() * TH, 1, 1, R() < 0.5 ? 'rgba(90,86,78,.28)' : 'rgba(255,255,255,.28)');
+    for (let i = 0; i < 5; i++) { const x = X0 + 1 + R() * (AN - 4), y = R() * TH, r = 2 + R() * 2.5; g.fillStyle = 'rgba(60,56,50,.14)'; for (const dy of [-TH, 0, TH]) { g.beginPath(); g.ellipse(x, y + dy, r, r * 0.7, R() * 3, 0, 7); g.fill(); } }
+    for (let i = 0; i < 4; i++) px(X0 + R() * AN, R() * TH, 2, 1, 'rgba(255,170,190,.7)');
+    for (let i = 0; i < 4; i++) { let x = X0 + 1 + R() * (AN - 3), y = R() * TH; const n = 4 + ((R() * 5) | 0); for (let k = 0; k < n; k++) { px(x, y, 1, 1, 'rgba(50,46,40,.55)'); y += 1; if (R() < 0.35) x += R() < 0.5 ? -1 : 1; } }
+    for (let i = 0; i < 2; i++) {
+        const y = 30 + R() * (TH - 60), x = X0 + 6;
+        g.fillStyle = '#6a6862'; g.beginPath(); g.arc(x, y, 4.5, 0, 7); g.fill(); g.fillStyle = '#827f78'; g.beginPath(); g.arc(x, y, 3.5, 0, 7); g.fill();
+        g.strokeStyle = 'rgba(40,38,34,.6)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x - 3, y); g.lineTo(x + 3, y); g.moveTo(x, y - 3); g.lineTo(x, y + 3); g.stroke();
     }
-    for (let i = 0; i < 3; i++) { const y = R() * TH; px(29, y, 3, 6, '#6f6d67'); for (let k = 0; k < 3; k++) px(29, y + 1 + k * 2, 3, 1, '#3d3b37'); }     // rejillas de desagüe contra el cordón
-    // césped: matitas y florcitas
-    for (let i = 0; i < 70; i++) { const x = R() * 7, y = R() * TH; px(x, y, 1, 2, R() < 0.5 ? '#2f7a3a' : '#7ccb6a'); }
-    for (let i = 0; i < 6; i++) { const x = 1 + R() * 5, y = R() * TH; px(x, y, 1, 1, ['#fff', '#ffe45c', '#ff9ec7'][(R() * 3) | 0]); }
-    // cordón (el borde alto contra la ruta) y cuneta
-    px(31, 0, 1, TH, 'rgba(0,0,0,.18)');
+    // ---- cordón y cuneta contra la ruta
+    px(30, 0, 2, TH, 'rgba(0,0,0,.14)');
     px(32, 0, 3, TH, '#908c83'); px(32, 0, 1, TH, '#b5b1a7'); px(34, 0, 1, TH, '#6d6a62'); px(35, 0, 1, TH, '#4a4843');
-    for (let i = 0; i < 6; i++) { const y = R() * TH; px(32, y, 3, 1, 'rgba(255,255,255,.18)'); }
+    for (let i = 0; i < 3; i++) { const y = R() * TH; px(31, y, 3, 6, '#6f6d67'); for (let k = 0; k < 3; k++) px(31, y + 1 + k * 2, 3, 1, '#3d3b37'); }     // rejillas de desagüe
     return (BALDOSAS[key] = c);
 }
 function sueloCiudad(g, y0, y1, rY, tm, lado, H) {
@@ -8307,16 +8309,44 @@ function sueloCiudad(g, y0, y1, rY, tm, lado, H) {
     // sombras largas de los edificios sobre la vereda (suaves, se mueven con la ruta)
     for (let k = Math.floor((rY - y1) / 150) - 1; k <= Math.floor((rY - y0) / 150) + 1; k++) {
         const yy = rY - k * 150 - H(k * 5 + lado) * 90;
-        g.fillStyle = 'rgba(30,34,50,.07)'; g.fillRect(8, yy, 23, 30 + H(k * 7 + lado) * 40);
+        g.fillStyle = 'rgba(30,34,50,.07)'; g.fillRect(21, yy, 11, 30 + H(k * 7 + lado) * 40);
     }
 }
 
 REG.crear({
     e: 'ciudad', carpeta: 'Escenarios/', prefijo: 'ciudad_', salt: 15000,
     escala: ESCALA_OBJETOS, escalaAltos: ESCALA_OBJETOS, densidad: DENSIDAD, movimiento: MOVIMIENTO,
-    tipos: TIPOS, variantes: VARIANTES, suelo: sueloCiudad, orden: ORDEN, baseColor: 'rgba(120,118,108,.35)',
+    tipos: TIPOS, variantes: VARIANTES, suelo: sueloCiudad, orden: ORDEN, baseColor: 'rgba(50,60,50,.22)',
     tramos: [{ m: METROS_CIUDAD, p: FRECUENCIA_CIUDAD }], clima: CLIMA_CIUDAD
 });
+
+
+// Cada lugar tiene un edificio en el lote (pegado al borde) + algo en la vereda (gente, árboles, faroles...). Lo de la vereda lo agregamos acá.
+(function () {
+    const D = REG.defs.ciudad; if (!D) return;
+    const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+    const claves = Object.keys(VARIANTES), f0 = D.objetos;
+    D.objetos = function (k, W, t, a) {
+        const out = f0(k, W, t, a);
+        out.forEach(o => {          // los edificios: borde derecho siempre sobre la línea del lote
+            const d = TIPOS[o.tipo], w = d[0] * ESCALA_OBJETOS;
+            const cx = BORDE_LOTE - w / 2 + (H(o.sem + 3) - 0.5) * 2;
+            o.cx = o.lado === 'izq' ? cx : 400 - cx;
+        });
+        const SP = 120, extra = [];
+        ['izq', 'der'].forEach((lado, li) => {
+            const base = Math.abs(a) > 1e8 ? Math.floor(k / 10) : Math.floor(a);
+            const zona = claves[Math.floor(H(base * 3 + li * 911 + 5) * claves.length)], lista = ACERA[zona];
+            const sem = k * 7 + li * 1013 + 15555;
+            if (H(sem * 3 + 1) > VEREDA) return;
+            const tipo = lista[(H(sem * 17 + 4242) * lista.length) | 0], x = LINEA[tipo]; if (x === undefined) return;
+            const principal = out.find(o => o.lado === lado), u = principal ? (principal.W - W) / SP : 0.5;
+            const v = u < 0.5 ? u + 0.4 : u - 0.4;                       // entre un edificio y el siguiente
+            extra.push({ tipo, cx: (lado === 'izq' ? x : 400 - x) + (H(sem + 3) - 0.5) * 2, W: W + SP * v, lado, sem: sem + 77 });
+        });
+        return out.concat(extra);
+    };
+})();
 
 } catch (e) { console.error('Mejoras41:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
