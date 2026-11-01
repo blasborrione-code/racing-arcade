@@ -8230,16 +8230,16 @@ const Q = { rot: 'ninguna', viento: false };
 const P = (m) => ({ rot: 'ninguna', viento: false, mov: m });
 const TIPOS = {
     // EDIFICIOS Y CASAS (van en el "lote", pegados al borde de la pantalla, detrás de la vereda)
-    casa_amarilla: [50, 'bajo', Q], casa_amarilla2: [50, 'bajo', Q], casa_roja: [48, 'bajo', Q], casa_violeta: [50, 'bajo', Q], casa_tejas: [54, 'bajo', Q],
-    edif_rosa: [52, 'bajo', Q], edif_celeste: [52, 'bajo', Q], edif_ladrillo2: [50, 'bajo', Q], edif_terraza: [50, 'bajo', Q], tienda: [50, 'bajo', Q],
-    edif_gris: [50, 'bajo', Q], edif_azul: [50, 'bajo', Q], edif_ladrillo: [52, 'bajo', Q], edif_solar: [52, 'bajo', Q], edif_jardin: [54, 'bajo', Q],
-    shopping: [60, 'bajo', Q], helipuerto: [54, 'bajo', Q], galpon: [54, 'bajo', Q],
-    arbol_vereda: [34, 'bajo', Q], fuente: [38, 'bajo', Q],
+    casa_amarilla: [62, 'bajo', Q], casa_amarilla2: [62, 'bajo', Q], casa_roja: [60, 'bajo', Q], casa_violeta: [62, 'bajo', Q], casa_tejas: [66, 'bajo', Q],
+    edif_rosa: [64, 'bajo', Q], edif_celeste: [64, 'bajo', Q], edif_ladrillo2: [62, 'bajo', Q], edif_terraza: [62, 'bajo', Q], tienda: [62, 'bajo', Q],
+    edif_gris: [62, 'bajo', Q], edif_azul: [62, 'bajo', Q], edif_ladrillo: [64, 'bajo', Q], edif_solar: [64, 'bajo', Q], edif_jardin: [66, 'bajo', Q],
+    shopping: [74, 'bajo', Q], helipuerto: [66, 'bajo', Q], galpon: [68, 'bajo', Q],
+    arbol_vereda: [36, 'bajo', Q], fuente: [42, 'bajo', Q],
     // VEREDA (mobiliario y gente)
-    arbol_chico: [24, 'bajo', Q], maceta: [13, 'bajo', Q], farol: [16, 'bajo', { rot: 'ninguna', viento: false, brillo: { color: 'rgba(255,225,140,A)', r: 1.1, tipo: 'farol', dx: 0, dy: -0.34 } }],
-    banco: [20, 'bajo', Q], banco2: [20, 'bajo', Q], cesto: [11, 'bajo', Q], cesto_gris: [13, 'bajo', Q], contenedor: [22, 'bajo', Q], hidrante: [11, 'bajo', Q],
-    cabina: [14, 'bajo', Q], parada: [22, 'bajo', Q], cartel: [24, 'bajo', Q], carrito_comida: [22, 'bajo', Q], kiosco: [24, 'bajo', Q],
-    peaton: [17, 'bajo', P('pasea')], peaton_mochila: [17, 'bajo', P('pasea')], pareja: [24, 'bajo', P('respira')], paseaperro: [26, 'bajo', P('pasea')], ciclista: [18, 'bajo', P('desliza')]
+    arbol_chico: [20, 'bajo', Q], maceta: [11, 'bajo', Q], farol: [12, 'bajo', { rot: 'ninguna', viento: false, brillo: { color: 'rgba(255,225,140,A)', r: 1.1, tipo: 'farol', dx: 0, dy: -0.34 } }],
+    banco: [18, 'bajo', Q], banco2: [18, 'bajo', Q], cesto: [9, 'bajo', Q], cesto_gris: [11, 'bajo', Q], contenedor: [20, 'bajo', Q], hidrante: [9, 'bajo', Q],
+    cabina: [11, 'bajo', Q], parada: [24, 'bajo', Q], cartel: [24, 'bajo', Q], carrito_comida: [22, 'bajo', Q], kiosco: [26, 'bajo', Q],
+    peaton: [13, 'bajo', P('pasea')], peaton_mochila: [10, 'bajo', P('pasea')], pareja: [21, 'bajo', P('respira')], paseaperro: [15, 'bajo', P('pasea')], ciclista: [9, 'bajo', P('desliza')]
 };
 // LOTE: lo que va detrás de la vereda en cada zona (se cortan por el borde de la pantalla, como en una calle real)
 const VARIANTES = {
