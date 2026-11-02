@@ -8362,11 +8362,12 @@ if (!REG || !REG.W2M) { console.error('Mejoras42: falta pegar mejoras36 (versió
 const OSCURIDAD = 0.42;            // qué tan oscuro es el túnel entre luces (0 = como de día | 0.42 = normal | 0.6 = muy oscuro)
 const DECORADO = 0.5;              // cuántas cosas hay en las paredes: matafuegos, ventiladores, carteles... (0 = paredes vacías | 1 = muy cargado)
 const CLIMA_TUNEL = 'sol';         // clima dentro del túnel ('sol' = sin lluvia ni nada) o null para que el clima siga su orden normal
-const METROS_TUNEL = [200, 250];   // cuánto dura cada túnel (mínimo, máximo)
-const FRECUENCIA_TUNEL = 50;        // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
+const METROS_TUNEL = [400, 600];   // cuánto dura cada túnel (mínimo, máximo)
+const FRECUENCIA_TUNEL = 1;        // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
 const MOVIMIENTO = 1;              // luces que parpadean (0 = todas fijas)
 
 const SP = 120;
+const FRENTE_ANCHO = 580, FRENTE_ALTO = 108;     // tamaño del frente de la entrada y la salida
 const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 
 // ---------- IMÁGENES (se achican una sola vez a su tamaño final, así se ven prolijas) ----------
@@ -8433,8 +8434,8 @@ const PESO = []; PARED.forEach((p, i) => { for (let k = 0; k < p[4]; k++) PESO.p
 
 function objetos(k, W, t, a) {
     const out = [], lim = limites(W + SP / 2), sem = k * 7 + 90210;
-    // banda de oscuridad (una cada 2 lugares) con luz en el medio
-    if (k % 2 === 0) out.push({ tipo: '_banda', cx: 0, W: W, lado: 'izq', sem, lim });
+    // oscuridad entre lámparas: un pedazo por lugar (los pedazos se pegan sin cortes)
+    out.push({ tipo: '_banda', cx: 0, W: W, lado: 'izq', sem, lim });
     // lámparas de techo: una por lado cada 2 lugares, en el medio de la banda
     if (k % 2 === 0) ['izq', 'der'].forEach((lado, li) => {
         const r = H(sem + li * 31 + 5), tp = r < 0.12 ? 'luz_apagada' : r < 0.5 ? 'luz_blanca' : 'luz_amarilla';
@@ -8448,42 +8449,49 @@ function objetos(k, W, t, a) {
     });
     // entrada y salida
     if (lim) {
-        const WA = lim.ini + 232, WB = lim.fin - 12, kE = Math.floor((lim.fin - SP / 2 - 1) / SP);
+        const WA = lim.ini + FRENTE_ALTO, WB = lim.fin - 12, kE = Math.floor((lim.fin - SP / 2 - 1) / SP);
         if (Math.floor(WA / SP) === k) out.push({ tipo: '_entrada', cx: 200, W: WA, lado: 'izq', sem, lim });
-        if (kE === k) out.push({ tipo: '_salida', cx: 200, W: WB, lado: 'izq', sem: sem + 1, lim });
-        // destello blanco de la salida (los últimos metros del túnel)
-        if (W + SP > lim.fin - 260 && W < lim.fin) out.push({ tipo: '_destello', cx: 0, W: W, lado: 'izq', sem: sem + 2, lim });
+        if (kE === k) {
+            for (let j = 1; j <= 3; j++) out.push({ tipo: '_banda', cx: 0, W: (k + j) * SP, lado: 'izq', sem: sem + 5 + j, lim });      // la luz de la salida sigue unos metros más allá
+            out.push({ tipo: '_salida', cx: 200, W: WB, lado: 'izq', sem: sem + 1, lim });
+        }
     }
     return out;
 }
 
 function banda(o, rY) {
-    // oscuridad entre lámparas; más clara en el medio (donde está la luz) y se va apagando en los extremos del túnel
-    const yb = rY - o.W, h = 2 * SP, yt = yb - h;
+    // oscuridad entre lámparas (más clara donde está cada lámpara). Se apaga cerca de la entrada y la salida, y en la salida se llena de luz blanca.
+    const yb = rY - o.W, yt = yb - SP;
     if (yt > 760 || yb < -10) return;
-    let f = 1;
-    if (o.lim) { f = Math.max(0, Math.min(1, (o.W + SP - o.lim.ini - 30) / 220)); f = Math.min(f, Math.max(0, Math.min(1, (o.lim.fin - (o.W + SP) + 40) / 200))); }
-    const e = OSCURIDAD * f, c = OSCURIDAD * 0.28 * f;
-    const g = ctx.createLinearGradient(0, yt, 0, yb);
-    for (let i = 0; i <= 8; i++) { const u = Math.abs(i / 4 - 1); g.addColorStop(i / 8, `rgba(4,6,14,${(c + (e - c) * u * u).toFixed(3)})`); }       // curva suave: sin cortes visibles entre una banda y la otra
-    ctx.fillStyle = g; ctx.fillRect(0, yt, 400, h);
+    const L = o.lim, N = 6, g = ctx.createLinearGradient(0, yt, 0, yb), g2 = L ? ctx.createLinearGradient(0, yt, 0, yb) : null;
+    let luz = false;
+    for (let i = 0; i <= N; i++) {
+        const u = i / N, Wp = o.W + SP - u * SP;             // arriba = más lejos (más W)
+        const ph = (((Wp % 240) + 240) % 240), d = Math.abs(ph - 120) / 120;
+        let f = 1, fl = 0;
+        if (L) {
+            f = Math.min(Math.max(0, Math.min(1, (Wp - L.ini - 20) / 150)), Math.max(0, Math.min(1, (L.fin - Wp) / 200)));
+            fl = Wp < L.fin - 440 ? 0 : Wp <= L.fin ? 0.5 * Math.pow((Wp - (L.fin - 440)) / 440, 2) : Math.max(0, 0.5 * (1 - (Wp - L.fin) / 240));       // la luz de afuera crece hacia la salida y se escapa un poco hacia afuera
+            if (fl > 0.001) luz = true;
+        }
+        const e = OSCURIDAD * f, c = OSCURIDAD * 0.28 * f;
+        g.addColorStop(u, `rgba(4,6,14,${(c + (e - c) * d * d).toFixed(3)})`);
+        if (g2) g2.addColorStop(u, `rgba(255,255,236,${fl.toFixed(3)})`);
+    }
+    const r0 = Math.round(yt), r1 = Math.round(yb);       // (bordes redondeados: así un pedazo no se pisa con el siguiente)
+    ctx.fillStyle = g; ctx.fillRect(0, r0, 400, r1 - r0);
+    if (luz) { ctx.fillStyle = g2; ctx.fillRect(0, r0, 400, r1 - r0); }
 }
 
 function pintar(o, rY, tm, capa) {
-    const alto = o.tipo === '_banda' || o.tipo === '_entrada' || o.tipo === '_salida' || o.tipo === '_destello' || o.luz;
+    const alto = o.tipo === '_banda' || o.tipo === '_entrada' || o.tipo === '_salida' || o.luz;
     if (capa !== (alto ? 'alto' : 'bajo')) return;
     const y = rY - o.W;
     if (o.tipo === '_banda') { banda(o, rY); return; }
-    if (o.tipo === '_destello') {
-        const d = o.lim.fin, ya = rY - d, hh = 260, g = ctx.createLinearGradient(0, ya, 0, ya + hh);        // la luz de la salida viene "de arriba"
-        g.addColorStop(0, 'rgba(255,255,245,.78)'); g.addColorStop(1, 'rgba(255,255,245,0)');
-        if (o.W + SP > d - 260 && ya + hh > -10 && ya < 760) { ctx.save(); ctx.beginPath(); ctx.rect(0, rY - o.W - SP, 400, SP); ctx.clip(); ctx.fillStyle = g; ctx.fillRect(0, ya, 400, hh); ctx.restore(); }
-        return;
-    }
     if (o.tipo === '_entrada' || o.tipo === '_salida') {
         const n = o.tipo === '_entrada' ? 'entrada' : 'salida'; if (!listo(n)) return;
-        const P = prep(n, 404); if (y > 760 || y + P.h < -10) return;
-        ctx.drawImage(P.c, -2, y - P.h * 0.0, P.w, P.h);
+        const P = prep(n, FRENTE_ANCHO), hh = FRENTE_ALTO; if (y > 760 || y + hh < -10) return;
+        ctx.drawImage(P.c, 200 - FRENTE_ANCHO / 2, y, FRENTE_ANCHO, hh);       // (se achata un poco para que se vea como un frente visto desde arriba)
         return;
     }
     if (!listo(o.tipo)) return;
