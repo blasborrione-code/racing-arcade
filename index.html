@@ -7244,6 +7244,7 @@ const REG = window.__escenarios = {
     }
 };
 const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+    REG.W2M = W2M; REG.M2W = M2W; REG.tramoEn = tramoEn;
 
 // ---------- ARMADO ALEATORIO DE LA RUTA (distinto en cada partida) ----------
 const GEN = { lista: [], fin: 0, semilla: 1, ult: -1 };
@@ -8349,6 +8350,166 @@ REG.crear({
 })();
 
 } catch (e) { console.error('Mejoras41:', e); } })();
+    // ===== MEJORAS 42 - ESCENARIOS (6): TÚNEL (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras41) =====
+// Las imágenes van en la carpeta  Escenarios/  con nombres  tunel_entrada.png, tunel_luz_amarilla.png, etc. Si falta alguna, ese objeto simplemente no aparece.
+// Necesita mejoras36 (versión nueva, con la línea "REG.W2M = ...") y funciona sin los demás escenarios.
+(function () { try {
+
+const REG = window.__escenarios;
+if (!REG || !REG.W2M) { console.error('Mejoras42: falta pegar mejoras36 (versión nueva, la que tiene la línea REG.W2M = W2M...)'); return; }
+
+// ---------- PERILLAS ----------
+const OSCURIDAD = 0.42;            // qué tan oscuro es el túnel entre luces (0 = como de día | 0.42 = normal | 0.6 = muy oscuro)
+const DECORADO = 0.5;              // cuántas cosas hay en las paredes: matafuegos, ventiladores, carteles... (0 = paredes vacías | 1 = muy cargado)
+const CLIMA_TUNEL = 'sol';         // clima dentro del túnel ('sol' = sin lluvia ni nada) o null para que el clima siga su orden normal
+const METROS_TUNEL = [400, 600];   // cuánto dura cada túnel (mínimo, máximo)
+const FRECUENCIA_TUNEL = 1;        // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
+const MOVIMIENTO = 1;              // luces que parpadean (0 = todas fijas)
+
+const SP = 120;
+const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+
+// ---------- IMÁGENES (se achican una sola vez a su tamaño final, así se ven prolijas) ----------
+const IM = {}, CA = {};
+function img(n) { if (!IM[n]) { const i = new Image(); i.src = 'Escenarios/tunel_' + n + '.png'; IM[n] = i; } return IM[n]; }
+function listo(n) { const i = img(n); return i.complete && i.naturalWidth > 0; }
+function prep(n, w) {
+    const key = n + '|' + w; if (CA[key]) return CA[key];
+    const i = img(n), tw = Math.max(1, Math.round(w * 2)), th = Math.max(1, Math.round(tw * i.naturalHeight / i.naturalWidth));
+    let src = i, cw = i.naturalWidth, ch = i.naturalHeight;
+    while (cw / 2 >= tw) { cw = Math.round(cw / 2); ch = Math.round(ch / 2); const t = document.createElement('canvas'); t.width = cw; t.height = ch; const g = t.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(src, 0, 0, cw, ch); src = t; }
+    const c = document.createElement('canvas'); c.width = tw; c.height = th; const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(src, 0, 0, tw, th);
+    return (CA[key] = { c, w, h: w * th / tw });
+}
+
+// ---------- PARED (se dibuja una sola vez en baldosas, después solo se repite) ----------
+const TH = 320, BALDOSAS = {};
+function baldosa(v) {
+    if (BALDOSAS[v]) return BALDOSAS[v];
+    const c = document.createElement('canvas'); c.width = 36; c.height = TH; const g = c.getContext('2d');
+    let sd = 777 + v * 4421; const R = () => H(sd++);
+    const px = (x, y, w, h, col) => { g.fillStyle = col; for (const dy of [-TH, 0, TH]) g.fillRect(Math.round(x), Math.round(y + dy), w, h); };
+    const gr = g.createLinearGradient(0, 0, 36, 0); gr.addColorStop(0, '#272b32'); gr.addColorStop(0.7, '#3d434c'); gr.addColorStop(1, '#4b525c');
+    g.fillStyle = gr; g.fillRect(0, 0, 36, TH);
+    // paneles de hormigón de 40 de alto, con juntas, remaches y manchas de humedad
+    for (let j = 0; j < TH / 40; j++) {
+        px(0, j * 40, 36, 1, 'rgba(0,0,0,.45)'); px(0, j * 40 + 1, 36, 1, 'rgba(255,255,255,.07)');
+        for (const x of [3, 31]) { px(x, j * 40 + 4, 2, 2, '#1d2025'); px(x, j * 40 + 4, 1, 1, '#6b7380'); px(x, j * 40 + 34, 2, 2, '#1d2025'); px(x, j * 40 + 34, 1, 1, '#6b7380'); }
+        px(12, j * 40, 1, 40, 'rgba(0,0,0,.28)'); px(13, j * 40, 1, 40, 'rgba(255,255,255,.05)');
+    }
+    for (let i = 0; i < 180; i++) px(R() * 35, R() * TH, 1, 1, R() < 0.5 ? 'rgba(0,0,0,.25)' : 'rgba(255,255,255,.07)');
+    for (let i = 0; i < 8; i++) { const x = 2 + R() * 24, y = R() * TH, h = 14 + R() * 40; const gg = g.createLinearGradient(0, y, 0, y + h); gg.addColorStop(0, 'rgba(0,0,0,.30)'); gg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gg; for (const dy of [-TH, 0, TH]) g.fillRect(x, y + dy, 2 + R() * 2, h); }
+    // tira de luces larga pegada al borde de la ruta
+    px(24, 0, 6, TH, '#15171b'); px(25, 0, 4, TH, '#2b2f36');
+    for (let j = 0; j < TH / 8; j++) px(26, j * 8 + 1, 2, 6, j % 5 === 0 ? '#c9b46a' : '#ffeaa6');
+    const gl = g.createLinearGradient(14, 0, 36, 0); gl.addColorStop(0, 'rgba(255,225,140,0)'); gl.addColorStop(0.55, 'rgba(255,225,140,.22)'); gl.addColorStop(1, 'rgba(255,225,140,0)');
+    g.fillStyle = gl; g.fillRect(14, 0, 22, TH);
+    // zócalo contra la ruta
+    px(31, 0, 5, TH, '#23262b'); px(31, 0, 1, TH, '#586070'); px(35, 0, 1, TH, '#0d0e10');
+    for (let j = 0; j < TH / 20; j++) { px(32, j * 20 + 2, 2, 8, 'rgba(255,200,0,.65)'); px(32, j * 20 + 12, 2, 8, 'rgba(20,20,20,.65)'); }     // franja amarilla y negra
+    return (BALDOSAS[v] = c);
+}
+function suelo(t, y0, y1, rY, tm) {
+    const g = ctx;
+    g.save(); g.beginPath(); g.rect(0, y0, 400, y1 - y0); g.clip();
+    [0, 1].forEach(li => {
+        g.save(); if (li) { g.translate(400, 0); g.scale(-1, 1); }
+        for (let j = Math.floor((rY - y1) / TH) - 1; j <= Math.floor((rY - y0) / TH) + 1; j++) g.drawImage(baldosa((H(j * 13 + li * 5 + 3) * 2) | 0), 0, Math.round(rY - (j + 1) * TH));
+        g.restore();
+    });
+    g.restore();
+}
+
+// ---------- DÓNDE EMPIEZA Y TERMINA CADA TÚNEL ----------
+function limites(W) {
+    const g = REG.tramoEn(REG.W2M(W)); if (!g || Math.abs(g.a) > 1e8) return null;      // (si está forzado para probar, no hay entrada ni salida)
+    return { ini: REG.M2W(g.a), fin: REG.M2W(g.b) };
+}
+
+// ---------- OBJETOS ----------
+// cosas de la pared: [imagen, ancho, x desde el borde, giro]
+const PARED = [['cartel_salida', 22, 15, 0, 1], ['ventilador', 22, 15, 0, 2], ['matafuego', 11, 19, 0, 3], ['camara', 14, 18, 0, 2], ['tuberia', 58, 7, Math.PI / 2, 3], ['cables', 11, 16, 0, 2], ['semaforo', 8, 20, 0, 1], ['reflector', 15, 18, 0, 2], ['luz_roja', 11, 18, 0, 1]];
+const PESO = []; PARED.forEach((p, i) => { for (let k = 0; k < p[4]; k++) PESO.push(i); });
+
+function objetos(k, W, t, a) {
+    const out = [], lim = limites(W + SP / 2), sem = k * 7 + 90210;
+    // banda de oscuridad (una cada 2 lugares) con luz en el medio
+    if (k % 2 === 0) out.push({ tipo: '_banda', cx: 0, W: W, lado: 'izq', sem, lim });
+    // lámparas de techo: una por lado cada 2 lugares, en el medio de la banda
+    if (k % 2 === 0) ['izq', 'der'].forEach((lado, li) => {
+        const r = H(sem + li * 31 + 5), tp = r < 0.12 ? 'luz_apagada' : r < 0.5 ? 'luz_blanca' : 'luz_amarilla';
+        out.push({ tipo: tp, cx: lado === 'izq' ? 27 : 373, W: W + SP, lado, sem: sem + li * 17, luz: true });
+    });
+    // cosas en las paredes
+    ['izq', 'der'].forEach((lado, li) => {
+        if (H(sem + li * 101 + 9) > DECORADO) return;
+        const p = PARED[PESO[(H(sem + li * 101 + 11) * PESO.length) | 0]], x = p[2] + (H(sem + li * 101 + 13) - 0.5) * 2;
+        out.push({ tipo: p[0], cx: lado === 'izq' ? x : 400 - x, W: W + 10 + H(sem + li * 101 + 15) * (SP - 20), lado, sem: sem + li * 71, ancho: p[1], giro: p[3] });
+    });
+    // entrada y salida
+    if (lim) {
+        const WA = lim.ini + 232, WB = lim.fin - 12, kE = Math.floor((lim.fin - SP / 2 - 1) / SP);
+        if (Math.floor(WA / SP) === k) out.push({ tipo: '_entrada', cx: 200, W: WA, lado: 'izq', sem, lim });
+        if (kE === k) out.push({ tipo: '_salida', cx: 200, W: WB, lado: 'izq', sem: sem + 1, lim });
+        // destello blanco de la salida (los últimos metros del túnel)
+        if (W + SP > lim.fin - 260 && W < lim.fin) out.push({ tipo: '_destello', cx: 0, W: W, lado: 'izq', sem: sem + 2, lim });
+    }
+    return out;
+}
+
+function banda(o, rY) {
+    // oscuridad entre lámparas; más clara en el medio (donde está la luz) y se va apagando en los extremos del túnel
+    const yb = rY - o.W, h = 2 * SP, yt = yb - h;
+    if (yt > 760 || yb < -10) return;
+    let f = 1;
+    if (o.lim) { f = Math.max(0, Math.min(1, (o.W + SP - o.lim.ini - 30) / 220)); f = Math.min(f, Math.max(0, Math.min(1, (o.lim.fin - (o.W + SP) + 40) / 200))); }
+    const e = OSCURIDAD * f, c = OSCURIDAD * 0.28 * f;
+    const g = ctx.createLinearGradient(0, yt, 0, yb);
+    for (let i = 0; i <= 8; i++) { const u = Math.abs(i / 4 - 1); g.addColorStop(i / 8, `rgba(4,6,14,${(c + (e - c) * u * u).toFixed(3)})`); }       // curva suave: sin cortes visibles entre una banda y la otra
+    ctx.fillStyle = g; ctx.fillRect(0, yt, 400, h);
+}
+
+function pintar(o, rY, tm, capa) {
+    const alto = o.tipo === '_banda' || o.tipo === '_entrada' || o.tipo === '_salida' || o.tipo === '_destello' || o.luz;
+    if (capa !== (alto ? 'alto' : 'bajo')) return;
+    const y = rY - o.W;
+    if (o.tipo === '_banda') { banda(o, rY); return; }
+    if (o.tipo === '_destello') {
+        const d = o.lim.fin, ya = rY - d, hh = 260, g = ctx.createLinearGradient(0, ya, 0, ya + hh);        // la luz de la salida viene "de arriba"
+        g.addColorStop(0, 'rgba(255,255,245,.78)'); g.addColorStop(1, 'rgba(255,255,245,0)');
+        if (o.W + SP > d - 260 && ya + hh > -10 && ya < 760) { ctx.save(); ctx.beginPath(); ctx.rect(0, rY - o.W - SP, 400, SP); ctx.clip(); ctx.fillStyle = g; ctx.fillRect(0, ya, 400, hh); ctx.restore(); }
+        return;
+    }
+    if (o.tipo === '_entrada' || o.tipo === '_salida') {
+        const n = o.tipo === '_entrada' ? 'entrada' : 'salida'; if (!listo(n)) return;
+        const P = prep(n, 404); if (y > 760 || y + P.h < -10) return;
+        ctx.drawImage(P.c, -2, y - P.h * 0.0, P.w, P.h);
+        return;
+    }
+    if (!listo(o.tipo)) return;
+    if (y < -60 || y > 820) return;
+    if (o.luz) {
+        const P = prep(o.tipo, 15);
+        let k = 1; if (o.tipo === 'luz_apagada') k = MOVIMIENTO ? (Math.sin(tm / 90 + o.sem) > 0.55 || Math.sin(tm / 37 + o.sem * 2) > 0.8 ? 1 : 0.12) : 0.12;
+        // resplandor sobre la ruta
+        if (k > 0.2) {
+            const gx = o.cx + (o.lado === 'izq' ? 8 : -8), col = o.tipo === 'luz_blanca' ? '235,245,255' : '255,214,120', r = 62;
+            const gr = ctx.createRadialGradient(gx, y, 0, gx, y, r); gr.addColorStop(0, `rgba(${col},${0.34 * k})`); gr.addColorStop(1, `rgba(${col},0)`);
+            ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gr; ctx.fillRect(gx - r, y - r, r * 2, r * 2); ctx.restore();
+        }
+        ctx.globalAlpha = k > 0.2 ? 1 : 0.85; ctx.drawImage(P.c, o.cx - P.w / 2, y - P.h / 2, P.w, P.h); ctx.globalAlpha = 1;
+        return;
+    }
+    const P = prep(o.tipo, o.ancho);
+    ctx.save(); ctx.translate(o.cx, y); if (o.giro) ctx.rotate(o.giro);
+    ctx.globalAlpha = 0.97; ctx.drawImage(P.c, -P.w / 2, -P.h / 2, P.w, P.h); ctx.globalAlpha = 1;
+    if (o.tipo === 'luz_roja' && MOVIMIENTO) { const q = 0.5 + 0.5 * Math.sin(tm / 260 + o.sem); ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 38); gr.addColorStop(0, `rgba(255,40,30,${0.42 * q})`); gr.addColorStop(1, 'rgba(255,40,30,0)'); ctx.fillStyle = gr; ctx.fillRect(-38, -38, 76, 76); }
+    ctx.restore();
+}
+
+REG.registrar({ e: 'tunel', tramos: [{ m: METROS_TUNEL, p: FRECUENCIA_TUNEL }], clima: CLIMA_TUNEL, objetos, pintar, suelo });
+
+} catch (e) { console.error('Mejoras42:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
