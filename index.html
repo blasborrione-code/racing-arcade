@@ -7199,12 +7199,12 @@ draw = function () {
 (function () { try {
 
 // ---------- PERILLAS ----------
-const FORZAR_ESCENARIO = 'tunel';     // PARA PROBAR: 'playa_izq', 'playa_der', 'playa_ambos' o 'ruta' y ese escenario queda fijo. Dejalo en null para el juego normal
+const FORZAR_ESCENARIO = null;     // PARA PROBAR: 'playa_izq', 'playa_der', 'playa_ambos' o 'ruta' y ese escenario queda fijo. Dejalo en null para el juego normal
 const ESCALA_OBJETOS = 1.3;        // tamaño de gente, sombrillas, toallas, tablas, objetos del mar, etc. (1 = como antes | 1.3 = 30% más grandes | 1.4 = máximo recomendado)
 const ESCALA_PALMERAS = 1.0;       // tamaño de las palmeras (1 = como antes)
 // CÓMO SE ARMA LA RUTA: arranca con un tramo de ruta normal y después se van alternando escenarios y ruta, siempre en distinto orden y con el mar en un lado, el otro o ambos.
-const RUTA_INICIAL = 1500;         // metros de ruta normal al comienzo de la partida
-const RUTA_ENTRE = [500, 900];     // metros de ruta normal entre un escenario y el siguiente (mínimo, máximo)
+const RUTA_INICIAL = 200;         // metros de ruta normal al comienzo de la partida
+const RUTA_ENTRE = [100, 150];     // metros de ruta normal entre un escenario y el siguiente (mínimo, máximo)
 // Escenarios que pueden salir: e = escenario, mar = lado del mar, m = [mínimo, máximo] de metros que dura, p = qué tan seguido sale (1 = normal)
 const ESCENARIOS = [
     { e: 'playa', mar: 'izq', m: [800, 1100], p: 1 },
@@ -8362,8 +8362,8 @@ if (!REG || !REG.W2M) { console.error('Mejoras42: falta pegar mejoras36 (versió
 const OSCURIDAD = 0.42;            // qué tan oscuro es el túnel entre luces (0 = como de día | 0.42 = normal | 0.6 = muy oscuro)
 const DECORADO = 0.5;              // cuántas cosas hay en las paredes: matafuegos, ventiladores, carteles... (0 = paredes vacías | 1 = muy cargado)
 const CLIMA_TUNEL = 'sol';         // clima dentro del túnel ('sol' = sin lluvia ni nada) o null para que el clima siga su orden normal
-const METROS_TUNEL = [400, 600];   // cuánto dura cada túnel (mínimo, máximo)
-const FRECUENCIA_TUNEL = 1;        // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
+const METROS_TUNEL = [200, 250];   // cuánto dura cada túnel (mínimo, máximo)
+const FRECUENCIA_TUNEL = 50;        // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
 const MOVIMIENTO = 1;              // luces que parpadean (0 = todas fijas)
 
 const SP = 120;
