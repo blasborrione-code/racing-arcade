@@ -8606,18 +8606,21 @@ const BORDE = { farol: 30, poste: 30, cartel: 30, farola_doble: 25 };
 const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 
 // ---------- AGUA + BORDE DEL PUENTE ----------
-let PAT = null, PATIMG = null;
-function agua(g) {
-    if (!PATIMG) { PATIMG = new Image(); PATIMG.src = 'Escenarios/puente_agua.png'; }
-    if (!PATIMG.complete || !PATIMG.naturalWidth) return null;
-    if (!PAT) PAT = g.createPattern(PATIMG, 'repeat');
-    return PAT;
+let TILE = null, TIMG = null;
+function aguaTile() {       // la textura se copia una sola vez a un canvas, y después se dibuja con posiciones enteras (rápido en el celular)
+    if (TILE) return TILE;
+    if (!TIMG) { TIMG = new Image(); TIMG.src = 'Escenarios/puente_agua.png'; }
+    if (!TIMG.complete || !TIMG.naturalWidth) return null;
+    const c = document.createElement('canvas'); c.width = 512; c.height = 512; c.getContext('2d').drawImage(TIMG, 0, 0, 512, 512);
+    return (TILE = c);
 }
+const mod = (n, m) => ((n % m) + m) % m;
 function sueloPuente(g, y0, y1, rY, tm, lado, H2) {
-    const hh = y1 - y0, pt = agua(g);
-    if (pt) {
-        pt.setTransform(new DOMMatrix().translate(lado * 170 + tm * 0.006 * (MOVIMIENTO ? 1 : 0), rY));       // el agua corre despacito
-        g.fillStyle = pt; g.fillRect(0, y0, 36, hh);
+    const hh = y1 - y0, tl = aguaTile();
+    if (tl) {
+        const ox = mod(lado * 170 + (MOVIMIENTO ? Math.floor(tm * 0.006) : 0), 512 - 36), R = Math.round(rY);
+        let y = Math.floor(y0), fin = Math.ceil(y1), s = mod(y - R, 512);
+        while (y < fin) { const ch = Math.min(fin - y, 512 - s); g.drawImage(tl, ox, s, 36, ch, 0, y, 36, ch); y += ch; s = 0; }
     } else { g.fillStyle = '#1f6aa3'; g.fillRect(0, y0, 36, hh); }
     // más profundo (más oscuro) lejos del puente
     const gr = g.createLinearGradient(0, 0, 36, 0); gr.addColorStop(0, 'rgba(0,25,70,.30)'); gr.addColorStop(0.7, 'rgba(0,25,70,.04)'); gr.addColorStop(1, 'rgba(0,20,60,.35)');
