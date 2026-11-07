@@ -8562,6 +8562,141 @@ function pintar(o, rY, tm, capa) {
 REG.registrar({ e: 'tunel', tramos: [{ m: METROS_TUNEL, p: FRECUENCIA_TUNEL }], clima: CLIMA_TUNEL, objetos, pintar, suelo });
 
 } catch (e) { console.error('Mejoras42:', e); } })();
+// ===== MEJORAS 43 - ESCENARIOS (7): PUENTE (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras42) =====
+// Las imágenes van en la carpeta  Escenarios/  con nombres  puente_agua.png, puente_pesquero.png, etc. Si falta alguna, ese objeto simplemente no aparece.
+// Necesita mejoras36 (versión con la línea "REG.W2M = ...") y mejoras38 (motor de escenarios).
+(function () { try {
+
+const REG = window.__escenarios;
+if (!REG || !REG.crear || !REG.W2M) { console.error('Mejoras43: falta pegar mejoras36 (versión nueva) y mejoras38 antes'); return; }
+
+// ---------- PERILLAS ----------
+const ESCALA_OBJETOS = 1;          // tamaño de barcos, boyas, etc. (0.8 = chico | 1 = normal | 1.3 = grande)
+const DENSIDAD = 1;                // cuántos objetos hay en el agua (0.5 = la mitad | 1.5 = más cargado)
+const MOVIMIENTO = 1;              // cuánto se mueven los barcos, boyas y gaviotas (0 = quietos)
+const CLIMA_PUENTE = 'sol';        // clima mientras dura el puente ('sol', 'viento', 'niebla', 'tormenta'... o null para que siga su orden normal)
+const METROS_PUENTE = [500, 700];  // cuánto dura cada puente (mínimo, máximo)
+const FRECUENCIA_PUENTE = 1;       // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
+const ORDEN = { paso: 1, omitir: 0.12, linea: 13 };    // paso = un barco/boya cada (paso x 120) unidades de ruta, alternando izquierda y derecha. linea = a qué distancia del borde sale
+const PORTAL = 'viga';             // entrada y salida del puente: 'viga' (viga de hormigón con pilares, como tu imagen) o 'nada'
+const VIGA_ANCHO = 392, VIGA_ALTO = 190;       // tamaño de la viga en pantalla
+
+const SP = 120;
+const Q = { rot: 'ninguna', viento: false };
+// tipo: [ancho en pantalla, capa ('bajo' | 'alto' = flotando arriba), opciones]
+const TIPOS = {
+    pesquero: [22, 'bajo', { rot: 'poca', viento: false, mov: 'desliza', sombra: false }], lancha: [12, 'bajo', { rot: 'poca', viento: false, mov: 'desliza', sombra: false }],
+    velero: [11, 'bajo', { rot: 'poca', viento: false, mov: 'desliza', sombra: false }], remolcador: [16, 'bajo', { rot: 'poca', viento: false, mov: 'desliza', sombra: false }],
+    buque: [13, 'bajo', { rot: 'ninguna', viento: false, mov: 'desliza', sombra: false }], bote: [12, 'bajo', { rot: 'poca', viento: false, mov: 'respira', sombra: false }],
+    kayak: [9, 'bajo', { rot: 'poca', viento: false, mov: 'desliza', sombra: false }], tronco: [15, 'bajo', { rot: 'libre', viento: false, mov: 'respira', sombra: false }],
+    boya_roja: [9, 'bajo', { rot: 'ninguna', viento: false, mov: 'respira', sombra: false }], boya_amarilla: [9, 'bajo', { rot: 'ninguna', viento: false, mov: 'respira', sombra: false }],
+    gaviota: [18, 'alto', { rot: 'poca', viento: false, mov: 'pasea', sombra: false }], gaviotas: [17, 'alto', { rot: 'poca', viento: false, mov: 'pasea', sombra: false }],
+    // sobre el borde del puente (los pone el código, no el sorteo)
+    farol: [7, 'bajo', Q], poste: [7, 'bajo', Q], cartel: [12, 'bajo', Q], farola_doble: [26, 'alto', Q]
+};
+// qué aparece en cada zona del agua (lo que se repite sale más seguido)
+const VARIANTES = {
+    puerto: ['buque', 'pesquero', 'remolcador', 'boya_roja', 'boya_amarilla', 'lancha', 'gaviotas'],
+    velas: ['velero', 'velero', 'lancha', 'kayak', 'boya_amarilla', 'gaviota', 'bote'],
+    rio: ['bote', 'kayak', 'tronco', 'pesquero', 'boya_roja', 'gaviotas', 'gaviota'],
+    mar: ['velero', 'buque', 'gaviota', 'gaviotas', 'boya_roja', 'lancha', 'pesquero']
+};
+const BORDE = { farol: 30, poste: 30, cartel: 30, farola_doble: 25 };
+
+const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+
+// ---------- AGUA + BORDE DEL PUENTE ----------
+let PAT = null, PATIMG = null;
+function agua(g) {
+    if (!PATIMG) { PATIMG = new Image(); PATIMG.src = 'Escenarios/puente_agua.png'; }
+    if (!PATIMG.complete || !PATIMG.naturalWidth) return null;
+    if (!PAT) PAT = g.createPattern(PATIMG, 'repeat');
+    return PAT;
+}
+function sueloPuente(g, y0, y1, rY, tm, lado, H2) {
+    const hh = y1 - y0, pt = agua(g);
+    if (pt) {
+        pt.setTransform(new DOMMatrix().translate(lado * 170 + tm * 0.006 * (MOVIMIENTO ? 1 : 0), rY));       // el agua corre despacito
+        g.fillStyle = pt; g.fillRect(0, y0, 36, hh);
+    } else { g.fillStyle = '#1f6aa3'; g.fillRect(0, y0, 36, hh); }
+    // más profundo (más oscuro) lejos del puente
+    const gr = g.createLinearGradient(0, 0, 36, 0); gr.addColorStop(0, 'rgba(0,25,70,.30)'); gr.addColorStop(0.7, 'rgba(0,25,70,.04)'); gr.addColorStop(1, 'rgba(0,20,60,.35)');
+    g.fillStyle = gr; g.fillRect(0, y0, 36, hh);
+    // brillitos que titilan
+    if (MOVIMIENTO) for (let k = Math.floor((rY - y1) / 40) - 1; k <= Math.floor((rY - y0) / 40) + 1; k++) {
+        const x = 2 + H2(k * 3 + lado * 7 + 1) * 22, y = rY - k * 40 - H2(k * 5 + lado) * 40, q = Math.sin(tm / 400 + k * 1.7);
+        if (q > 0.55) { g.fillStyle = 'rgba(255,255,255,' + (0.35 + 0.4 * (q - 0.55)) + ')'; g.fillRect(Math.round(x), Math.round(y), 2, 1); }
+    }
+    // sombra del puente sobre el agua
+    const sh = g.createLinearGradient(18, 0, 28, 0); sh.addColorStop(0, 'rgba(0,10,30,0)'); sh.addColorStop(1, 'rgba(0,10,30,.38)');
+    g.fillStyle = sh; g.fillRect(18, y0, 10, hh);
+    // borde del puente: base de hormigón, baranda metálica y postes
+    g.fillStyle = '#7d7a72'; g.fillRect(27, y0, 9, hh);
+    g.fillStyle = '#a9a69c'; g.fillRect(27, y0, 2, hh); g.fillStyle = '#58554f'; g.fillRect(34, y0, 2, hh);
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(27, y0, 1, hh);
+    for (let k = Math.floor((rY - y1) / 40) - 1; k <= Math.floor((rY - y0) / 40) + 1; k++) {
+        const y = Math.round(rY - k * 40);
+        g.fillStyle = '#5c5a54'; g.fillRect(27, y, 9, 1); g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(27, y + 1, 9, 1);       // juntas de dilatación
+    }
+    g.fillStyle = '#c9ced4'; g.fillRect(30, y0, 1, hh); g.fillStyle = '#6a7079'; g.fillRect(31, y0, 1, hh);              // baranda
+    for (let k = Math.floor((rY - y1) / 20) - 1; k <= Math.floor((rY - y0) / 20) + 1; k++) { const y = Math.round(rY - k * 20); g.fillStyle = '#3d4249'; g.fillRect(29, y, 4, 3); g.fillStyle = '#aab0b8'; g.fillRect(29, y, 4, 1); }  // postes
+}
+
+// ---------- DÓNDE EMPIEZA Y TERMINA CADA PUENTE ----------
+function limites(W) {
+    const g = REG.tramoEn(REG.W2M(W)); if (!g || Math.abs(g.a) > 1e8) return null;
+    return { ini: REG.M2W(g.a), fin: REG.M2W(g.b) };
+}
+let VIGAIMG = null;
+function viga() { if (!VIGAIMG) { VIGAIMG = new Image(); VIGAIMG.src = 'Escenarios/puente_viga.png'; } return VIGAIMG; }
+
+REG.crear({
+    e: 'puente', carpeta: 'Escenarios/', prefijo: 'puente_', salt: 16000,
+    escala: ESCALA_OBJETOS, escalaAltos: ESCALA_OBJETOS, densidad: DENSIDAD, movimiento: MOVIMIENTO,
+    tipos: TIPOS, variantes: VARIANTES, suelo: sueloPuente, orden: ORDEN, baseColor: 'rgba(0,30,70,0)',
+    tramos: [{ m: METROS_PUENTE, p: FRECUENCIA_PUENTE }], clima: CLIMA_PUENTE
+});
+
+// Faroles en el borde del puente + viga de entrada y salida (se agregan arriba de lo que arma el motor)
+(function () {
+    const D = REG.defs.puente; if (!D) return;
+    const f0 = D.objetos, p0 = D.pintar, s0 = D.sombra, claves = Object.keys(VARIANTES);
+    D.objetos = function (k, W, t, a) {
+        const out = f0(k, W, t, a), lim = limites(W + SP / 2);
+        ['izq', 'der'].forEach((lado, li) => {
+            const sem = k * 11 + li * 977 + 16100;
+            // un farol cada 2 lugares (cada tanto, una farola doble o un cartel)
+            if (k % 2 === 0) {
+                const r = H(sem + 3), tp = r < 0.18 ? 'farola_doble' : r < 0.3 ? 'cartel' : 'farol', x = BORDE[tp];
+                out.push({ tipo: tp, cx: lado === 'izq' ? x : 400 - x, W: W + SP * 0.5, lado, sem: sem + 9 });
+            }
+        });
+        if (lim && PORTAL === 'viga') {
+            const WA = lim.ini + VIGA_ALTO, WB = lim.fin - 14, kE = Math.floor((lim.fin - SP / 2 - 1) / SP);
+            if (Math.floor(WA / SP) === k) out.push({ tipo: '_viga', cx: 200, W: WA, lado: 'izq', sem: 1 });
+            if (kE === k) out.push({ tipo: '_viga', cx: 200, W: WB, lado: 'izq', sem: 2 });
+        }
+        return out;
+    };
+    D.pintar = function (o, rY, t, capa) {
+        if (o.tipo === '_viga') {
+            if (capa !== 'alto') return;
+            const im = viga(); if (!im.complete || !im.naturalWidth) return;
+            const y = rY - o.W; if (y > 760 || y + VIGA_ALTO < -10) return;
+            ctx.fillStyle = 'rgba(0,0,0,.26)'; ctx.fillRect(200 - VIGA_ANCHO / 2 + 4, y + VIGA_ALTO + 0, VIGA_ANCHO, 6);       // sombra que tira la viga sobre la ruta
+            ctx.drawImage(im, 200 - VIGA_ANCHO / 2, y, VIGA_ANCHO, VIGA_ALTO);
+            return;
+        }
+        p0(o, rY, t, capa);
+        if (o.tipo === 'cartel' && capa === 'bajo') {       // número del cartel de velocidad
+            const y = rY - o.W - 12 * 211 / 83 / 2 + 5;
+            if (y > -20 && y < 780) { ctx.save(); ctx.fillStyle = '#c0281c'; ctx.font = 'bold 6px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('80', o.cx, y); ctx.restore(); }
+        }
+    };
+    D.sombra = function (o, rY) { if (o.tipo === '_viga') return; return s0 && s0(o, rY); };
+})();
+
+} catch (e) { console.error('Mejoras43:', e); } })();
 } catch (e) { console.error("Error crítico:", e); }
 </script>
 </body>
