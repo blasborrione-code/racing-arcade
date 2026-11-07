@@ -8350,7 +8350,7 @@ REG.crear({
 })();
 
 } catch (e) { console.error('Mejoras41:', e); } })();
-    // ===== MEJORAS 42 - ESCENARIOS (6): TÚNEL (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras41) =====
+// ===== MEJORAS 42 - ESCENARIOS (6): TÚNEL (pegar justo ANTES de la línea:  } catch (e) { console.error("Error crítico:", e); }  -- debajo de mejoras41) =====
 // Las imágenes van en la carpeta  Escenarios/  con nombres  tunel_entrada.png, tunel_luz_amarilla.png, etc. Si falta alguna, ese objeto simplemente no aparece.
 // Necesita mejoras36 (versión nueva, con la línea "REG.W2M = ...") y funciona sin los demás escenarios.
 (function () { try {
@@ -8365,9 +8365,9 @@ const CLIMA_TUNEL = 'sol';         // clima dentro del túnel ('sol' = sin lluvi
 const METROS_TUNEL = [400, 600];   // cuánto dura cada túnel (mínimo, máximo)
 const FRECUENCIA_TUNEL = 1;        // qué tan seguido sale respecto de la playa (1 = igual | 2 = el doble | 0.5 = la mitad)
 const MOVIMIENTO = 1;              // luces que parpadean (0 = todas fijas)
+const PORTAL = 'imagen';           // entrada y salida: 'imagen' (el arco de hormigón de tus imágenes) o 'viga' (una viga con franja amarilla y negra, dibujada por código)
 
 const SP = 120;
-const FRENTE_ANCHO = 580, FRENTE_ALTO = 108;     // tamaño del frente de la entrada y la salida
 const H = n => { n = Math.imul(n ^ (n >>> 15), 2246822507); n = Math.imul(n ^ (n >>> 13), 3266489909); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 
 // ---------- IMÁGENES (se achican una sola vez a su tamaño final, así se ven prolijas) ----------
@@ -8449,7 +8449,7 @@ function objetos(k, W, t, a) {
     });
     // entrada y salida
     if (lim) {
-        const WA = lim.ini + FRENTE_ALTO, WB = lim.fin - 12, kE = Math.floor((lim.fin - SP / 2 - 1) / SP);
+        const IMG = PORTAL === 'imagen', WA = lim.ini + (IMG ? 232 : 60), WB = lim.fin - (IMG ? 12 : 45), kE = Math.floor((lim.fin - SP / 2 - 1) / SP);
         if (Math.floor(WA / SP) === k) out.push({ tipo: '_entrada', cx: 200, W: WA, lado: 'izq', sem, lim });
         if (kE === k) {
             for (let j = 1; j <= 3; j++) out.push({ tipo: '_banda', cx: 0, W: (k + j) * SP, lado: 'izq', sem: sem + 5 + j, lim });      // la luz de la salida sigue unos metros más allá
@@ -8483,15 +8483,59 @@ function banda(o, rY) {
     if (luz) { ctx.fillStyle = g2; ctx.fillRect(0, r0, 400, r1 - r0); }
 }
 
+// Portal de entrada / salida: una viga de hormigón que cruza la ruta (con franja amarilla y negra), apoyada en dos pilares a los costados.
+function viga(y, salida, tm) {
+    if (y < -90 || y > 850) return;
+    const top = Math.round(y - 17), H2 = 34, g = ctx;
+    const c1 = salida ? '#b9bfc6' : '#9298a1', c2 = salida ? '#8a919a' : '#6c727c', c3 = salida ? '#5d636c' : '#444952';
+    // sombra que tira la viga sobre la ruta (del lado de adentro del túnel)
+    const sh = g.createLinearGradient(0, top - 26, 0, top); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.38)');
+    if (!salida) { g.fillStyle = sh; g.fillRect(0, top - 26, 400, 26); }
+    const sh2 = g.createLinearGradient(0, top + H2, 0, top + H2 + 14); sh2.addColorStop(0, 'rgba(0,0,0,.30)'); sh2.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = sh2; g.fillRect(0, top + H2, 400, 14);
+    // pilares
+    [0, 1].forEach(li => {
+        g.save(); if (li) { g.translate(400, 0); g.scale(-1, 1); }
+        g.fillStyle = 'rgba(0,0,0,.30)'; g.fillRect(4, top + 6, 54, 62);
+        g.fillStyle = c2; g.fillRect(0, top - 4, 50, 70); g.fillStyle = c1; g.fillRect(0, top - 4, 50, 5); g.fillRect(0, top - 4, 4, 70);
+        g.fillStyle = c3; g.fillRect(44, top - 4, 6, 70); g.fillRect(0, top + 62, 50, 4);
+        g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(14, top + 4, 1, 56); g.fillRect(30, top + 4, 1, 56);
+        for (const yy of [top + 6, top + 54]) { g.fillStyle = c3; g.fillRect(8, yy, 3, 3); g.fillRect(36, yy, 3, 3); g.fillStyle = c1; g.fillRect(8, yy, 1, 1); g.fillRect(36, yy, 1, 1); }
+        g.restore();
+    });
+    // cuerpo de la viga
+    const gr = g.createLinearGradient(0, top, 0, top + H2); gr.addColorStop(0, c1); gr.addColorStop(0.18, c2); gr.addColorStop(1, c3);
+    g.fillStyle = gr; g.fillRect(0, top, 400, H2);
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(0, top, 400, 2);
+    g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(0, top + H2 - 2, 400, 2);
+    // juntas y remaches
+    for (let x = 30; x < 400; x += 56) { g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(x, top + 2, 1, H2 - 4); g.fillStyle = 'rgba(255,255,255,.10)'; g.fillRect(x + 1, top + 2, 1, H2 - 4); }
+    for (let x = 16; x < 400; x += 28) { g.fillStyle = c3; g.fillRect(x, top + 5, 2, 2); g.fillStyle = c1; g.fillRect(x, top + 5, 1, 1); }
+    // franja amarilla y negra
+    g.save(); g.beginPath(); g.rect(50, top + 16, 300, 12); g.clip();
+    g.fillStyle = '#e8c21a'; g.fillRect(50, top + 16, 300, 12); g.fillStyle = '#1b1c1f';
+    for (let x = 40; x < 360; x += 16) { g.beginPath(); g.moveTo(x, top + 28); g.lineTo(x + 8, top + 28); g.lineTo(x + 20, top + 16); g.lineTo(x + 12, top + 16); g.closePath(); g.fill(); }
+    g.restore();
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(50, top + 16, 300, 1); g.fillRect(50, top + 27, 300, 1);
+    // luces del portal: verdes para entrar / blancas en la salida (parpadean despacito)
+    const q = 0.65 + 0.35 * Math.sin(tm / 380);
+    for (const x of [70, 200, 330]) {
+        g.fillStyle = salida ? 'rgba(255,255,230,' + (0.6 + 0.4 * q) + ')' : 'rgba(80,255,120,' + (0.55 + 0.45 * q) + ')'; g.fillRect(x - 3, top + 7, 6, 4);
+        g.save(); g.globalCompositeOperation = 'lighter'; const rg = g.createRadialGradient(x, top + 9, 0, x, top + 9, 18);
+        rg.addColorStop(0, salida ? 'rgba(255,255,220,.35)' : 'rgba(60,255,110,.30)'); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(x - 18, top - 9, 36, 36); g.restore();
+    }
+}
+
 function pintar(o, rY, tm, capa) {
     const alto = o.tipo === '_banda' || o.tipo === '_entrada' || o.tipo === '_salida' || o.luz;
     if (capa !== (alto ? 'alto' : 'bajo')) return;
     const y = rY - o.W;
     if (o.tipo === '_banda') { banda(o, rY); return; }
     if (o.tipo === '_entrada' || o.tipo === '_salida') {
-        const n = o.tipo === '_entrada' ? 'entrada' : 'salida'; if (!listo(n)) return;
-        const P = prep(n, FRENTE_ANCHO), hh = FRENTE_ALTO; if (y > 760 || y + hh < -10) return;
-        ctx.drawImage(P.c, 200 - FRENTE_ANCHO / 2, y, FRENTE_ANCHO, hh);       // (se achata un poco para que se vea como un frente visto desde arriba)
+        const sal = o.tipo === '_salida';
+        if (PORTAL !== 'imagen' || !listo(sal ? 'salida' : 'entrada')) { if (PORTAL !== 'imagen') viga(y, sal, tm); return; }
+        const P = prep(sal ? 'salida' : 'entrada', 404); if (y > 760 || y + P.h < -10) return;
+        ctx.drawImage(P.c, -2, y, P.w, P.h);       // (el interior del arco es transparente a propósito: se ve la ruta por adentro)
         return;
     }
     if (!listo(o.tipo)) return;
